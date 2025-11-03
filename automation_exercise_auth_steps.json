@@ -1,0 +1,62 @@
+[
+  {
+    "step_number": 1,
+    "test_case": "Register New User",
+    "action": "navigate",
+    "description": "Navigate to home page",
+    "selector": null,
+    "value": "/",
+    "verification": "home page is loaded",
+    "wait_seconds": 2
+  },
+  {
+    "step_number": 2,
+    "test_case": "Register New User",
+    "action": "click",
+    "description": "Click Signup/Login link in navigation",
+    "selector": "a[href='/login']",
+    "value": null,
+    "verification": "login page is visible",
+    "wait_seconds": 2
+  },
+  {
+    "step_number": 2,
+    "test_case": "Register New User",
+    "action": "click",
+    "description": "Click Signup/Login link in navigation",
+    "selector": "a[href='/login']",
+    "value": null,
+    "verification": "login page is visible",
+    "wait_seconds": 2
+  },
+  {
+    "step_number": 3,
+    "test_case": "Register New User",
+    "action": "fill",
+    "description": "Enter name in signup form",
+    "selector": "input[data-qa='signup-name']",
+    "value": "TestUser859",
+    "verification": null,
+    "wait_seconds": 0.5
+  },
+  {
+    "step_number": 4,
+    "test_case": "Register New User",
+    "action": "fill",
+    "description": "Enter email in signup form",
+    "selector": "input[data-qa='signup-email']",
+    "value": "testuser_1761498725@example.com",
+    "verification": null,
+    "wait_seconds": 0.5
+  },
+  {
+    "step_number": 5,
+    "test_case": "Register New User",
+    "action": "click",
+    "description": "Click signup button to submit",
+    "selector": "button[data-qa='signup-button']",
+    "value": null,
+    "verification": "signup form submitted",
+    "wait_seconds": 2
+  }
+]

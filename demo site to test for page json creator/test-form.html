@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complex Form Test - All Features</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .form-content {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px;
+            background: white;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .tab-button:hover {
+            background: #f5f5f5;
+            color: #667eea;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+
+        .spinner.active {
+            display: block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Hidden fields */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Buttons */
+        button[type="submit"],
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 14px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        button[type="submit"]:hover,
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        button[type="submit"]:active,
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        /* Hover dropdown */
+        .hover-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .hover-trigger {
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        .hover-content {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+            min-width: 250px;
+            margin-top: 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .hover-container:hover .hover-content {
+            display: block;
+        }
+
+        /* iframe styles */
+        iframe {
+            width: 100%;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            min-height: 200px;
+        }
+
+        /* Success message */
+        .success-message {
+            background: #4caf50;
+            color: white;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+            animation: slideDown 0.3s;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Complex Form Test Suite</h1>
+            <p>Testing: iframes, Shadow DOM, Dynamic Content, Conditional Fields, Tabs, Hover, AJAX</p>
+        </div>
+
+        <div class="form-content">
+            <form id="mainForm">
+                <!-- Basic Fields -->
+                <div class="form-group">
+                    <label for="fullName">Full Name <span class="badge">Basic</span></label>
+                    <input type="text" id="fullName" name="fullName" placeholder="John Doe" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email <span class="badge">Basic</span></label>
+                    <input type="email" id="email" name="email" placeholder="john@example.com" required>
+                </div>
+
+                <!-- Conditional Field - Type Selector -->
+                <div class="form-group">
+                    <label for="applicationType">Application Type <span class="badge">Conditional Trigger</span></label>
+                    <select id="applicationType" name="applicationType" required>
+                        <option value="">-- Select Type --</option>
+                        <option value="personal">Personal</option>
+                        <option value="business">Business</option>
+                        <option value="enterprise">Enterprise</option>
+                    </select>
+                </div>
+
+                <!-- Conditional Field - Only shows for Business/Enterprise -->
+                <div class="form-group hidden" id="companyNameGroup">
+                    <label for="companyName">Company Name <span class="badge">Conditional</span></label>
+                    <input type="text" id="companyName" name="companyName" placeholder="Acme Corp">
+                </div>
+
+                <!-- Spinner (simulates AJAX loading) -->
+                <div class="spinner" id="loadingSpinner"></div>
+
+                <!-- Dynamic Field - Loaded via "AJAX" -->
+                <div id="dynamicFieldContainer"></div>
+
+                <!-- Hover Dropdown -->
+                <div class="form-group">
+                    <label>Special Options <span class="badge">Hover</span></label>
+                    <div class="hover-container">
+                        <div class="hover-trigger">Hover for special options ⬇️</div>
+                        <div class="hover-content">
+                            <div class="form-group">
+                                <label for="specialCode">Special Code</label>
+                                <input type="text" id="specialCode" name="specialCode" placeholder="CODE123">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button type="button" class="tab-button active" data-tab="details">📋 Details</button>
+                    <button type="button" class="tab-button" data-tab="address">📍 Address (iframe)</button>
+                    <button type="button" class="tab-button" data-tab="preferences">⚙️ Preferences</button>
+                </div>
+
+                <!-- Tab: Details -->
+                <div class="tab-content active" id="details-tab">
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" id="phone" name="phone" placeholder="+1 (555) 123-4567">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes">Additional Notes</label>
+                        <textarea id="notes" name="notes" placeholder="Any additional information..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Tab: Address (iframe) -->
+                <div class="tab-content" id="address-tab">
+                    <p style="margin-bottom: 15px; color: #666;">
+                        <strong>iframe Test:</strong> Address fields are in a separate iframe
+                    </p>
+                    <iframe id="addressIframe" src="address-form.html"></iframe>
+                </div>
+
+                <!-- Tab: Preferences -->
+                <div class="tab-content" id="preferences-tab">
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="newsletter" name="newsletter">
+                            Subscribe to newsletter
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="terms" name="terms" required>
+                            I agree to terms and conditions
+                        </label>
+                    </div>
+
+                    <!-- Web Component (Shadow DOM) will be inserted here -->
+                    <div id="shadowDomContainer"></div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="submitBtn">Submit Form 🚀</button>
+
+                <!-- Success Message -->
+                <div class="success-message" id="successMessage">
+                    ✅ Form submitted successfully!
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Tab functionality
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all tabs
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+                // Add active class to clicked tab
+                button.classList.add('active');
+                const tabId = button.getAttribute('data-tab') + '-tab';
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+
+        // Conditional field - Show company name for business/enterprise
+        document.getElementById('applicationType').addEventListener('change', function() {
+            const companyNameGroup = document.getElementById('companyNameGroup');
+            const spinner = document.getElementById('loadingSpinner');
+            const dynamicContainer = document.getElementById('dynamicFieldContainer');
+
+            if (this.value === 'business' || this.value === 'enterprise') {
+                companyNameGroup.classList.remove('hidden');
+
+                // Simulate AJAX loading for dynamic field
+                spinner.classList.add('active');
+                dynamicContainer.innerHTML = '';
+
+                setTimeout(() => {
+                    spinner.classList.remove('active');
+                    
+                    // Add dynamic field
+                    dynamicContainer.innerHTML = `
+                        <div class="form-group">
+                            <label for="taxId">Tax ID <span class="badge">Dynamic AJAX</span></label>
+                            <input type="text" id="taxId" name="taxId" placeholder="XX-XXXXXXX">
+                        </div>
+                    `;
+                }, 2000); // 2 second delay to simulate network
+            } else {
+                companyNameGroup.classList.add('hidden');
+                dynamicContainer.innerHTML = '';
+            }
+        });
+
+        // Create Web Component with Shadow DOM
+        class RatingWidget extends HTMLElement {
+            constructor() {
+                super();
+                
+                // Attach shadow DOM
+                const shadow = this.attachShadow({ mode: 'open' });
+                
+                // Create content
+                shadow.innerHTML = `
+                    <style>
+                        .rating-container {
+                            padding: 20px;
+                            background: #f9f9f9;
+                            border-radius: 8px;
+                            margin-top: 15px;
+                        }
+                        
+                        .rating-label {
+                            display: block;
+                            font-weight: 600;
+                            margin-bottom: 10px;
+                            color: #333;
+                        }
+                        
+                        .stars {
+                            display: flex;
+                            gap: 5px;
+                        }
+                        
+                        .star {
+                            font-size: 30px;
+                            cursor: pointer;
+                            color: #ddd;
+                            transition: color 0.2s;
+                        }
+                        
+                        .star:hover,
+                        .star.active {
+                            color: #ffc107;
+                        }
+                        
+                        .rating-input {
+                            margin-top: 10px;
+                            width: 100%;
+                            padding: 10px;
+                            border: 2px solid #e0e0e0;
+                            border-radius: 6px;
+                        }
+                    </style>
+                    
+                    <div class="rating-container">
+                        <label class="rating-label">
+                            Rate Our Service ⭐ <span style="background: #764ba2; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px;">Shadow DOM</span>
+                        </label>
+                        <div class="stars">
+                            <span class="star" data-rating="1">★</span>
+                            <span class="star" data-rating="2">★</span>
+                            <span class="star" data-rating="3">★</span>
+                            <span class="star" data-rating="4">★</span>
+                            <span class="star" data-rating="5">★</span>
+                        </div>
+                        <input type="text" class="rating-input" id="ratingComment" name="ratingComment" placeholder="Optional: Tell us why...">
+                    </div>
+                `;
+                
+                // Add interactivity
+                const stars = shadow.querySelectorAll('.star');
+                stars.forEach(star => {
+                    star.addEventListener('click', () => {
+                        const rating = star.getAttribute('data-rating');
+                        stars.forEach(s => {
+                            s.classList.remove('active');
+                            if (s.getAttribute('data-rating') <= rating) {
+                                s.classList.add('active');
+                            }
+                        });
+                    });
+                });
+            }
+        }
+
+        // Register the custom element
+        customElements.define('rating-widget', RatingWidget);
+
+        // Add the web component to the page
+        window.addEventListener('DOMContentLoaded', () => {
+            const shadowContainer = document.getElementById('shadowDomContainer');
+            const ratingWidget = document.createElement('rating-widget');
+            shadowContainer.appendChild(ratingWidget);
+        });
+
+        // Form submission
+        document.getElementById('mainForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const successMessage = document.getElementById('successMessage');
+            successMessage.classList.add('show');
+            
+            setTimeout(() => {
+                successMessage.classList.remove('show');
+            }, 3000);
+            
+            console.log('Form submitted!');
+        });
+    </script>
+</body>
+</html>

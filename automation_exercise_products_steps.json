@@ -1,0 +1,52 @@
+[
+  {
+    "step_number": 1,
+    "test_case": "View All Products and Product Details",
+    "action": "navigate",
+    "description": "Navigate to home page",
+    "selector": null,
+    "value": "/",
+    "verification": "home page is visible",
+    "wait_seconds": 2
+  },
+  {
+    "step_number": 1,
+    "test_case": "View All Products and Product Details",
+    "action": "verify",
+    "description": "Verify home page is visible",
+    "selector": "#slider",
+    "value": null,
+    "verification": "home page slider section is visible",
+    "wait_seconds": 1
+  },
+  {
+    "step_number": 2,
+    "test_case": "View All Products and Product Details",
+    "action": "click",
+    "description": "Click on Products link in header",
+    "selector": "a[href='/products']",
+    "value": null,
+    "verification": "products page is loaded",
+    "wait_seconds": 2
+  },
+  {
+    "step_number": 3,
+    "test_case": "View All Products and Product Details",
+    "action": "verify",
+    "description": "Verify products page is visible with title",
+    "selector": "h2.title.text-center",
+    "value": null,
+    "verification": "products page title is visible",
+    "wait_seconds": 1
+  },
+  {
+    "step_number": 4,
+    "test_case": "View All Products and Product Details",
+    "action": "verify",
+    "description": "Verify product cards are visible",
+    "selector": ".product-image-wrapper",
+    "value": null,
+    "verification": "product list is displayed",
+    "wait_seconds": 1
+  }
+]

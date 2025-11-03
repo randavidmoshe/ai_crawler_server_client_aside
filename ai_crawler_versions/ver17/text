@@ -1,0 +1,2 @@
+checks if the form page fields are in same frame or more general frame like the save (or other similiar) button
+The Add before going to global locator - we add to the xpath also the text (this was missing)

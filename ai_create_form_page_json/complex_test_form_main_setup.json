@@ -1,0 +1,835 @@
+{
+    "gui_pre_create_actions": [],
+    "css_values": [
+        {
+            "name": "save_button_css",
+            "value": ""
+        },
+        {
+            "name": "edit_button_css",
+            "value": ""
+        },
+        {
+            "name": "x_cancel_button_css",
+            "value": ""
+        },
+        {
+            "name": "approve_cancel_button_css",
+            "value": ""
+        },
+        {
+            "name": "save_message_css",
+            "value": ""
+        },
+        {
+            "name": "tab_css",
+            "value": ""
+        }
+    ],
+    "gui_post_update_actions": [],
+    "gui_post_create_actions": [],
+    "gui_pre_update_actions": [],
+    "gui_pre_verification_actions": [],
+    "system_values": [
+        {
+            "_comment": "the main tab(form page) of the entity where the main info is filled in is called 'main'",
+            "name": "main_component_tab",
+            "value": "main"
+        },
+        {
+            "_comment": "the folder name under which screenshot bugs for this entity are placed",
+            "name": "folder_name_for_bugs_screenshots",
+            "value": "complex_test_form"
+        },
+        {
+            "name": "is_sub_project",
+            "value": false
+        },
+        {
+            "name": "tab_name",
+            "value": "main"
+        }
+    ],
+    "gui_fields": [
+        {
+            "name": "fullName",
+            "iframe_context": null,
+            "create_action": {
+                "create_type": "enter_text",
+                "action_description": "enter full name",
+                "update_css": "input[id='fullName']",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "50"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "50"
+            },
+            "verification": {
+                "verification_css": "input[id='fullName']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "enter_text",
+                "action_description": "enter full name",
+                "update_css": "input[id='fullName']",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "email",
+            "iframe_context": null,
+            "create_action": {
+                "create_type": "enter_text",
+                "action_description": "enter email address",
+                "update_css": "input[id='email']",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_email"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_email"
+            },
+            "verification": {
+                "verification_css": "input[id='email']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "enter_text",
+                "action_description": "enter email address",
+                "update_css": "input[id='email']",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "applicationType",
+            "iframe_context": null,
+            "create_action": {
+                "create_type": "select_dropdown",
+                "action_description": "select application type",
+                "update_css": "select[id='applicationType']",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_dropdown_value"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_dropdown_value"
+            },
+            "verification": {
+                "verification_css": "select[id='applicationType']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "select_dropdown",
+                "action_description": "select application type",
+                "update_css": "select[id='applicationType']",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "companyName",
+            "iframe_context": null,
+            "create_action": {
+                "create_type": "enter_text",
+                "action_description": "enter company name",
+                "update_css": "input[id='companyName']",
+                "non_editable_condition": {
+                    "operator": "or",
+                    "applicationType": [
+                        "personal"
+                    ]
+                },
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "50"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "50"
+            },
+            "verification": {
+                "verification_css": "input[id='companyName']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "enter_text",
+                "action_description": "enter company name",
+                "update_css": "input[id='companyName']",
+                "non_editable_condition": {
+                    "operator": "or",
+                    "applicationType": [
+                        "personal"
+                    ]
+                },
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "taxId",
+            "iframe_context": null,
+            "create_action": {
+                "create_type": "enter_text",
+                "action_description": "enter tax ID",
+                "update_css": "input[id='taxId']",
+                "non_editable_condition": {
+                    "operator": "or",
+                    "applicationType": [
+                        "personal"
+                    ]
+                },
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "20"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "20"
+            },
+            "verification": {
+                "verification_css": "input[id='taxId']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "enter_text",
+                "action_description": "enter tax ID",
+                "update_css": "input[id='taxId']",
+                "non_editable_condition": {
+                    "operator": "or",
+                    "applicationType": [
+                        "personal"
+                    ]
+                },
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "hover_special_options",
+            "iframe_context": null,
+            "create_action": {
+                "create_type": "hover",
+                "action_description": "hover over special options trigger",
+                "update_css": ".hover-trigger",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {},
+            "verification_fields_assignment": {},
+            "verification": {
+                "verification_css": ".hover-content",
+                "verification_type": "element_visible"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "hover",
+                "action_description": "hover over special options trigger",
+                "update_css": ".hover-trigger",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "specialCode",
+            "iframe_context": null,
+            "create_action": {
+                "create_type": "enter_text",
+                "action_description": "enter special code",
+                "update_css": "input[id='specialCode']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "20"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "20"
+            },
+            "verification": {
+                "verification_css": "input[id='specialCode']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "enter_text",
+                "action_description": "enter special code",
+                "update_css": "input[id='specialCode']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "phone",
+            "iframe_context": null,
+            "create_action": {
+                "create_type": "enter_text",
+                "action_description": "enter phone number",
+                "update_css": "input[id='phone']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "20"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "20"
+            },
+            "verification": {
+                "verification_css": "input[id='phone']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "enter_text",
+                "action_description": "enter phone number",
+                "update_css": "input[id='phone']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "notes",
+            "iframe_context": null,
+            "create_action": {
+                "create_type": "enter_text",
+                "action_description": "enter additional notes",
+                "update_css": "textarea[id='notes']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "200"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "200"
+            },
+            "verification": {
+                "verification_css": "textarea[id='notes']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "enter_text",
+                "action_description": "enter additional notes",
+                "update_css": "textarea[id='notes']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "click_address_tab",
+            "iframe_context": null,
+            "create_action": {
+                "create_type": "click_button",
+                "action_description": "click address tab",
+                "update_css": "button[data-tab='address']",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "1"
+            },
+            "update_fields_assignment": {},
+            "verification_fields_assignment": {},
+            "verification": {
+                "verification_css": "#address-tab",
+                "verification_type": "element_visible"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "click_button",
+                "action_description": "click address tab",
+                "update_css": "button[data-tab='address']",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "1"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "street",
+            "iframe_context": "addressIframe",
+            "create_action": {
+                "create_type": "enter_text",
+                "action_description": "enter street address",
+                "update_css": "input[id='street']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "1"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "50"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "50"
+            },
+            "verification": {
+                "verification_css": "input[id='street']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "enter_text",
+                "action_description": "enter street address",
+                "update_css": "input[id='street']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "1"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "city",
+            "iframe_context": "addressIframe",
+            "create_action": {
+                "create_type": "enter_text",
+                "action_description": "enter city",
+                "update_css": "input[id='city']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "30"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "30"
+            },
+            "verification": {
+                "verification_css": "input[id='city']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "enter_text",
+                "action_description": "enter city",
+                "update_css": "input[id='city']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "state",
+            "iframe_context": "addressIframe",
+            "create_action": {
+                "create_type": "select_dropdown",
+                "action_description": "select state",
+                "update_css": "select[id='state']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_dropdown_value"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_dropdown_value"
+            },
+            "verification": {
+                "verification_css": "select[id='state']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "select_dropdown",
+                "action_description": "select state",
+                "update_css": "select[id='state']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "zipCode",
+            "iframe_context": "addressIframe",
+            "create_action": {
+                "create_type": "enter_text",
+                "action_description": "enter ZIP code",
+                "update_css": "input[id='zipCode']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "10"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "10"
+            },
+            "verification": {
+                "verification_css": "input[id='zipCode']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "enter_text",
+                "action_description": "enter ZIP code",
+                "update_css": "input[id='zipCode']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "emergencyName",
+            "iframe_context": "contactIframe",
+            "create_action": {
+                "create_type": "enter_text",
+                "action_description": "enter emergency contact name",
+                "update_css": "input[id='emergencyName']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "1"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "50"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "50"
+            },
+            "verification": {
+                "verification_css": "input[id='emergencyName']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "enter_text",
+                "action_description": "enter emergency contact name",
+                "update_css": "input[id='emergencyName']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "1"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "emergencyPhone",
+            "iframe_context": "contactIframe",
+            "create_action": {
+                "create_type": "enter_text",
+                "action_description": "enter emergency contact phone",
+                "update_css": "input[id='emergencyPhone']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "20"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "20"
+            },
+            "verification": {
+                "verification_css": "input[id='emergencyPhone']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "enter_text",
+                "action_description": "enter emergency contact phone",
+                "update_css": "input[id='emergencyPhone']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "emergencyEmail",
+            "iframe_context": "contactIframe",
+            "create_action": {
+                "create_type": "enter_text",
+                "action_description": "enter emergency contact email",
+                "update_css": "input[id='emergencyEmail']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_email"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_email"
+            },
+            "verification": {
+                "verification_css": "input[id='emergencyEmail']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "enter_text",
+                "action_description": "enter emergency contact email",
+                "update_css": "input[id='emergencyEmail']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "click_preferences_tab",
+            "iframe_context": null,
+            "create_action": {
+                "create_type": "click_button",
+                "action_description": "click preferences tab",
+                "update_css": "button[data-tab='preferences']",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "2"
+            },
+            "update_fields_assignment": {},
+            "verification_fields_assignment": {},
+            "verification": {
+                "verification_css": "#preferences-tab",
+                "verification_type": "element_visible"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "click_button",
+                "action_description": "click preferences tab",
+                "update_css": "button[data-tab='preferences']",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "2"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "newsletter",
+            "iframe_context": null,
+            "create_action": {
+                "create_type": "click_checkbox",
+                "action_description": "subscribe to newsletter",
+                "update_css": "input[id='newsletter']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {
+                "type": "assign_value",
+                "value": true
+            },
+            "verification_fields_assignment": {
+                "type": "assign_value",
+                "value": true
+            },
+            "verification": {
+                "verification_css": "input[id='newsletter']",
+                "verification_type": "element_checked"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "click_checkbox",
+                "action_description": "subscribe to newsletter",
+                "update_css": "input[id='newsletter']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "terms",
+            "iframe_context": null,
+            "create_action": {
+                "create_type": "click_checkbox",
+                "action_description": "agree to terms and conditions",
+                "update_css": "input[id='terms']",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "update_fields_assignment": {
+                "type": "assign_value",
+                "value": true
+            },
+            "verification_fields_assignment": {
+                "type": "assign_value",
+                "value": true
+            },
+            "verification": {
+                "verification_css": "input[id='terms']",
+                "verification_type": "element_checked"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "click_checkbox",
+                "action_description": "agree to terms and conditions",
+                "update_css": "input[id='terms']",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "ratingComment",
+            "iframe_context": null,
+            "create_action": {
+                "create_type": "enter_text",
+                "action_description": "enter rating comment in shadow DOM",
+                "update_css": "input[id='ratingComment']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "1"
+            },
+            "update_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "100"
+            },
+            "verification_fields_assignment": {
+                "type": "assign_random_text",
+                "size": "100"
+            },
+            "verification": {
+                "verification_css": "input[id='ratingComment']",
+                "verification_type": "element_value"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "enter_text",
+                "action_description": "enter rating comment in shadow DOM",
+                "update_css": "input[id='ratingComment']",
+                "non_editable_condition": {},
+                "update_mandatory": false,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "1"
+            },
+            "api_name": ""
+        },
+        {
+            "name": "submitBtn",
+            "iframe_context": null,
+            "create_action": {
+                "create_type": "click_button",
+                "action_description": "submit form",
+                "update_css": "button[id='submitBtn']",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "2"
+            },
+            "update_fields_assignment": {},
+            "verification_fields_assignment": {},
+            "verification": {
+                "verification_css": "#successMessage",
+                "verification_type": "element_visible"
+            },
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "create_type": "click_button",
+                "action_description": "submit form",
+                "update_css": "button[id='submitBtn']",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "2"
+            },
+            "api_name": ""
+        }
+    ]
+}

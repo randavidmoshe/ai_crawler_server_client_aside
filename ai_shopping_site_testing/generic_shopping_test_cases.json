@@ -1,0 +1,376 @@
+[
+  {
+    "id": 1,
+    "name": "Register New User",
+    "category": "auth",
+    "skip": false,
+    "steps": [
+      "Navigate to home page",
+      "Go to signup/register page",
+      "Fill all required signup form fields with valid data",
+      "Submit registration form",
+      "Verify account created successfully"
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Login User with Correct Credentials",
+    "category": "auth",
+    "depends_on": [1],
+    "skip": false,
+    "steps": [
+      "Navigate to home page",
+      "Go to login page",
+      "Enter registered user email and password",
+      "Submit login form",
+      "Verify login successful"
+    ]
+  },
+  {
+    "id": 3,
+    "name": "Login User with Incorrect Credentials",
+    "category": "auth",
+    "skip": false,
+    "steps": [
+      "Navigate to home page",
+      "Go to login page",
+      "Enter incorrect email or password",
+      "Submit login form",
+      "Verify error message displayed"
+    ]
+  },
+  {
+    "id": 4,
+    "name": "Logout User",
+    "category": "auth",
+    "depends_on": [1],
+    "skip": false,
+    "steps": [
+      "Navigate to home page",
+      "Login as registered user",
+      "Click logout button",
+      "Verify logout successful"
+    ]
+  },
+  {
+    "id": 5,
+    "name": "Register User with Existing Email",
+    "category": "auth",
+    "depends_on": [1],
+    "skip": false,
+    "steps": [
+      "Navigate to home page",
+      "Go to signup page",
+      "Enter email that already exists",
+      "Submit signup form",
+      "Verify error message about existing email"
+    ]
+  },
+  {
+    "id": 6,
+    "name": "Submit Contact Us Form",
+    "category": "engagement",
+    "skip": false,
+    "steps": [
+      "Navigate to home page",
+      "Go to contact us page",
+      "Fill all required contact form fields",
+      "Submit contact form",
+      "Verify submission successful"
+    ]
+  },
+  {
+    "id": 7,
+    "name": "Verify Test Cases Page",
+    "category": "navigation",
+    "skip": false,
+    "steps": [
+      "Navigate to home page",
+      "Go to test cases page",
+      "Verify test cases page loaded successfully"
+    ]
+  },
+  {
+    "id": 8,
+    "name": "View All Products and Product Details",
+    "category": "products",
+    "steps": [
+      "Navigate to home page",
+      "Go to products page",
+      "Verify products list is visible",
+      "Click on any product",
+      "Verify product detail page loaded with all information"
+    ]
+  },
+  {
+    "id": 9,
+    "name": "Search Product",
+    "category": "products",
+    "steps": [
+      "Navigate to home page",
+      "Go to products page",
+      "Enter product name in search box",
+      "Submit search",
+      "Verify searched products are displayed"
+    ]
+  },
+  {
+    "id": 10,
+    "name": "Subscribe to Newsletter on Home Page",
+    "category": "engagement",
+    "steps": [
+      "Navigate to home page",
+      "Scroll to footer",
+      "Enter email in newsletter subscription field",
+      "Submit subscription",
+      "Verify success message displayed"
+    ]
+  },
+  {
+    "id": 11,
+    "name": "Subscribe to Newsletter on Cart Page",
+    "category": "engagement",
+    "steps": [
+      "Navigate to home page",
+      "Go to cart page",
+      "Scroll to footer",
+      "Enter email in newsletter subscription field",
+      "Submit subscription",
+      "Verify success message displayed"
+    ]
+  },
+  {
+    "id": 12,
+    "name": "Add Products to Cart",
+    "category": "cart",
+    "steps": [
+      "Navigate to home page",
+      "Go to products page",
+      "Add first product to cart",
+      "Continue shopping",
+      "Add second product to cart",
+      "Go to cart page",
+      "Verify both products are in cart with correct details"
+    ]
+  },
+  {
+    "id": 13,
+    "name": "Verify Product Quantity in Cart",
+    "category": "cart",
+    "steps": [
+      "Navigate to home page",
+      "View any product details",
+      "Increase quantity to specific number",
+      "Add to cart",
+      "Go to cart page",
+      "Verify product displays correct quantity in cart"
+    ]
+  },
+  {
+    "id": 14,
+    "name": "Place Order - Register During Checkout",
+    "category": "checkout",
+    "steps": [
+      "Navigate to home page",
+      "Add products to cart",
+      "Go to cart page",
+      "Proceed to checkout",
+      "Register new account during checkout",
+      "Fill all delivery and payment details",
+      "Place order",
+      "Verify order placed successfully"
+    ]
+  },
+  {
+    "id": 15,
+    "name": "Place Order - Register Before Checkout",
+    "category": "checkout",
+    "steps": [
+      "Navigate to home page",
+      "Register new user account",
+      "Add products to cart",
+      "Go to cart page",
+      "Proceed to checkout",
+      "Fill delivery and payment details",
+      "Place order",
+      "Verify order placed successfully"
+    ]
+  },
+  {
+    "id": 16,
+    "name": "Place Order - Login Before Checkout",
+    "category": "checkout",
+    "depends_on": [1],
+    "steps": [
+      "Navigate to home page",
+      "Login with registered user",
+      "Add products to cart",
+      "Go to cart page",
+      "Proceed to checkout",
+      "Fill delivery and payment details",
+      "Place order",
+      "Verify order placed successfully"
+    ]
+  },
+  {
+    "id": 17,
+    "name": "Remove Product from Cart",
+    "category": "cart",
+    "steps": [
+      "Navigate to home page",
+      "Add products to cart",
+      "Go to cart page",
+      "Verify cart page is displayed",
+      "Remove a product from cart",
+      "Verify product is removed from cart"
+    ]
+  },
+  {
+    "id": 18,
+    "name": "View Products by Category",
+    "category": "products",
+    "steps": [
+      "Navigate to home page",
+      "Verify categories are visible in sidebar",
+      "Click on any category",
+      "Verify category page is displayed",
+      "Click on any subcategory",
+      "Verify products in subcategory are displayed"
+    ]
+  },
+  {
+    "id": 19,
+    "name": "View and Add Products by Brand",
+    "category": "products",
+    "steps": [
+      "Navigate to home page",
+      "Go to products page",
+      "Verify brands are visible in sidebar",
+      "Click on any brand",
+      "Verify brand products page is displayed",
+      "Click on another brand",
+      "Verify that brand's products are displayed"
+    ]
+  },
+  {
+    "id": 20,
+    "name": "Search Products and Verify Cart After Login",
+    "category": "cart",
+    "depends_on": [1],
+    "steps": [
+      "Navigate to home page",
+      "Go to products page",
+      "Search for products",
+      "Verify searched products are displayed",
+      "Add searched products to cart",
+      "Go to cart and verify products",
+      "Login with registered user",
+      "Go to cart page again",
+      "Verify products still in cart after login"
+    ]
+  },
+  {
+    "id": 21,
+    "name": "Add Review on Product",
+    "category": "products",
+    "steps": [
+      "Navigate to home page",
+      "Go to products page",
+      "View any product details",
+      "Verify review section is visible",
+      "Fill review form with name, email, and review text",
+      "Submit review",
+      "Verify success message displayed"
+    ]
+  },
+  {
+    "id": 22,
+    "name": "Add to Cart from Recommended Items",
+    "category": "cart",
+    "steps": [
+      "Navigate to home page",
+      "Scroll to bottom of page",
+      "Verify recommended items section is visible",
+      "Add any recommended item to cart",
+      "Go to cart page",
+      "Verify product is displayed in cart"
+    ]
+  },
+  {
+    "id": 23,
+    "name": "Verify Address Details in Checkout",
+    "category": "checkout",
+    "steps": [
+      "Navigate to home page",
+      "Register new user with address details",
+      "Add products to cart",
+      "Go to cart page",
+      "Proceed to checkout",
+      "Verify delivery address matches registration address",
+      "Verify billing address matches registration address"
+    ]
+  },
+  {
+    "id": 24,
+    "name": "Download Invoice After Purchase",
+    "category": "checkout",
+    "steps": [
+      "Navigate to home page",
+      "Add products to cart",
+      "Go to cart page",
+      "Proceed to checkout",
+      "Register or login",
+      "Fill checkout details and place order",
+      "Verify order placed successfully",
+      "Download invoice",
+      "Verify invoice downloaded successfully"
+    ]
+  },
+  {
+    "id": 25,
+    "name": "Verify Scroll Up with Arrow Button",
+    "category": "navigation",
+    "steps": [
+      "Navigate to home page",
+      "Scroll down to footer",
+      "Verify scroll up arrow button is visible",
+      "Click scroll up arrow button",
+      "Verify page scrolled to top"
+    ]
+  },
+  {
+    "id": 26,
+    "name": "Verify Scroll Up without Arrow Button",
+    "category": "navigation",
+    "steps": [
+      "Navigate to home page",
+      "Scroll down to footer",
+      "Verify subscription section is visible",
+      "Scroll up to top of page",
+      "Verify page scrolled to top successfully"
+    ]
+  },
+  {
+    "id": 27,
+    "name": "View Cart Brand Products",
+    "category": "products",
+    "steps": [
+      "Navigate to home page",
+      "Go to products page",
+      "Verify brands are visible",
+      "Click on any brand name",
+      "Verify brand page is displayed with products",
+      "Verify brand URL is correct"
+    ]
+  },
+  {
+  "id": 100,
+  "name": "Exploratory Testing - Discover New Test Scenarios",
+  "category": "exploration",
+  "steps": [
+    "Analyze current page and identify untested features",
+    "Discover test scenarios for interactive elements not yet tested",
+    "Test discovered features automatically"
+  ]
+}
+]
