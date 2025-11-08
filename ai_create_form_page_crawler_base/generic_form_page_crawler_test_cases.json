@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "name": "Complete Form Following Random Path",
+    "category": "form_completion",
+    "skip": false,
+    "steps": [
+      "Find and click the entry button (Add, Create, New, or similar) to open the form",
+      "Fill all visible fields with appropriate test data",
+      "At each junction (dropdown, radio button, checkbox) make a random selection",
+      "Fill any new fields that appear after the selection",
+      "Continue filling all visible fields in order",
+      "If there is a Next button, click it and repeat the process for the next section",
+      "Continue through all form sections following random choices at junctions",
+      "When reaching the final section, fill all remaining fields",
+      "Click the Save or Submit button",
+      "Verify form submission was successful"
+    ]
+  }
+]

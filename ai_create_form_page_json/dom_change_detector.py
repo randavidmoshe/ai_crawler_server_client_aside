@@ -208,6 +208,12 @@ class DOMChangeDetector:
             if options:
                 xpath = f"//select[@id='{select_id}']" if match.group(1) else f"//select[@name='{select_id}']"
                 
+                # FILTER: Skip dropdowns with "other" option (these are data fields, not conditional triggers)
+                has_other = any(opt.lower() == 'other' for opt in options)
+                if has_other:
+                    print(f"  ⏭️ Skipping dropdown '{select_id}' (has 'other' option - data field, not conditional trigger)")
+                    continue
+                
                 # FILTER: Only explore dropdowns with ≤ 4 options
                 # Dropdowns with many options are data fields (countries, states, years)
                 # Dropdowns with few options are conditional triggers (type, category)

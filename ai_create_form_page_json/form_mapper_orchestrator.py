@@ -11,6 +11,9 @@ from enum import Enum
 import sys
 import os
 
+# Add Selenium imports
+from selenium.webdriver.common.by import By
+
 # Add current directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -68,6 +71,11 @@ class MappingState:
     visibility_map: List[Dict] = field(default_factory=list)
     last_accessible_fields: List[str] = field(default_factory=list)  # From AI's analysis
     last_executed_path: Optional[Any] = None  # Last exploration path that was executed
+    
+    # NEW: Multi-page navigation
+    current_page_complete: bool = False  # AI indicates current page is fully mapped
+    pending_navigation_button: Optional[Dict] = None  # Navigation button to click
+    current_page_number: int = 1  # Track which page we're on
     
     # Deprecated (kept for compatibility)
     current_exploration_depth: int = 0
@@ -223,13 +231,12 @@ class FormMapperOrchestrator:
             # DEBUG: Determine current state description
             if self.state.iteration_count == 1:
                 current_state_desc = "BASE STATE (initial page load, no selections)"
+            elif self.state.last_executed_path:
+                # Use the CURRENT executed path (just executed in previous iteration)
+                last_step = self.state.last_executed_path.steps[-1]
+                current_state_desc = f"AFTER ACTION: {last_step.get('element_id')} = {last_step.get('value')}"
             else:
-                # Get the last action from visibility_map if available
-                if self.state.visibility_map:
-                    last_action = self.state.visibility_map[-1]['action']
-                    current_state_desc = f"AFTER ACTION: {last_action['element']} = {last_action['value']}"
-                else:
-                    current_state_desc = "UNKNOWN STATE"
+                current_state_desc = "BASE STATE"
             
             print(f"\n  {'='*70}")
             print(f"  🎯 CURRENT STATE: {current_state_desc}")
@@ -279,58 +286,94 @@ class FormMapperOrchestrator:
                 })
                 print(f"  📊 Tracked {len(self.state.last_accessible_fields)} accessible fields for current state: {action_info['element']}={action_info['value']}")
             
-            # PHASE 6: Check if mapping is complete
-            if ai_response.get('mapping_complete', False):
-                # AI thinks it's done, but check if exploration is complete
-                print(f"  🐛 DEBUG: AI says mapping_complete=True")
-                print(f"  🐛 DEBUG: exploration_planner.is_complete() = {self.state.exploration_planner.is_complete()}")
-                print(f"  🐛 DEBUG: Queue length = {len(self.state.exploration_planner.exploration_queue)}")
-                print(f"  🐛 DEBUG: Queue contents = {[path.to_signature()[:100] for path in self.state.exploration_planner.exploration_queue][:3]}")
-                
-                if self.state.exploration_planner.is_complete():
-                    self.state.is_complete = True
-                    print("✓ AI indicates mapping complete AND all paths explored")
-                else:
-                    print(f"  ⚠ AI wants to finish but {len(self.state.exploration_planner.exploration_queue)} paths remain")
-                    print("  → Continuing exploration...")
+            # PHASE 6: Detect navigation and submit buttons from gui_fields
+            navigation_button = None
+            submit_button = None
             
-            # PHASE 7: Execute next exploration from planner (orchestrator decides)
+            for field in ai_response.get('gui_fields', []):
+                if field.get('button_type') == 'navigation':
+                    navigation_button = field
+                    print(f"  🔘 Detected navigation button: {field['name']}")
+                elif field.get('button_type') == 'final_submit':
+                    submit_button = field
+                    print(f"  🎯 Detected final submit button: {field['name']}")
+            
+            # PHASE 7: Orchestrator decides next action (IGNORE AI's complete signals)
             print(f"  🐛 DEBUG: Before Phase 7 - is_complete = {self.state.is_complete}")
+            print(f"  🐛 DEBUG: Queue has {len(self.state.exploration_planner.exploration_queue)} paths")
+            print(f"  🐛 DEBUG: Navigation button: {navigation_button['name'] if navigation_button else None}")
+            print(f"  🐛 DEBUG: Submit button: {submit_button['name'] if submit_button else None}")
             
             if not self.state.is_complete:
-                print(f"  🐛 DEBUG: Attempting to get next exploration path...")
-                next_path = self.state.exploration_planner.get_next_exploration()
-                print(f"  🐛 DEBUG: next_path = {next_path is not None}")
+                # DECISION TREE:
+                # 1. If exploration queue has paths → Explore next path
+                # 2. Else if Next button exists → Click Next, continue to next page
+                # 3. Else if Submit button exists → Done (Submit is last field)
+                # 4. Else → Done (nothing left to do)
                 
-                if next_path:
-                    print(f"  🐛 DEBUG: Got path with {len(next_path.steps)} steps")
+                if not self.state.exploration_planner.is_complete():
+                    # PRIORITY 1: Explore remaining conditional paths
+                    print(f"  🔍 Exploration queue not empty, continuing exploration...")
+                    next_path = self.state.exploration_planner.get_next_exploration()
                     
-                    # Show what we're about to click/select
-                    if next_path.steps:
-                        last_step = next_path.steps[-1]
-                        action_desc = f"{last_step.get('action')} on {last_step.get('element_id')} = {last_step.get('value')}"
-                        print(f"  🎯 THIS ITERATION WILL: {action_desc}")
+                    if next_path:
+                        print(f"  🐛 DEBUG: Got path with {len(next_path.steps)} steps")
+                        
+                        # Show what we're about to click/select
+                        if next_path.steps:
+                            last_step = next_path.steps[-1]
+                            action_desc = f"{last_step.get('action')} on {last_step.get('element_id')} = {last_step.get('value')}"
+                            print(f"  🎯 THIS ITERATION WILL: {action_desc}")
+                        
+                        print(f"  🔍 Orchestrator: Exploring path (depth {next_path.depth})...")
+                        success = self._execute_exploration_path(next_path)
+                        
+                        # Store the executed path for visibility tracking
+                        self.state.last_executed_path = next_path
+                        
+                        if not success:
+                            print(f"  ✗ Exploration failed, continuing anyway")
+                        
+                        # CRITICAL: Extract DOM AFTER exploration for next iteration's comparison
+                        self.state.previous_dom = self._extract_dom()
+                    else:
+                        print(f"  ⚠ Queue has paths but get_next_exploration returned None")
+                        self.state.is_complete = True
+                
+                elif navigation_button:
+                    # PRIORITY 2: All paths explored on current page, click Next button
+                    print(f"  ✅ All exploration paths completed on current page")
+                    print(f"  🔘 Clicking navigation button: {navigation_button['name']}")
                     
-                    print(f"  🔍 Orchestrator: Exploring path (depth {next_path.depth})...")
-                    success = self._execute_exploration_path(next_path)
+                    # Click the navigation button
+                    success = self._execute_navigation_button(navigation_button)
                     
-                    # Store the executed path for visibility tracking
-                    self.state.last_executed_path = next_path
-                    
-                    if not success:
-                        print(f"  ✗ Exploration failed, continuing anyway")
-                    
-                    # CRITICAL: Extract DOM AFTER exploration for next iteration's comparison
-                    self.state.previous_dom = self._extract_dom()
-                else:
-                    # No more paths to explore
-                    print(f"  🐛 DEBUG: No next_path returned!")
-                    print(f"  🐛 DEBUG: Queue empty? {len(self.state.exploration_planner.exploration_queue) == 0}")
-                    print(f"  🐛 DEBUG: Setting is_complete = True")
-                    print("  ✓ All exploration paths completed")
+                    if success:
+                        # Reset for next page
+                        self.state.current_page_number += 1
+                        print(f"  ✅ Navigated to page {self.state.current_page_number}")
+                        print(f"  → Continuing mapping on page {self.state.current_page_number}...")
+                        
+                        # DON'T extract DOM here - let next iteration do it after stabilization
+                        self.state.previous_dom = None
+                        self.state.last_executed_path = None  # Reset path for new page
+                    else:
+                        print(f"  ✗ Navigation button click failed")
+                        self.state.is_complete = True
+                
+                elif submit_button:
+                    # PRIORITY 3: Found submit button and no more exploration
+                    print(f"  ✅ All exploration completed")
+                    print(f"  🎯 Submit button found: {submit_button['name']}")
+                    print(f"  ✓ Mapping complete!")
                     self.state.is_complete = True
-                    # Store final DOM state
-                    self.state.previous_dom = current_dom
+                
+                else:
+                    # PRIORITY 4: No paths, no buttons - we're done
+                    print(f"  ✅ All exploration completed")
+                    print(f"  ✓ No navigation or submit buttons found")
+                    print(f"  ✓ Mapping complete!")
+                    self.state.is_complete = True
             else:
                 print(f"  🐛 DEBUG: is_complete=True, skipping exploration")
                 # No exploration happened, store current DOM
@@ -414,6 +457,58 @@ class FormMapperOrchestrator:
             return []
         
         return list(set(field_ids))  # Remove duplicates
+    
+    def _execute_navigation_button(self, button_field: Dict) -> bool:
+        """
+        Execute a navigation button click (Next/Continue)
+        
+        Args:
+            button_field: The button field dictionary from gui_fields
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            print(f"  🔘 Executing navigation button: {button_field['name']}")
+            
+            # Get the locator from button's steps
+            steps = button_field.get('create_action', {}).get('steps', [])
+            if not steps:
+                print(f"  ✗ No steps found in navigation button")
+                return False
+            
+            # Execute each step (usually just one click)
+            for step in steps:
+                action = step.get('action')
+                locator = step.get('locator')
+                
+                if action == 'click':
+                    # Try CSS selector first
+                    try:
+                        element = self.driver.find_element(By.CSS_SELECTOR, locator)
+                        element.click()
+                        print(f"  ✓ Clicked navigation button")
+                        
+                        # Wait for page to stabilize
+                        time.sleep(2)
+                        return True
+                    except:
+                        # Try XPath
+                        try:
+                            element = self.driver.find_element(By.XPATH, locator)
+                            element.click()
+                            print(f"  ✓ Clicked navigation button")
+                            time.sleep(2)
+                            return True
+                        except Exception as e:
+                            print(f"  ✗ Failed to click navigation button: {e}")
+                            return False
+            
+            return False
+            
+        except Exception as e:
+            print(f"  ✗ Error executing navigation button: {e}")
+            return False
     
     def _prepare_ai_context(self, current_dom: str) -> Dict:
         """
@@ -544,6 +639,10 @@ class FormMapperOrchestrator:
         if 'gui_fields' in ai_response:
             self.state.current_json['gui_fields'] = ai_response['gui_fields']
             print(f"  📝 AI mapped {len(ai_response['gui_fields'])} fields")
+        
+        
+        # NOTE: We no longer use AI's current_page_complete or mapping_complete signals
+        # Orchestrator decides completion based on exploration queue and button types
         
         # Handle iframe exploration requests (still AI-driven, this is discovery not exploration)
         if 'iframes_to_explore' in ai_response and ai_response['iframes_to_explore']:
@@ -868,6 +967,11 @@ class FormMapperOrchestrator:
         print("\n🔧 Building non_editable_condition from visibility data...")
         self._build_conditions_from_visibility_map()
         
+        # NEW: Reorder gui_fields to ensure proper button placement
+        print("\n🔧 Reordering fields for multi-page navigation...")
+        gui_fields = self.state.current_json.get('gui_fields', [])
+        reordered_fields = self._reorder_fields_for_multipage(gui_fields)
+        
         final_json = {
             "gui_pre_create_actions": [],
             "css_values": self._generate_css_values(),
@@ -876,7 +980,7 @@ class FormMapperOrchestrator:
             "gui_pre_update_actions": [],
             "gui_pre_verification_actions": [],
             "system_values": self._generate_system_values(),
-            "gui_fields": self.state.current_json.get('gui_fields', [])
+            "gui_fields": reordered_fields
         }
         
         # Save to file
@@ -887,6 +991,40 @@ class FormMapperOrchestrator:
         print(f"\n✓ Saved complete mapping to: {output_file}")
         
         return final_json
+    
+    def _reorder_fields_for_multipage(self, gui_fields: List[Dict]) -> List[Dict]:
+        """
+        Reorder gui_fields to ensure proper button placement:
+        - Regular fields first
+        - Navigation buttons (next/continue) in order
+        - Final submit button last
+        
+        Args:
+            gui_fields: Original field list
+            
+        Returns:
+            Reordered field list
+        """
+        regular_fields = []
+        navigation_buttons = []
+        submit_buttons = []
+        
+        for field in gui_fields:
+            button_type = field.get('button_type')
+            
+            if button_type == 'navigation':
+                navigation_buttons.append(field)
+            elif button_type == 'final_submit':
+                submit_buttons.append(field)
+            else:
+                regular_fields.append(field)
+        
+        # Combine: regular → navigation → submit
+        reordered = regular_fields + navigation_buttons + submit_buttons
+        
+        print(f"  ✓ Reordered {len(regular_fields)} regular fields, {len(navigation_buttons)} navigation buttons, {len(submit_buttons)} submit buttons")
+        
+        return reordered
     
     def _build_conditions_from_visibility_map(self):
         """

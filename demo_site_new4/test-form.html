@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complex Form Test - Enhanced</title>
+    
+    <!-- External JavaScript for Terms Checkbox -->
+    <script src="terms-handler.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: visible;
+            position: relative;
+        }
+
+        .container-inner {
+            overflow: hidden;
+            border-radius: 12px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .back-btn {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        /* Main Tabs (Part 1 / Part 2) */
+        .main-tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 3px solid #e0e0e0;
+        }
+
+        .main-tab-button {
+            flex: 1;
+            padding: 20px;
+            background: white;
+            border: none;
+            border-bottom: 4px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .main-tab-button:hover {
+            background: #f8f8f8;
+        }
+
+        .main-tab-button.active {
+            border-bottom-color: #667eea;
+            background: white;
+            color: #667eea;
+        }
+
+        .main-tab-content {
+            display: none;
+        }
+
+        .main-tab-content.active {
+            display: block;
+        }
+
+        .form-content {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        input[type="date"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* Sub-tabs (Details, Address, Preferences) */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px;
+            background: white;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .tab-button:hover {
+            background: #f8f8f8;
+        }
+
+        .tab-button.active {
+            border-bottom-color: #667eea;
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Conditional fields */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Checkboxes */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            font-weight: normal;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(23, 162, 184, 0.4);
+        }
+
+        /* Success Message */
+        .success-message {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(40, 167, 69, 0.4);
+            font-size: 16px;
+            font-weight: 600;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            animation: slideInRight 0.5s ease-out;
+            max-width: 400px;
+        }
+
+        .success-message.fade-out {
+            animation: slideOutRight 0.5s ease-out forwards;
+        }
+
+        .success-message .icon {
+            font-size: 24px;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Modal Container */
+        .modal-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: zoomIn 0.3s ease-out;
+        }
+
+        @keyframes zoomIn {
+            from {
+                transform: scale(0.7);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.3s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .modal-footer {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-radius: 0 0 15px 15px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background: #5a6268;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        /* Enterprise Type Box */
+        .enterprise-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            margin-bottom: 15px;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            animation: slideDown 0.3s ease-out;
+            display: none;
+        }
+
+        .enterprise-box.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Income Calculation Section */
+        .income-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #e9ecef;
+        }
+
+        .income-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .income-result {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 18px;
+            text-align: center;
+            margin-top: 15px;
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        .income-result .label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .income-result .value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        /* Hover Menu */
+        .hover-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .hover-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            padding: 10px;
+            min-width: 200px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+
+        .hover-container:hover .hover-menu {
+            display: block;
+        }
+
+        .hover-menu label {
+            font-weight: normal;
+            margin-bottom: 5px;
+        }
+
+        /* AJAX Loading Spinner */
+        .ajax-loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* iframe Container */
+        .iframe-container {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px dashed #667eea;
+        }
+
+        .iframe-container h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        iframe {
+            width: 100%;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            min-height: 300px;
+            background: white;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            background: #667eea;
+            color: white;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Success Message Container -->
+        <div id="successMessage" class="success-message"></div>
+        
+        <div class="container-inner">
+        <div class="header">
+            <button class="back-btn" onclick="goHome()">← Back</button>
+            <h1>🎯 Complex Form Test</h1>
+            <p>Testing ALL form features: tabs, iframes, dynamic content, shadow DOM, and more!</p>
+        </div>
+
+        <!-- Main Tabs: Part 1 and Part 2 (Part 2 tab hidden - only accessible via Next button) -->
+        <div class="main-tabs">
+            <button class="main-tab-button active" onclick="showMainTab('part1')">
+                📝 Part 1 - Basic Info
+            </button>
+        </div>
+
+        <!-- Part 1 Content -->
+        <div id="part1" class="main-tab-content active">
+            <div class="form-content">
+                <form id="mainForm">
+                    <!-- Sub-tabs -->
+                    <div class="tabs">
+                        <button type="button" class="tab-button active" onclick="showTab('details')">
+                            👤 Details
+                        </button>
+                        <button type="button" class="tab-button" onclick="showTab('address')">
+                            🏠 Address
+                        </button>
+                        <button type="button" class="tab-button" onclick="showTab('preferences')">
+                            ⚙️ Preferences
+                        </button>
+                    </div>
+
+                    <!-- Details Tab -->
+                    <div id="details-tab" class="tab-content active">
+                        <div class="form-group">
+                            <label for="fullName">Full Name *</label>
+                            <input type="text" id="fullName" name="fullName" required placeholder="John Doe">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email">Email Address *</label>
+                            <input type="email" id="email" name="email" required placeholder="john@example.com">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="phone">Phone Number *</label>
+                            <input type="tel" id="phone" name="phone" required placeholder="+1 (555) 123-4567">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="birthdate">Date of Birth *</label>
+                            <input type="date" id="birthdate" name="birthdate" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="applicationType">Application Type *</label>
+                            <select id="applicationType" name="applicationType" required>
+                                <option value="">-- Select Type --</option>
+                                <option value="personal">Personal</option>
+                                <option value="business">Business</option>
+                                <option value="enterprise">Enterprise</option>
+                            </select>
+                        </div>
+
+                        <!-- Application Type Display Box -->
+                        <div id="applicationTypeBox" class="enterprise-box">
+                            <span id="applicationTypeDisplay"></span>
+                        </div>
+
+                        <!-- Conditional Fields -->
+                        <div id="companyNameGroup" class="form-group hidden">
+                            <label for="companyName">Company Name * <span class="badge">Conditional</span></label>
+                            <input type="text" id="companyName" name="companyName" placeholder="Acme Corporation">
+                        </div>
+
+                        <!-- AJAX Loading Spinner -->
+                        <div id="ajaxLoadingContainer" class="form-group hidden">
+                            <div class="ajax-loading">
+                                <div class="spinner"></div>
+                                <p>⏳ Loading additional fields...</p>
+                            </div>
+                        </div>
+
+                        <!-- AJAX Loaded Field -->
+                        <div id="taxIdGroup" class="form-group hidden">
+                            <label for="taxId">Tax ID * <span class="badge">Dynamic (AJAX)</span></label>
+                            <input type="text" id="taxId" name="taxId" placeholder="XX-XXXXXXX">
+                        </div>
+
+                        <!-- Enterprise-only fields -->
+                        <div id="managerPhoneGroup" class="form-group hidden">
+                            <label for="managerPhone">Manager Phone * <span class="badge">Enterprise Only</span></label>
+                            <input type="tel" id="managerPhone" name="managerPhone" placeholder="+1 (555) 999-8888">
+                        </div>
+
+                        <div id="managerNotesGroup" class="form-group hidden">
+                            <label for="managerNotes">Manager Notes * <span class="badge">Enterprise Only</span></label>
+                            <textarea id="managerNotes" name="managerNotes" placeholder="Special requirements..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="comments">Additional Comments *</label>
+                            <textarea id="comments" name="comments" required placeholder="Enter any additional information..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Address Tab (with iframe!) -->
+                    <div id="address-tab" class="tab-content">
+                        <h3 style="color: #667eea; margin-bottom: 20px;">🏠 Address Information (All fields required)</h3>
+                        
+                        <!-- iframe with nested forms -->
+                        <div class="iframe-container">
+                            <h3>📦 Embedded Address Form (iframe Level 1)</h3>
+                            <iframe id="addressIframe" src="address-form.html"></iframe>
+                        </div>
+                    </div>
+
+                    <!-- Preferences Tab -->
+                    <div id="preferences-tab" class="tab-content">
+                        <h3 style="color: #667eea; margin-bottom: 20px;">⚙️ Preferences & Settings</h3>
+                        
+                        <!-- Hover Menu -->
+                        <div class="form-group">
+                            <label>Special Options (Hover to reveal) * <span class="badge">Hover Menu</span></label>
+                            <div class="hover-container">
+                                <button type="button" class="btn btn-secondary">🔽 Hover Here</button>
+                                <div class="hover-menu">
+                                    <div class="form-group" style="margin-bottom: 10px;">
+                                        <label for="specialOption1">Option A *</label>
+                                        <input type="text" id="specialOption1" name="specialOption1" required placeholder="Value A">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label for="specialOption2">Option B *</label>
+                                        <input type="text" id="specialOption2" name="specialOption2" required placeholder="Value B">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Shadow DOM Component -->
+                        <div class="form-group">
+                            <label>Rating (Shadow DOM Component) * <span class="badge">Shadow DOM</span></label>
+                            <rating-widget></rating-widget>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ratingComment">Rating Comment * <span class="badge">Shadow DOM Context</span></label>
+                            <textarea id="ratingComment" name="ratingComment" required placeholder="Why did you give this rating?"></textarea>
+                        </div>
+
+                        <!-- Newsletter Checkbox (Internal JS) -->
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="newsletter" name="newsletter" required>
+                                <label for="newsletter">Subscribe to newsletter * <span class="badge">Internal JS</span></label>
+                            </div>
+                        </div>
+
+                        <!-- Terms Checkbox (External JS) -->
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="terms" name="terms" required>
+                                <label for="terms">I agree to the terms and conditions * <span class="badge">External JS</span></label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Next Button -->
+                    <div class="button-group">
+                        <button type="button" class="btn btn-primary" onclick="validateAndGoToPartTwo()">
+                            Next: Part 2 →
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Part 2 Content -->
+        <div id="part2" class="main-tab-content">
+            <div class="form-content">
+                <h2 style="margin-bottom: 20px; color: #667eea;">📋 Part 2 - Additional Information</h2>
+                
+                <form id="part2Form">
+                    <div class="form-group">
+                        <label for="field1">Additional Field 1 *</label>
+                        <input type="text" id="field1" name="field1" required placeholder="Enter value 1">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="field2">Additional Field 2 *</label>
+                        <input type="text" id="field2" name="field2" required placeholder="Enter value 2">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="field3">Additional Field 3 *</label>
+                        <input type="text" id="field3" name="field3" required placeholder="Enter value 3">
+                    </div>
+
+                    <!-- Job Description Button -->
+                    <div class="form-group">
+                        <button type="button" class="btn btn-info" onclick="openJobModal()">
+                            💼 Job Description
+                        </button>
+                    </div>
+
+                    <!-- Income Calculation Section -->
+                    <div class="income-section">
+                        <h3>💰 Income Calculation</h3>
+                        
+                        <div class="form-group">
+                            <label for="incomeBruto">Income Bruto (Gross) *</label>
+                            <input type="number" id="incomeBruto" name="incomeBruto" required 
+                                   placeholder="Enter gross income" step="0.01" min="0" 
+                                   oninput="calculateIncomeNeto()">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="taxPercentage">Tax Percentage (%) *</label>
+                            <input type="number" id="taxPercentage" name="taxPercentage" required 
+                                   placeholder="Enter tax percentage" step="0.01" min="0" max="100" 
+                                   oninput="calculateIncomeNeto()">
+                        </div>
+
+                        <div class="income-result" id="incomeNetoDisplay">
+                            <div class="label">Income Neto (Net)</div>
+                            <div class="value" id="incomeNetoValue">$0.00</div>
+                        </div>
+                    </div>
+
+                    <!-- Save Button -->
+                    <div class="button-group">
+                        <button type="button" class="btn btn-secondary" onclick="goBackToPart1()">
+                            ← Back to Part 1
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="saveForm()">
+                            💾 Save Form
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        </div><!-- Close container-inner -->
+    </div><!-- Close container -->
+
+    <!-- Job Description Modal -->
+    <div id="jobModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>💼 Job Description</h2>
+                <button class="modal-close" onclick="closeJobModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="jobTitle">Job Title *</label>
+                    <input type="text" id="jobTitle" placeholder="e.g., Senior Software Engineer">
+                </div>
+                <div class="form-group">
+                    <label for="jobDescription">Job Description *</label>
+                    <textarea id="jobDescription" rows="6" placeholder="Enter detailed job description..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cancel" onclick="closeJobModal()">Cancel</button>
+                <button class="btn btn-success" onclick="saveJobDescription()">✓ Accept</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // ========================================
+        // INCOME CALCULATION FUNCTION
+        // ========================================
+        function calculateIncomeNeto() {
+            const bruto = parseFloat(document.getElementById('incomeBruto').value) || 0;
+            const taxPercentage = parseFloat(document.getElementById('taxPercentage').value) || 0;
+            
+            // Calculate net income
+            const taxAmount = (bruto * taxPercentage) / 100;
+            const neto = bruto - taxAmount;
+            
+            // Update display
+            const netoDisplay = document.getElementById('incomeNetoValue');
+            netoDisplay.textContent = `$${neto.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+            
+            // Store calculated value
+            document.getElementById('incomeNetoDisplay').setAttribute('data-value', neto.toFixed(2));
+        }
+
+        // ========================================
+        // SUCCESS MESSAGE FUNCTION
+        // ========================================
+        function showSuccessMessage(message) {
+            // Create success message element
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.innerHTML = `
+                <span class="icon">✓</span>
+                <span>${message}</span>
+            `;
+            
+            // Add to body
+            document.body.appendChild(successDiv);
+            
+            // Auto-dismiss after 3 seconds
+            setTimeout(() => {
+                successDiv.classList.add('fade-out');
+                setTimeout(() => {
+                    successDiv.remove();
+                }, 500); // Wait for fade-out animation
+            }, 3000);
+        }
+
+        // ========================================
+        // JOB DESCRIPTION MODAL FUNCTIONS
+        // ========================================
+        let jobDescriptionData = {
+            jobTitle: '',
+            jobDescription: ''
+        };
+
+        function openJobModal() {
+            const modal = document.getElementById('jobModal');
+            modal.classList.add('active');
+            
+            // Load existing data if available
+            document.getElementById('jobTitle').value = jobDescriptionData.jobTitle || '';
+            document.getElementById('jobDescription').value = jobDescriptionData.jobDescription || '';
+            
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeJobModal() {
+            const modal = document.getElementById('jobModal');
+            modal.classList.remove('active');
+            
+            // Restore body scroll
+            document.body.style.overflow = 'auto';
+        }
+
+        function saveJobDescription() {
+            const jobTitle = document.getElementById('jobTitle').value.trim();
+            const jobDescription = document.getElementById('jobDescription').value.trim();
+            
+            if (!jobTitle || !jobDescription) {
+                alert('⚠️ Please fill in both Job Title and Job Description');
+                return;
+            }
+            
+            // Save to temporary storage
+            jobDescriptionData = {
+                jobTitle: jobTitle,
+                jobDescription: jobDescription
+            };
+            
+            console.log('Job Description saved:', jobDescriptionData);
+            
+            // Show success message
+            showSuccessMessage('💼 Job Description saved successfully!');
+            
+            // Close modal
+            closeJobModal();
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('jobModal');
+            if (event.target === modal) {
+                closeJobModal();
+            }
+        });
+
+        // ========================================
+        // VALIDATION FUNCTIONS
+        // ========================================
+        function validatePart1() {
+            const errors = [];
+            
+            // Basic required fields
+            if (!document.getElementById('fullName').value.trim()) {
+                errors.push('Full Name is required');
+            }
+            if (!document.getElementById('email').value.trim()) {
+                errors.push('Email Address is required');
+            }
+            if (!document.getElementById('phone').value.trim()) {
+                errors.push('Phone Number is required');
+            }
+            if (!document.getElementById('birthdate').value) {
+                errors.push('Date of Birth is required');
+            }
+            if (!document.getElementById('applicationType').value) {
+                errors.push('Application Type is required');
+            }
+            if (!document.getElementById('comments').value.trim()) {
+                errors.push('Additional Comments is required');
+            }
+            
+            // Conditional fields validation
+            const applicationType = document.getElementById('applicationType').value;
+            if (applicationType === 'business' || applicationType === 'enterprise') {
+                if (!document.getElementById('companyName').value.trim()) {
+                    errors.push('Company Name is required for Business/Enterprise applications');
+                }
+                if (!document.getElementById('taxId').value.trim()) {
+                    errors.push('Tax ID is required for Business/Enterprise applications');
+                }
+            }
+            
+            if (applicationType === 'enterprise') {
+                if (!document.getElementById('managerPhone').value.trim()) {
+                    errors.push('Manager Phone is required for Enterprise applications');
+                }
+                if (!document.getElementById('managerNotes').value.trim()) {
+                    errors.push('Manager Notes is required for Enterprise applications');
+                }
+            }
+            
+            // Address iframe fields validation
+            try {
+                const addressIframe = document.getElementById('addressIframe');
+                if (addressIframe && addressIframe.contentWindow) {
+                    const iframeDoc = addressIframe.contentWindow.document;
+                    if (!iframeDoc.getElementById('street')?.value.trim()) {
+                        errors.push('Street Address is required');
+                    }
+                    if (!iframeDoc.getElementById('city')?.value.trim()) {
+                        errors.push('City is required');
+                    }
+                    if (!iframeDoc.getElementById('state')?.value) {
+                        errors.push('State is required');
+                    }
+                    if (!iframeDoc.getElementById('zipCode')?.value.trim()) {
+                        errors.push('ZIP Code is required');
+                    }
+                    
+                    // Nested iframe validation
+                    const contactIframe = iframeDoc.getElementById('contactIframe');
+                    if (contactIframe && contactIframe.contentWindow) {
+                        const nestedDoc = contactIframe.contentWindow.document;
+                        if (!nestedDoc.getElementById('emergencyName')?.value.trim()) {
+                            errors.push('Emergency Contact Name is required');
+                        }
+                        if (!nestedDoc.getElementById('emergencyPhone')?.value.trim()) {
+                            errors.push('Emergency Contact Phone is required');
+                        }
+                        if (!nestedDoc.getElementById('emergencyEmail')?.value.trim()) {
+                            errors.push('Emergency Contact Email is required');
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log('Could not validate iframe fields:', e);
+            }
+            
+            // Preferences validation
+            if (!document.getElementById('specialOption1').value.trim()) {
+                errors.push('Special Option A is required');
+            }
+            if (!document.getElementById('specialOption2').value.trim()) {
+                errors.push('Special Option B is required');
+            }
+            if (!document.getElementById('ratingComment').value.trim()) {
+                errors.push('Rating Comment is required');
+            }
+            
+            // Check rating from shadow DOM
+            try {
+                const ratingWidget = document.querySelector('rating-widget');
+                if (ratingWidget && ratingWidget.shadowRoot) {
+                    const ratingInput = ratingWidget.shadowRoot.querySelector('input[type="hidden"]');
+                    if (!ratingInput || ratingInput.value === '0') {
+                        errors.push('Rating is required (please select stars)');
+                    }
+                }
+            } catch (e) {
+                console.log('Could not validate rating:', e);
+            }
+            
+            // Checkboxes
+            if (!document.getElementById('newsletter').checked) {
+                errors.push('Newsletter subscription is required');
+            }
+            if (!document.getElementById('terms').checked) {
+                errors.push('You must agree to the Terms and Conditions');
+            }
+            
+            return errors;
+        }
+
+        function validatePart2() {
+            const errors = [];
+            
+            if (!document.getElementById('field1').value.trim()) {
+                errors.push('Additional Field 1 is required');
+            }
+            if (!document.getElementById('field2').value.trim()) {
+                errors.push('Additional Field 2 is required');
+            }
+            if (!document.getElementById('field3').value.trim()) {
+                errors.push('Additional Field 3 is required');
+            }
+            
+            // Income fields validation
+            const incomeBruto = document.getElementById('incomeBruto').value;
+            const taxPercentage = document.getElementById('taxPercentage').value;
+            
+            if (!incomeBruto || parseFloat(incomeBruto) < 0) {
+                errors.push('Income Bruto is required and must be a positive number');
+            }
+            if (!taxPercentage || parseFloat(taxPercentage) < 0 || parseFloat(taxPercentage) > 100) {
+                errors.push('Tax Percentage is required and must be between 0 and 100');
+            }
+            
+            return errors;
+        }
+
+        function validateAndGoToPartTwo() {
+            const errors = validatePart1();
+            
+            if (errors.length > 0) {
+                alert('❌ Please fill in all required fields:\n\n' + errors.map((e, i) => `${i + 1}. ${e}`).join('\n'));
+                return;
+            }
+            
+            // All validations passed, show success message
+            showSuccessMessage('✅ Part 1 filled successfully!');
+            
+            // Go to Part 2 after a short delay
+            setTimeout(() => {
+                goToPartTwo();
+            }, 500);
+        }
+
+        function goBackToPart1() {
+            showMainTab('part1');
+        }
+
+        // ========================================
+        // FORM DATA COLLECTION
+        // ========================================
+        function collectFormData() {
+            const formData = {
+                // Part 1 - Details
+                fullName: document.getElementById('fullName').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                birthdate: document.getElementById('birthdate').value,
+                applicationType: document.getElementById('applicationType').value,
+                companyName: document.getElementById('companyName').value,
+                taxId: document.getElementById('taxId').value,
+                managerPhone: document.getElementById('managerPhone').value,
+                managerNotes: document.getElementById('managerNotes').value,
+                comments: document.getElementById('comments').value,
+                
+                // Address iframe fields (if accessible)
+                street: '',
+                city: '',
+                state: '',
+                zipCode: '',
+                emergencyName: '',
+                emergencyPhone: '',
+                emergencyEmail: '',
+                
+                // Preferences
+                specialOption1: document.getElementById('specialOption1').value,
+                specialOption2: document.getElementById('specialOption2').value,
+                ratingComment: document.getElementById('ratingComment').value,
+                newsletter: document.getElementById('newsletter').checked,
+                terms: document.getElementById('terms').checked,
+                
+                // Part 2
+                field1: document.getElementById('field1').value,
+                field2: document.getElementById('field2').value,
+                field3: document.getElementById('field3').value,
+                
+                // Income Calculation
+                incomeBruto: document.getElementById('incomeBruto').value,
+                taxPercentage: document.getElementById('taxPercentage').value,
+                incomeNeto: document.getElementById('incomeNetoDisplay').getAttribute('data-value') || '0',
+                
+                // Job Description
+                jobTitle: jobDescriptionData.jobTitle || '',
+                jobDescription: jobDescriptionData.jobDescription || '',
+                
+                // Metadata
+                savedDate: new Date().toISOString()
+            };
+            
+            // Try to get iframe data (may be blocked by CORS in some scenarios)
+            try {
+                const addressIframe = document.getElementById('addressIframe');
+                if (addressIframe && addressIframe.contentWindow) {
+                    const iframeDoc = addressIframe.contentWindow.document;
+                    formData.street = iframeDoc.getElementById('street')?.value || '';
+                    formData.city = iframeDoc.getElementById('city')?.value || '';
+                    formData.state = iframeDoc.getElementById('state')?.value || '';
+                    formData.zipCode = iframeDoc.getElementById('zipCode')?.value || '';
+                    
+                    // Try nested iframe
+                    const contactIframe = iframeDoc.getElementById('contactIframe');
+                    if (contactIframe && contactIframe.contentWindow) {
+                        const nestedDoc = contactIframe.contentWindow.document;
+                        formData.emergencyName = nestedDoc.getElementById('emergencyName')?.value || '';
+                        formData.emergencyPhone = nestedDoc.getElementById('emergencyPhone')?.value || '';
+                        formData.emergencyEmail = nestedDoc.getElementById('emergencyEmail')?.value || '';
+                    }
+                }
+            } catch (e) {
+                console.log('Could not access iframe data (CORS restriction):', e);
+            }
+            
+            // Try to get rating from shadow DOM
+            try {
+                const ratingWidget = document.querySelector('rating-widget');
+                if (ratingWidget && ratingWidget.shadowRoot) {
+                    const ratingInput = ratingWidget.shadowRoot.querySelector('input[type="hidden"]');
+                    formData.rating = ratingInput ? ratingInput.value : '0';
+                }
+            } catch (e) {
+                console.log('Could not access shadow DOM:', e);
+                formData.rating = '0';
+            }
+            
+            return formData;
+        }
+
+        // ========================================
+        // SAVE FORM
+        // ========================================
+        function saveForm() {
+            // First validate Part 1
+            const part1Errors = validatePart1();
+            if (part1Errors.length > 0) {
+                alert('❌ Part 1 has missing required fields:\n\n' + part1Errors.map((e, i) => `${i + 1}. ${e}`).join('\n'));
+                goBackToPart1();
+                return;
+            }
+            
+            // Then validate Part 2
+            const part2Errors = validatePart2();
+            if (part2Errors.length > 0) {
+                alert('❌ Part 2 has missing required fields:\n\n' + part2Errors.map((e, i) => `${i + 1}. ${e}`).join('\n'));
+                return;
+            }
+            
+            // Collect all form data
+            const formData = collectFormData();
+            
+            // Get existing forms
+            const savedForms = JSON.parse(localStorage.getItem('savedForms') || '[]');
+            
+            // Check if we're editing
+            const urlParams = new URLSearchParams(window.location.search);
+            const editId = urlParams.get('edit');
+            
+            if (editId !== null) {
+                // Update existing form
+                savedForms[parseInt(editId)] = formData;
+                showSuccessMessage('✅ Form updated successfully!');
+            } else {
+                // Add new form
+                savedForms.push(formData);
+                showSuccessMessage('✅ Form created successfully!');
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('savedForms', JSON.stringify(savedForms));
+            
+            // Redirect to home after 3 seconds (to show success message)
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 3000);
+        }
+
+        // ========================================
+        // LOAD FORM FOR EDITING
+        // ========================================
+        function loadFormForEditing() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const editId = urlParams.get('edit');
+            
+            if (editId === null) return;
+            
+            const savedForms = JSON.parse(localStorage.getItem('savedForms') || '[]');
+            const formData = savedForms[parseInt(editId)];
+            
+            if (!formData) {
+                alert('Form not found!');
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            // Populate all fields
+            document.getElementById('fullName').value = formData.fullName || '';
+            document.getElementById('email').value = formData.email || '';
+            document.getElementById('phone').value = formData.phone || '';
+            document.getElementById('birthdate').value = formData.birthdate || '';
+            document.getElementById('applicationType').value = formData.applicationType || '';
+            document.getElementById('companyName').value = formData.companyName || '';
+            document.getElementById('taxId').value = formData.taxId || '';
+            document.getElementById('managerPhone').value = formData.managerPhone || '';
+            document.getElementById('managerNotes').value = formData.managerNotes || '';
+            document.getElementById('comments').value = formData.comments || '';
+            
+            // Preferences
+            document.getElementById('specialOption1').value = formData.specialOption1 || '';
+            document.getElementById('specialOption2').value = formData.specialOption2 || '';
+            document.getElementById('ratingComment').value = formData.ratingComment || '';
+            document.getElementById('newsletter').checked = formData.newsletter || false;
+            document.getElementById('terms').checked = formData.terms || false;
+            
+            // Part 2
+            document.getElementById('field1').value = formData.field1 || '';
+            document.getElementById('field2').value = formData.field2 || '';
+            document.getElementById('field3').value = formData.field3 || '';
+            
+            // Income fields
+            document.getElementById('incomeBruto').value = formData.incomeBruto || '';
+            document.getElementById('taxPercentage').value = formData.taxPercentage || '';
+            if (formData.incomeBruto && formData.taxPercentage) {
+                calculateIncomeNeto();
+            }
+            
+            // Job Description
+            jobDescriptionData = {
+                jobTitle: formData.jobTitle || '',
+                jobDescription: formData.jobDescription || ''
+            };
+            
+            // Trigger conditional fields if needed
+            const applicationType = document.getElementById('applicationType');
+            if (applicationType.value) {
+                applicationType.dispatchEvent(new Event('change'));
+            }
+            
+            console.log('Form loaded for editing');
+        }
+
+        // ========================================
+        // NAVIGATION
+        // ========================================
+        function goHome() {
+            if (confirm('Are you sure? Unsaved changes will be lost.')) {
+                window.location.href = 'index.html';
+            }
+        }
+
+        function activatePart1Tab() {
+            document.querySelectorAll('.main-tab-button')[0].classList.add('active');
+            document.querySelectorAll('.main-tab-button')[1].classList.remove('active');
+        }
+
+        // ========================================
+        // MAIN TAB SWITCHING (Part 1 / Part 2)
+        // ========================================
+        function showMainTab(tabName) {
+            // Hide all main tab contents
+            document.querySelectorAll('.main-tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active from all main tab buttons
+            document.querySelectorAll('.main-tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected main tab
+            document.getElementById(tabName).classList.add('active');
+            
+            // Activate button
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+        }
+
+        function goToPartTwo() {
+            showMainTab('part2');
+        }
+
+        // ========================================
+        // SUB-TAB SWITCHING (Details / Address / Preferences)
+        // ========================================
+        function showTab(tabName) {
+            // Show confirmation popup for Address tab
+            if (tabName === 'address') {
+                const confirmed = confirm('⚠️ You are about to enter the Address section.\n\nAre you sure you want to continue?');
+                if (!confirmed) {
+                    // User cancelled, don't switch tabs
+                    return;
+                }
+            }
+            
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active from all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Activate button
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+        }
+
+        // ========================================
+        // CONDITIONAL FIELDS (Application Type)
+        // ========================================
+        document.getElementById('applicationType').addEventListener('change', function() {
+            const value = this.value;
+            const companyGroup = document.getElementById('companyNameGroup');
+            const taxIdGroup = document.getElementById('taxIdGroup');
+            const ajaxLoading = document.getElementById('ajaxLoadingContainer');
+            const managerPhoneGroup = document.getElementById('managerPhoneGroup');
+            const managerNotesGroup = document.getElementById('managerNotesGroup');
+            const applicationTypeBox = document.getElementById('applicationTypeBox');
+            const applicationTypeDisplay = document.getElementById('applicationTypeDisplay');
+            
+            const companyNameInput = document.getElementById('companyName');
+            const taxIdInput = document.getElementById('taxId');
+            const managerPhoneInput = document.getElementById('managerPhone');
+            const managerNotesInput = document.getElementById('managerNotes');
+            
+            // Get display text for the selected type
+            const typeText = this.options[this.selectedIndex].text;
+            
+            // Show/hide and update the application type box
+            if (value) {
+                // Show box with selected type
+                let icon = '';
+                if (value === 'personal') icon = '👤';
+                else if (value === 'business') icon = '💼';
+                else if (value === 'enterprise') icon = '📊';
+                
+                applicationTypeDisplay.textContent = `${icon} ${typeText} Type User`;
+                applicationTypeBox.classList.add('show');
+            } else {
+                // Hide box if no selection
+                applicationTypeBox.classList.remove('show');
+            }
+            
+            // Show/hide company name and tax ID for business/enterprise
+            if (value === 'business' || value === 'enterprise') {
+                companyGroup.classList.remove('hidden');
+                companyNameInput.setAttribute('required', 'required');
+                
+                // Show loading spinner
+                ajaxLoading.classList.remove('hidden');
+                taxIdGroup.classList.add('hidden');
+                
+                // Simulate AJAX delay (2 seconds)
+                setTimeout(() => {
+                    ajaxLoading.classList.add('hidden');
+                    taxIdGroup.classList.remove('hidden');
+                    taxIdInput.setAttribute('required', 'required');
+                }, 2000);
+            } else {
+                companyGroup.classList.add('hidden');
+                taxIdGroup.classList.add('hidden');
+                ajaxLoading.classList.add('hidden');
+                companyNameInput.removeAttribute('required');
+                taxIdInput.removeAttribute('required');
+            }
+            
+            // Show manager fields only for enterprise
+            if (value === 'enterprise') {
+                managerPhoneGroup.classList.remove('hidden');
+                managerNotesGroup.classList.remove('hidden');
+                managerPhoneInput.setAttribute('required', 'required');
+                managerNotesInput.setAttribute('required', 'required');
+                
+                // Show success message for Enterprise
+                showSuccessMessage('👋 Hello Enterprise man');
+            } else {
+                managerPhoneGroup.classList.add('hidden');
+                managerNotesGroup.classList.add('hidden');
+                managerPhoneInput.removeAttribute('required');
+                managerNotesInput.removeAttribute('required');
+            }
+        });
+
+        // ========================================
+        // NEWSLETTER CHECKBOX (Internal JS)
+        // ========================================
+        (function() {
+            const newsletterCheckbox = document.getElementById('newsletter');
+            
+            newsletterCheckbox.addEventListener('change', function() {
+                const isChecked = this.checked;
+                this.setAttribute('data-subscribed', isChecked ? 'yes' : 'no');
+                console.log('Newsletter subscription:', isChecked ? 'SUBSCRIBED' : 'UNSUBSCRIBED');
+                
+                // Visual feedback
+                const label = document.querySelector('label[for="newsletter"]');
+                if (label) {
+                    if (isChecked) {
+                        label.style.color = '#51cf66';
+                        label.style.fontWeight = '600';
+                    } else {
+                        label.style.color = '#333';
+                        label.style.fontWeight = 'normal';
+                    }
+                }
+            });
+            
+            // Initialize
+            newsletterCheckbox.setAttribute('data-subscribed', 'no');
+        })();
+
+        // ========================================
+        // SHADOW DOM - Rating Widget
+        // ========================================
+        class RatingWidget extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: 'open' });
+            }
+            
+            connectedCallback() {
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        .rating-container {
+                            display: flex;
+                            gap: 10px;
+                            align-items: center;
+                        }
+                        .star {
+                            font-size: 30px;
+                            cursor: pointer;
+                            color: #ccc;
+                            transition: color 0.2s;
+                        }
+                        .star.active {
+                            color: #ffd700;
+                        }
+                        .star:hover {
+                            color: #ffed4e;
+                        }
+                        input {
+                            display: none;
+                        }
+                    </style>
+                    <div class="rating-container">
+                        <span class="star" data-rating="1">★</span>
+                        <span class="star" data-rating="2">★</span>
+                        <span class="star" data-rating="3">★</span>
+                        <span class="star" data-rating="4">★</span>
+                        <span class="star" data-rating="5">★</span>
+                        <input type="hidden" id="rating" name="rating" value="0">
+                    </div>
+                `;
+                
+                const stars = this.shadowRoot.querySelectorAll('.star');
+                const input = this.shadowRoot.querySelector('input');
+                
+                stars.forEach(star => {
+                    star.addEventListener('click', () => {
+                        const rating = star.getAttribute('data-rating');
+                        input.value = rating;
+                        
+                        // Update visual state
+                        stars.forEach(s => {
+                            if (parseInt(s.getAttribute('data-rating')) <= parseInt(rating)) {
+                                s.classList.add('active');
+                            } else {
+                                s.classList.remove('active');
+                            }
+                        });
+                        
+                        console.log('Rating selected:', rating);
+                    });
+                });
+            }
+        }
+        
+        customElements.define('rating-widget', RatingWidget);
+
+        // ========================================
+        // INITIALIZE
+        // ========================================
+        window.addEventListener('DOMContentLoaded', function() {
+            loadFormForEditing();
+            console.log('✓ Enhanced test form loaded successfully');
+        });
+    </script>
+</body>
+</html>

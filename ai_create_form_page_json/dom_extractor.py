@@ -513,6 +513,12 @@ class DOMExtractor:
             output_lines.append("\n<!-- JAVASCRIPT BEHAVIOR ANALYSIS -->")
             output_lines.extend(js_info)
         
+        # Extract external scripts
+        external_scripts = self._extract_external_scripts()
+        if external_scripts:
+            output_lines.append("\n<!-- EXTERNAL SCRIPTS CONTENT -->")
+            output_lines.extend(external_scripts)
+        
         output_lines.extend(['</body>', '</html>'])
         
         return '\n'.join(output_lines)
@@ -758,6 +764,55 @@ class DOMExtractor:
         
         except Exception as e:
             output.append(f"<!-- ERROR analyzing JavaScript: {str(e)} -->")
+        
+        return output
+    
+    def _extract_external_scripts(self) -> List[str]:
+        """
+        Extract content from external JavaScript files (script tags with src attribute)
+        
+        Returns:
+            List of strings with script content
+        """
+        output = []
+        
+        try:
+            from selenium.webdriver.common.by import By
+            
+            # Find all script tags with src attribute
+            script_tags = self.driver.find_elements(By.TAG_NAME, 'script')
+            
+            for script in script_tags:
+                src = script.get_attribute('src')
+                if src:
+                    try:
+                        # Fetch the external script content using JavaScript fetch
+                        js_content = self.driver.execute_script(f"""
+                            return fetch('{src}')
+                                .then(response => response.text())
+                                .catch(err => 'ERROR: ' + err.message);
+                        """)
+                        
+                        if js_content and not js_content.startswith('ERROR:'):
+                            output.append(f"\n<!-- ========================================= -->")
+                            output.append(f"<!-- EXTERNAL JAVASCRIPT FILE: {src} -->")
+                            output.append(f"<!-- THIS IS EXECUTABLE JAVASCRIPT CODE - ANALYZE IT! -->")
+                            output.append(f"<!-- ========================================= -->")
+                            output.append("<script type=\"text/javascript\">")
+                            output.append("// JAVASCRIPT CODE STARTS HERE")
+                            # Add the actual content
+                            output.append(js_content)
+                            output.append("// JAVASCRIPT CODE ENDS HERE")
+                            output.append("</script>")
+                            output.append(f"<!-- ========================================= -->")
+                        else:
+                            output.append(f"<!-- FAILED TO LOAD SCRIPT: {src} - {js_content} -->")
+                    
+                    except Exception as e:
+                        output.append(f"<!-- ERROR loading script {src}: {str(e)} -->")
+        
+        except Exception as e:
+            output.append(f"<!-- ERROR extracting external scripts: {str(e)} -->")
         
         return output
     

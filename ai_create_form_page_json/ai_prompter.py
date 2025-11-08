@@ -99,9 +99,9 @@ This ensures names match between accessible_fields and gui_fields for proper con
 
 Example:
 ```
-accessible_fields: ["click_address_tab", "fullName"]
+accessible_fields: ["click_address_tab", "full_name"]
 gui_fields: [
-  {{"name": "fullName", ...}},           ← Same name as in accessible_fields!
+  {{"name": "full_name", ...}},           ← Same name as in accessible_fields!
   {{"name": "click_address_tab", ...}}   ← Same name as in accessible_fields!
 ]
 ```
@@ -127,7 +127,7 @@ The field's parent has class="hidden" because applicationType is "personal". To 
 Example 3 - Currently Visible Field (YES, include):
 The field is visible right now, no action needed.
 ```
-<input id="fullName">  ← INCLUDE "fullName"
+<input id="full_name">  ← INCLUDE "full_name"
 ```
 
 Example 4 - Tab Button (YES, include):
@@ -143,7 +143,7 @@ Example 5 - Hover Trigger (YES, include):
 **Return Format:**
 In your JSON response, include:
 
-"accessible_fields": ["fullName", "email", "click_address_tab", "hover_for_special_options", "street", "city", "addressIframe"]
+"accessible_fields": ["full_name", "email", "click_address_tab", "hover_for_special_options", "street", "city", "addressIframe"]
 "gui_fields": [...your regular mapping with SAME names as accessible_fields...]
 
 (Note: All fields should be in the same JSON response)
@@ -155,7 +155,6 @@ In your JSON response, include:
 **Your Role:**
 1. ✅ Map ALL fields from accessible_fields to gui_fields
 2. ✅ Choose correct locators (CSS selectors)
-3. ✅ Set create_type (enter_text, select_dropdown, click_checkbox, etc.)
 4. ✅ Set verification methods
 5. ✅ Return complete gui_fields
 
@@ -179,6 +178,179 @@ The orchestrator automatically builds conditions based on visibility tracking.
 "non_editable_condition": {{}}
 
 **NEVER try to determine conditions yourself!** The orchestrator has complete visibility data and will set accurate conditions automatically after all exploration is complete.
+
+=== 🔍 JAVASCRIPT EXTRACTION FOR EACH FIELD ===
+
+**🚨 CRITICAL: Extract JavaScript to has_js Field! 🚨**
+
+For EVERY field you add to gui_fields, you MUST check for JavaScript and populate the has_js field:
+
+**Step 1: Look for JavaScript for the field**
+- Check inline <script> tags
+- Check for <!-- EXTERNAL JAVASCRIPT FILE: filename.js --> sections
+  - JavaScript code is between // JAVASCRIPT CODE STARTS HERE and // JAVASCRIPT CODE ENDS HERE
+- Look for addEventListener, event handlers (onclick, onchange, etc.)
+- Look for validation, state management, attribute manipulation
+
+**Step 2: Extract and set has_js**
+- **If JavaScript exists:** Set "has_js" to the JavaScript code as a STRING
+- **If NO JavaScript:** Set "has_js": null
+
+**Examples:**
+
+Field WITH JavaScript:
+```json
+{{
+  "name": "newsletter",
+  "has_js": "newsletterCheckbox.addEventListener('change', function() {{ this.setAttribute('data-subscribed', this.checked ? 'yes' : 'no'); }});",
+  "create_action": {{...}}
+}}
+```
+
+Field WITHOUT JavaScript:
+```json
+{{
+  "name": "email",
+  "has_js": null,
+  "create_action": {{...}}
+}}
+```
+
+**IMPORTANT:** has_js helps identify which fields need complex custom_python steps!
+
+=== 🔧 DECIDING: SIMPLE vs COMPLEX FIELDS ===
+
+**🚨 CRITICAL: For EACH field, decide if it needs custom_python or standard Selenium! 🚨**
+
+**Decision Process:**
+
+**Step 1: Check if field has JavaScript**
+- If "has_js" is NOT null → Field likely needs custom_python (analyze JS to understand behavior)
+
+**Step 2: If NO JavaScript, analyze the field**
+Look at:
+- Element type and attributes
+- Labels, validation patterns
+- Special widgets (datepicker, rating, slider, etc.)
+- Data attributes (data-*, aria-*)
+
+**Step 3: Ask: "Will standard Selenium work for ANY legal value we send?"**
+
+**If YES → SIMPLE (use standard Selenium actions)**
+- Examples: plain text input, basic dropdown, basic textarea
+
+**If NO → COMPLEX (use ONE custom_python step that does EVERYTHING)**
+- Examples: datepicker with format conversion, checkbox with state checking, rating widget, phone formatter
+
+**COMPLEX Fields Need:**
+1. ONE custom_python step with ALL logic (get state, convert, fill)
+2. Fill "more_info" with input requirements
+
+**SIMPLE Fields Need:**
+1. Standard Selenium actions
+2. "more_info": "" (empty string)
+
+**Examples of COMPLEX Fields:**
+
+**Date Picker:**
+```json
+{{
+  "name": "start_date",
+  "has_js": null,
+  "create_action": {{
+    "steps": [
+      {{"action": "custom_python", "code": "from datetime import datetime; formatted = datetime.strptime(field_value, '%Y-%m-%d').strftime('%m/%d/%Y'); driver.find_element(By.CSS_SELECTOR, '#startDate').send_keys(formatted)", "locator": "#startDate"}}
+    ]
+  }},
+  "update_fields_assignment": {{
+    "type": "assign_value",
+    "value": "{{startDate}}",
+    "more_info": "Send date in format: YYYY-MM-DD"
+  }}
+}}
+```
+
+**Checkbox with State Checking (has JavaScript):**
+```json
+{{
+  "name": "newsletter",
+  "has_js": "newsletterCheckbox.addEventListener('change', function() {{ this.setAttribute('data-subscribed', this.checked ? 'yes' : 'no'); }});",
+  "create_action": {{
+    "steps": [
+      {{"action": "custom_python", "code": "elem = driver.find_element(By.CSS_SELECTOR, '#newsletter'); current = elem.get_attribute('data-subscribed'); target = 'yes' if field_value else 'no'; if current != target: elem.click()", "locator": "#newsletter"}}
+    ]
+  }},
+  "update_fields_assignment": {{
+    "type": "assign_value",
+    "value": "{{newsletter}}",
+    "more_info": "Send boolean true/false"
+  }}
+}}
+```
+
+**Rating Widget:**
+```json
+{{
+  "name": "rating",
+  "has_js": "star.addEventListener('click', () => {{ input.value = rating; }});",
+  "create_action": {{
+    "steps": [
+      {{"action": "custom_python", "code": "stars = driver.find_elements(By.CSS_SELECTOR, '.star'); stars[int(field_value) - 1].click()", "locator": ".star"}}
+    ]
+  }},
+  "update_fields_assignment": {{
+    "type": "assign_value",
+    "value": "{{rating}}",
+    "more_info": "Send integer 1-5"
+  }}
+}}
+```
+
+**Examples of SIMPLE Fields:**
+
+**Text Input:**
+```json
+{{
+  "name": "full_name",
+  "has_js": null,
+  "create_action": {{
+    "steps": [
+      {{"action": "enter_text", "locator": "#fullName", "value": "{{fullName}}"}}
+    ]
+  }},
+  "update_fields_assignment": {{
+    "type": "assign_value",
+    "value": "{{fullName}}",
+    "more_info": ""
+  }}
+}}
+```
+
+**Dropdown:**
+```json
+{{
+  "name": "applicationType",
+  "has_js": null,
+  "create_action": {{
+    "steps": [
+      {{"action": "select_dropdown", "locator": "#applicationType", "value": "{{applicationType}}"}}
+    ]
+  }},
+  "update_fields_assignment": {{
+    "type": "assign_value",
+    "value": "{{applicationType}}",
+    "more_info": ""
+  }}
+}}
+```
+
+**more_info Examples:**
+- "Send date in format: YYYY-MM-DD"
+- "Send phone with country code: +1XXXXXXXXXX"
+- "Send integer 1-5"
+- "Max 500 characters"
+- "Send boolean true/false"
+- "" (empty string for no restrictions)
 
 {exploration_info}
 
@@ -362,8 +534,6 @@ The ORDER MATTERS! Selenium cannot skip around.
 {{
   "name": "email",
   "create_action": {{
-    "create_type": "enter_text",
-    "update_css": "#email",
     "steps": [
       {{"action": "enter_text", "locator": "#email", "value": "{{email}}"}}
     ]
@@ -377,8 +547,6 @@ The ORDER MATTERS! Selenium cannot skip around.
   "name": "street",
   "iframe_context": "addressIframe",
   "create_action": {{
-    "create_type": "enter_text",
-    "update_css": "#street",
     "steps": [
       {{"action": "switch_to_frame", "locator": "#addressIframe"}},
       {{"action": "enter_text", "locator": "#street", "value": "{{street}}"}},
@@ -393,8 +561,6 @@ The ORDER MATTERS! Selenium cannot skip around.
 {{
   "name": "birth_date",
   "create_action": {{
-    "create_type": "enter_text",
-    "update_css": "#birth_date",
     "steps": [
       {{"action": "get_attribute", "locator": "#birth_date", "attribute": "data-format", "store_as": "date_format"}},
       {{"action": "custom_python", "code": "from datetime import datetime; formatted = datetime.strptime(field_value, '%Y-%m-%d').strftime(date_format or '%m/%d/%Y')", "inputs": ["field_value", "date_format"], "output": "formatted_date"}},
@@ -410,8 +576,6 @@ The ORDER MATTERS! Selenium cannot skip around.
 {{
   "name": "notifications_enabled",
   "create_action": {{
-    "create_type": "click_button",
-    "update_css": ".switch-toggle",
     "steps": [
       {{"action": "get_attribute", "locator": ".switch-toggle", "attribute": "data-state", "store_as": "current_state"}},
       {{"action": "custom_python", "code": "should_click = 'yes' if current_state != field_value else 'no'", "inputs": ["current_state", "field_value"], "output": "should_click"}},
@@ -426,8 +590,6 @@ The ORDER MATTERS! Selenium cannot skip around.
 {{
   "name": "async_field",
   "create_action": {{
-    "create_type": "enter_text",
-    "update_css": "#async_field",
     "steps": [
       {{"action": "click", "locator": ".load-more"}},
       {{"action": "wait_for_element", "locator": "#async_field", "timeout": 10}},
@@ -439,10 +601,15 @@ The ORDER MATTERS! Selenium cannot skip around.
 
 **CRITICAL RULES:**
 1. **Simple scenarios:** Use basic Selenium actions (click, enter_text, wait, switch frames)
-2. **Complex scenarios:** Use multi-step pattern:
-   - Step 1: get_attribute or get_text (Selenium fetches data)
-   - Step 2: custom_python (isolated server processes)
-   - Step 3: Use result in Selenium action
+2. **Complex scenarios needing custom_python:** 
+   - **ANALYZE THE JAVASCRIPT CODE** (including external scripts) to understand EXACTLY how the field behaves
+   - Look for event handlers (onclick, onchange), validation logic, state management
+   - Understand what attribute values mean (checked="true" vs checked vs no attribute)
+   - Write custom_python code that matches the ACTUAL implementation
+   - Use multi-step pattern:
+     * Step 1: get_attribute or get_text (Selenium fetches data)
+     * Step 2: custom_python (isolated server processes - based on JS analysis)
+     * Step 3: Use result in Selenium action
 3. **Custom Python:**
    - Specify "inputs": list of variable names needed
    - Specify "output": variable name for result
@@ -451,18 +618,90 @@ The ORDER MATTERS! Selenium cannot skip around.
 4. **For iframes:** Always switch_to_frame → action → switch_to_parent_frame
 5. **Use {{variable_name}} everywhere:** In values, conditions, filters
 
+**🚨 CRITICAL: MULTI-PAGE FORM BUTTON HANDLING 🚨**
+
+**Button Detection Rules:**
+
+**NAVIGATION BUTTONS (Next/Continue/Forward):**
+- Buttons with text like "Next", "Continue", "Next Page", "Forward", "Proceed"
+- ✅ INCLUDE in gui_fields
+- ✅ Mark with: `"button_type": "navigation"`
+- ✅ Place as LAST field in current page's fields
+- These move to the next page of the form
+
+**SUBMIT BUTTONS (Final action):**
+- Buttons with text like "Submit", "Save", "Execute", "Finish", "Complete", "Send"
+- ✅ INCLUDE in gui_fields  
+- ✅ Mark with: `"button_type": "final_submit"`
+- ✅ This should be the ABSOLUTE LAST element in gui_fields array
+- This finalizes and submits the entire form
+
+**BACK BUTTONS (Ignore):**
+- Buttons with text like "Back", "Previous", "Return", "Cancel"
+- ❌ DO NOT include in gui_fields
+- ❌ Completely ignore these buttons
+- These go backwards and we don't need them
+
+**Example Navigation Button:**
+```json
+{{
+  "name": "click_next",
+  "button_type": "navigation",
+  "create_action": {{
+    "steps": [
+      {{"action": "click", "locator": "button:contains('Next')"}}
+    ]
+  }}
+}}
+```
+
+**Example Final Submit Button:**
+```json
+{{
+  "name": "submit_form",
+  "button_type": "final_submit",
+  "create_action": {{
+    "steps": [
+      {{"action": "click", "locator": "button[type='submit']"}}
+    ]
+  }}
+}}
+```
+
+**Current Page Complete Flag:**
+In your JSON response, include:
+```json
+{{
+  "current_page_complete": true,  // Set to true when all fields on current page are mapped
+  "gui_fields": [...]
+}}
+```
+
+Set `current_page_complete: true` when:
+- You've mapped all visible fields on the current page
+- You've included a navigation button (if one exists)
+- You're ready for the orchestrator to click Next and move to the next page
+
+**Field Ordering Rules:**
+- Regular fields (inputs, selects, checkboxes) come first
+- Navigation button comes last on each page
+- Final submit button is the absolute last element across all pages
+
+
+
 **Real Selenium execution:**
 ```python
 # Later, when filling the form:
 for field in gui_fields:
-    # Selenium executes each field IN ORDER
-    if field['create_action']['create_type'] == 'enter_text':
-        driver.find_element(By.CSS_SELECTOR, field['create_action']['update_css']).send_keys(value)
-    elif field['create_action']['create_type'] == 'click_button':
-        driver.find_element(By.CSS_SELECTOR, field['create_action']['update_css']).click()
-    elif field['create_action']['create_type'] == 'select_dropdown':
-        select = Select(driver.find_element(By.CSS_SELECTOR, field['create_action']['update_css']))
-        select.select_by_value(value)
+    # Selenium executes each step IN ORDER
+    for step in field['create_action']['steps']:
+        if step['action'] == 'enter_text':
+            driver.find_element(By.CSS_SELECTOR, step['locator']).send_keys(step['value'])
+        elif step['action'] == 'click':
+            driver.find_element(By.CSS_SELECTOR, step['locator']).click()
+        elif step['action'] == 'select_dropdown':
+            select = Select(driver.find_element(By.CSS_SELECTOR, step['locator']))
+            select.select_by_value(step['value'])
 ```
 
 So when you write gui_fields, you're literally writing the test script!
@@ -505,20 +744,30 @@ So when you write gui_fields, you're literally writing the test script!
    
    Each field entry:
    - "name": Descriptive field name (e.g., "engagement_name", "click_next_button")
+     * 🚨 **CRITICAL NAMING CONVENTION:** Field names MUST be lowercase with underscores
+     * Examples: "full_name", "email_address", "company_name", "start_date", "click_next"
+     * NOT: "full_name", "EmailAddress", "companyName" (these are WRONG)
    - "iframe_context": null if in main document, or iframe_id string if inside an iframe
+   - "has_js": JavaScript code for this field as a string, or null if no JavaScript exists
    - "create_action": Object with:
-     * "create_type": Action type (enter_text, select_dropdown, click_button, click_checkbox, click_radio, click_tab, sleep)
      * "action_description": Human-readable description
-     * "update_css": CSS selector for the element
      * "non_editable_condition": **CRITICAL** Object with conditions when field is disabled/hidden
        - "operator": "or" or "and"
        - [field_name]: [array of values] - if this evaluates to TRUE, field is NOT editable
        - Example: {{"operator": "or", "engagement_type": ["Application"]}} means NOT editable when type=Application
        - Empty {{}} means always editable
-     * "update_mandatory": true/false
+     * "update_mandatory": **ALWAYS set to true**
      * "validate_non_editable": false
      * "webdriver_sleep_before_action": seconds to wait before action (string)
+     * "steps": Array of Selenium actions to perform
+       - Each step has: "action", "locator", "value" (if needed)
+       - All locators and action types go in steps array
    - "update_fields_assignment": Object describing what value to assign
+     * "type": "assign_value" (or other assignment type)
+     * "value": "{{fieldname}}" (field variable)
+     * "more_info": String with input requirements for this field, or empty string "" if no special requirements
+       - Examples: "Send date in format: YYYY-MM-DD", "Send integer 1-5", "Max 500 characters"
+       - Use "" (empty string) if no restrictions
    - "verification_fields_assignment": Object for verification
    - "verification": Verification details
    - "update_api_fields_assignment": API-related assignments
@@ -551,6 +800,49 @@ So when you write gui_fields, you're literally writing the test script!
    - ALL tabs/sections are explored
    - Next button should be LAST field in gui_fields
 
+🚨 **CRITICAL: MULTI-PAGE FORMS** 🚨
+
+**Understanding Multi-Page Forms:**
+
+Forms may have multiple pages (Part 1, Part 2, etc.) connected by Navigation buttons (Next, Continue, Forward).
+
+**What Happens:**
+1. You map all fields on Page 1
+2. You identify Navigation button (Next/Continue) and map it as LAST field
+3. Orchestrator clicks the Navigation button
+4. **Page changes** - New content loads or new URL
+5. **You receive NEW DOM** (exactly like iteration 1 - base state)
+6. **NEW fields appear, OLD fields disappear** - THIS IS NORMAL!
+7. Continue mapping the NEW fields
+8. Repeat until you see final Submit button
+
+**Key Points:**
+- After Navigation button click, you get a FRESH DOM with NEW fields
+- Old fields from previous page are GONE - this is expected
+- Do NOT signal mapping_complete until you've mapped ALL pages
+- Only complete when you see the FINAL Submit button (not Next button)
+- Navigation buttons are marked with: "button_type": "navigation"
+- Final Submit button is marked with: "button_type": "final_submit"
+
+**Example Flow:**
+```
+Iteration 1-5: Map Page 1 fields → Include "click_next" (navigation button) as LAST field
+Iteration 6: Orchestrator clicks Next → Loads Page 2
+Iteration 7-10: Receive NEW DOM with Page 2 fields → Map them
+Iteration 11: Find Submit button → Map it as LAST field with "button_type": "final_submit"
+Complete!
+```
+
+**DO NOT:**
+- ❌ Signal complete when you see a Navigation button (more pages ahead!)
+- ❌ Be confused when old fields disappear after Next (they're on previous page)
+- ❌ Stop mapping when you've completed one page
+
+**DO:**
+- ✅ Continue mapping when you receive new DOM after Navigation click
+- ✅ Expect different fields in each new DOM
+- ✅ Only signal complete when you find final Submit button
+
 10. **Sleep times**: Use longer sleeps for:
     - After tabs: "2"
     - After dropdowns with dependencies: "2"  
@@ -565,12 +857,13 @@ So when you write gui_fields, you're literally writing the test script!
    - Do NOT request interaction for elements already in clicked_xpaths list
 
 12. **Signal completion** when:
-   - All visible fields are mapped
+   - All visible fields on ALL pages are mapped
    - All tabs/sections have been explored  
    - All iframes have been entered and exited
    - All shadow DOM content has been accessed
    - No more interactive elements will reveal new fields
-   - Next button (if present) has been mapped as LAST field
+   - **FINAL Submit button has been mapped** (button_type: "final_submit")
+   - NOT when you see a Next button (more pages ahead!)
 
 === OUTPUT FORMAT ===
 
@@ -725,8 +1018,6 @@ Write:
 {{
   "name": "description",
   "create_action": {{
-    "create_type": "enter_text",
-    "update_css": "textarea[name='description']",
     "non_editable_condition": {{
       "operator": "or",
       "type": ["Network"]
@@ -794,9 +1085,7 @@ Write:
 {{
   "name": "engagement_name",
   "create_action": {{
-    "create_type": "enter_text",
     "action_description": "enter engagement name",
-    "update_css": "input[name='engagementName']",
     "non_editable_condition": {{}},
     "update_mandatory": true,
     "validate_non_editable": false,
@@ -813,9 +1102,7 @@ Write:
 {{
   "name": "engagement_type",
   "create_action": {{
-    "create_type": "select_dropdown",
     "action_description": "select engagement type",
-    "update_css": "select[id='engagementType']",
     "non_editable_condition": {{}},
     "update_mandatory": true,
     "validate_non_editable": false,
@@ -831,9 +1118,7 @@ Write:
 {{
   "name": "terms_checkbox",
   "create_action": {{
-    "create_type": "click_checkbox",
     "action_description": "accept terms",
-    "update_css": "input[type='checkbox'][id='terms']",
     "non_editable_condition": {{}},
     "update_mandatory": true,
     "validate_non_editable": false,
@@ -850,9 +1135,7 @@ Write:
 {{
   "name": "click_details_tab",
   "create_action": {{
-    "create_type": "click_button",
     "action_description": "click details tab",
-    "update_css": "div[id='tab_Details']",
     "non_editable_condition": {{}},
     "update_mandatory": true,
     "validate_non_editable": false,
@@ -866,7 +1149,6 @@ Write:
 {{
   "name": "sleep_after_save",
   "create_action": {{
-    "create_type": "sleep",
     "action_description": "wait for save",
     "webdriver_sleep_before_action": "2"
   }},
@@ -1103,9 +1385,20 @@ Note: The orchestrator will automatically build conditions based on this data. Y
             
             json_str = ai_response[json_start:json_end]
         
+        # DEBUG: Save JSON to file for inspection
+        debug_file = f"/tmp/ai_json_response.json"
+        try:
+            with open(debug_file, 'w') as f:
+                f.write(json_str)
+            print(f"  📝 DEBUG: Saved AI JSON response to {debug_file}")
+        except:
+            pass
+        
         try:
             parsed = json.loads(json_str)
         except json.JSONDecodeError as e:
+            print(f"  ❌ JSON Parse Error: {e}")
+            print(f"  📝 Check the saved JSON at: {debug_file}")
             # Try to fix common JSON issues
             json_str = self._fix_common_json_issues(json_str)
             parsed = json.loads(json_str)

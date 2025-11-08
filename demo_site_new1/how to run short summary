@@ -1,0 +1,15 @@
+On Mac/Linux:
+bashlsof -i :8000
+
+To Stop It:
+bashkill -9 1080131
+
+To Start the HTML Server Again:
+
+Navigate to the folder where your HTML file is located:
+
+bashcd /path/to/your/html/folder
+
+Start the Python server:
+
+python -m http.server 8000

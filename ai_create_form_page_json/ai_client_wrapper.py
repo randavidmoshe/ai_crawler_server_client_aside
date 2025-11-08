@@ -5,6 +5,7 @@ Wrapper for AI API (Claude, GPT, etc.) to generate form mappings
 
 import json
 import os
+import time
 from typing import Dict, Optional
 
 
@@ -58,21 +59,54 @@ class AIClientWrapper:
         except ImportError:
             raise ImportError("Please install openai: pip install openai")
     
-    def generate(self, prompt: str, max_tokens: int = 8000) -> str:
+    def generate(self, prompt: str, max_tokens: int = 8000, max_retries: int = 5) -> str:
         """
-        Generate response from AI
+        Generate response from AI with retry logic
         
         Args:
             prompt: Input prompt
             max_tokens: Maximum tokens in response
+            max_retries: Maximum number of retry attempts (default 5)
             
         Returns:
             AI response text
+            
+        Raises:
+            Exception: After all retries exhausted
         """
-        if self.provider == "claude":
-            return self._generate_claude(prompt, max_tokens)
-        elif self.provider == "openai":
-            return self._generate_openai(prompt, max_tokens)
+        for attempt in range(max_retries):
+            try:
+                if self.provider == "claude":
+                    return self._generate_claude(prompt, max_tokens)
+                elif self.provider == "openai":
+                    return self._generate_openai(prompt, max_tokens)
+                    
+            except Exception as e:
+                error_str = str(e)
+                
+                # Check if this is a retryable error
+                is_retryable = any([
+                    "overloaded" in error_str.lower(),
+                    "rate" in error_str.lower(),
+                    "timeout" in error_str.lower(),
+                    "529" in error_str,  # Overloaded
+                    "503" in error_str,  # Service unavailable
+                    "500" in error_str,  # Internal server error
+                ])
+                
+                if not is_retryable or attempt == max_retries - 1:
+                    # Not retryable or final attempt - raise
+                    print(f"❌ AI API error (attempt {attempt + 1}/{max_retries}): {error_str}")
+                    raise
+                
+                # Calculate exponential backoff delay
+                delay = min(2 ** attempt, 60)  # Cap at 60 seconds
+                print(f"⚠️  AI API error (attempt {attempt + 1}/{max_retries}): {error_str}")
+                print(f"⏳ Retrying in {delay} seconds...")
+                time.sleep(delay)
+        
+        # Should never reach here, but just in case
+        raise Exception(f"Failed after {max_retries} retries")
     
     def _generate_claude(self, prompt: str, max_tokens: int) -> str:
         """Generate response from Claude"""

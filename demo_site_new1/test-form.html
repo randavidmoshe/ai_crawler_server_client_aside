@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complex Form Test - Enhanced</title>
+    
+    <!-- External JavaScript for Terms Checkbox -->
+    <script src="terms-handler.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        /* Main Tabs (Part 1 / Part 2) */
+        .main-tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 3px solid #e0e0e0;
+        }
+
+        .main-tab-button {
+            flex: 1;
+            padding: 20px;
+            background: white;
+            border: none;
+            border-bottom: 4px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .main-tab-button:hover {
+            background: #f8f8f8;
+        }
+
+        .main-tab-button.active {
+            border-bottom-color: #667eea;
+            background: white;
+            color: #667eea;
+        }
+
+        .main-tab-content {
+            display: none;
+        }
+
+        .main-tab-content.active {
+            display: block;
+        }
+
+        .form-content {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        input[type="date"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* Sub-tabs (Details, Address, Preferences) */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px;
+            background: white;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .tab-button:hover {
+            background: #f8f8f8;
+        }
+
+        .tab-button.active {
+            border-bottom-color: #667eea;
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Conditional fields */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Checkboxes */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            font-weight: normal;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        /* Hover Menu */
+        .hover-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .hover-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            padding: 10px;
+            min-width: 200px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+
+        .hover-container:hover .hover-menu {
+            display: block;
+        }
+
+        /* Spinner for AJAX */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-overlay {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+
+        /* iframe styling */
+        iframe {
+            width: 100%;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            min-height: 300px;
+        }
+
+        .badge {
+            background: #667eea;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+
+        .badge.conditional {
+            background: #ff6b6b;
+        }
+
+        .badge.ajax {
+            background: #51cf66;
+        }
+
+        .badge.enterprise-only {
+            background: #ff6b00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Enhanced Complex Form Test Suite</h1>
+            <p>Testing: Conditional Fields, AJAX, Tabs, iframes, Shadow DOM, Datepicker, Multi-page, External JS</p>
+        </div>
+
+        <!-- Main Tabs: Part 1 / Part 2 -->
+        <div class="main-tabs">
+            <button class="main-tab-button active" onclick="showMainTab('part1')">
+                📝 Part 1 - Main Form
+            </button>
+            <button class="main-tab-button" onclick="showMainTab('part2')">
+                📋 Part 2 - Additional Info
+            </button>
+        </div>
+
+        <!-- Part 1 Content -->
+        <div id="part1" class="main-tab-content active">
+            <div class="form-content">
+                <form id="mainForm">
+                    <!-- Basic Fields -->
+                    <div class="form-group">
+                        <label for="fullName">Full Name <span class="badge">Basic</span></label>
+                        <input type="text" id="fullName" name="fullName" placeholder="John Doe">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email <span class="badge">Basic</span></label>
+                        <input type="email" id="email" name="email" placeholder="john@example.com">
+                    </div>
+
+                    <!-- Application Type (Conditional Trigger) -->
+                    <div class="form-group">
+                        <label for="applicationType">Application Type <span class="badge conditional">Conditional Trigger</span></label>
+                        <select id="applicationType" name="applicationType">
+                            <option value="">-- Select Type --</option>
+                            <option value="personal">Personal</option>
+                            <option value="business">Business</option>
+                            <option value="enterprise">Enterprise</option>
+                        </select>
+                    </div>
+
+                    <!-- Conditional Fields (show for business/enterprise) -->
+                    <div class="form-group hidden" id="companyNameGroup">
+                        <label for="companyName">Company Name <span class="badge conditional">Conditional</span></label>
+                        <input type="text" id="companyName" name="companyName" placeholder="Acme Inc.">
+                    </div>
+
+                    <!-- AJAX Dynamic Field -->
+                    <div id="ajaxLoadingContainer" class="hidden">
+                        <div class="loading-overlay">
+                            <div class="spinner"></div>
+                            <span>Loading Tax ID field...</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group hidden" id="taxIdGroup">
+                        <label for="taxId">Tax ID <span class="badge ajax">AJAX Loaded</span> <span class="badge conditional">Conditional</span></label>
+                        <input type="text" id="taxId" name="taxId" placeholder="12-3456789">
+                    </div>
+
+                    <!-- Datepicker -->
+                    <div class="form-group">
+                        <label for="startDate">Start Date <span class="badge">Datepicker</span></label>
+                        <input type="date" id="startDate" name="startDate">
+                    </div>
+
+                    <!-- Hover Menu -->
+                    <div class="form-group">
+                        <label>Special Options <span class="badge">Hover</span></label>
+                        <div class="hover-container">
+                            <button type="button" style="padding: 10px 20px; cursor: pointer;">
+                                Hover for special options →
+                            </button>
+                            <div class="hover-menu">
+                                <div class="form-group">
+                                    <label for="specialCode">Special Code</label>
+                                    <input type="text" id="specialCode" name="specialCode" placeholder="VIP-CODE">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone">Phone Number <span class="badge">Basic</span></label>
+                        <input type="tel" id="phone" name="phone" placeholder="+1 (555) 123-4567">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes">Additional Notes <span class="badge">Basic</span></label>
+                        <textarea id="notes" name="notes" placeholder="Any additional information..."></textarea>
+                    </div>
+
+                    <!-- Sub-Tabs -->
+                    <div class="tabs">
+                        <button type="button" class="tab-button active" onclick="showTab('details')">
+                            📋 Details
+                        </button>
+                        <button type="button" class="tab-button" onclick="showTab('address')">
+                            🏠 Address (iframe)
+                        </button>
+                        <button type="button" class="tab-button" onclick="showTab('preferences')">
+                            ⚙️ Preferences
+                        </button>
+                    </div>
+
+                    <!-- Details Tab -->
+                    <div id="details-tab" class="tab-content active">
+                        <!-- Base fields (always shown) -->
+                        <div class="form-group">
+                            <label for="referralSource">How did you hear about us?</label>
+                            <select id="referralSource" name="referralSource">
+                                <option value="">-- Select --</option>
+                                <option value="search">Search Engine</option>
+                                <option value="social">Social Media</option>
+                                <option value="referral">Referral</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <!-- Enterprise-only fields -->
+                        <div class="form-group hidden" id="managerPhoneGroup">
+                            <label for="managerPhone">Manager Phone Number <span class="badge enterprise-only">Enterprise Only</span></label>
+                            <input type="tel" id="managerPhone" name="managerPhone" placeholder="+1 (555) 999-8888">
+                        </div>
+
+                        <div class="form-group hidden" id="managerNotesGroup">
+                            <label for="managerNotes">Manager Additional Notes <span class="badge enterprise-only">Enterprise Only</span></label>
+                            <textarea id="managerNotes" name="managerNotes" placeholder="Manager-specific information..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Address Tab (iframe) -->
+                    <div id="address-tab" class="tab-content">
+                        <p style="margin-bottom: 15px; color: #666;">
+                            📦 <strong>iframe Content:</strong> Address form loaded from separate file
+                        </p>
+                        <iframe id="addressIframe" src="address-form.html"></iframe>
+                    </div>
+
+                    <!-- Preferences Tab -->
+                    <div id="preferences-tab" class="tab-content">
+                        <!-- Newsletter Checkbox (Internal JS) -->
+                        <div class="checkbox-group" style="margin-bottom: 20px;">
+                            <input type="checkbox" id="newsletter" name="newsletter">
+                            <label for="newsletter">Subscribe to newsletter <span class="badge">Internal JS</span></label>
+                        </div>
+
+                        <!-- Terms Checkbox (External JS) -->
+                        <div class="checkbox-group" style="margin-bottom: 20px;">
+                            <input type="checkbox" id="terms" name="terms">
+                            <label for="terms">I agree to terms and conditions <span class="badge">External JS</span></label>
+                        </div>
+
+                        <!-- Shadow DOM Widget -->
+                        <div class="form-group">
+                            <label>Rating <span class="badge">Shadow DOM</span></label>
+                            <rating-widget id="ratingWidget"></rating-widget>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ratingComment">Rating Comment</label>
+                            <textarea id="ratingComment" name="ratingComment" placeholder="Tell us about your rating..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Next Button -->
+                    <div class="button-group">
+                        <button type="button" class="btn btn-primary" onclick="goToPartTwo()">
+                            Next: Part 2 →
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Part 2 Content -->
+        <div id="part2" class="main-tab-content">
+            <div class="form-content">
+                <h2 style="margin-bottom: 20px; color: #667eea;">📋 Part 2 - Additional Information</h2>
+                
+                <form id="part2Form">
+                    <div class="form-group">
+                        <label for="field1">Additional Field 1</label>
+                        <input type="text" id="field1" name="field1" placeholder="Enter value 1">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="field2">Additional Field 2</label>
+                        <input type="text" id="field2" name="field2" placeholder="Enter value 2">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="field3">Additional Field 3</label>
+                        <input type="text" id="field3" name="field3" placeholder="Enter value 3">
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="button-group">
+                        <button type="button" class="btn btn-secondary" onclick="showMainTab('part1')">
+                            ← Back to Part 1
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            Submit Form 🚀
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // ========================================
+        // MAIN TAB SWITCHING (Part 1 / Part 2)
+        // ========================================
+        function showMainTab(tabName) {
+            // Hide all main tab contents
+            document.querySelectorAll('.main-tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active from all main tab buttons
+            document.querySelectorAll('.main-tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected main tab
+            document.getElementById(tabName).classList.add('active');
+            
+            // Activate button
+            event.target.classList.add('active');
+        }
+
+        function goToPartTwo() {
+            showMainTab('part2');
+            // Find and activate Part 2 button
+            document.querySelectorAll('.main-tab-button')[1].classList.add('active');
+            document.querySelectorAll('.main-tab-button')[0].classList.remove('active');
+        }
+
+        // ========================================
+        // SUB-TAB SWITCHING (Details / Address / Preferences)
+        // ========================================
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active from all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Activate button
+            event.target.classList.add('active');
+        }
+
+        // ========================================
+        // CONDITIONAL FIELDS (Application Type)
+        // ========================================
+        document.getElementById('applicationType').addEventListener('change', function() {
+            const value = this.value;
+            const companyGroup = document.getElementById('companyNameGroup');
+            const taxIdGroup = document.getElementById('taxIdGroup');
+            const ajaxLoading = document.getElementById('ajaxLoadingContainer');
+            const managerPhoneGroup = document.getElementById('managerPhoneGroup');
+            const managerNotesGroup = document.getElementById('managerNotesGroup');
+            
+            // Show/hide company name and tax ID for business/enterprise
+            if (value === 'business' || value === 'enterprise') {
+                companyGroup.classList.remove('hidden');
+                
+                // Show loading spinner
+                ajaxLoading.classList.remove('hidden');
+                taxIdGroup.classList.add('hidden');
+                
+                // Simulate AJAX delay (2 seconds)
+                setTimeout(() => {
+                    ajaxLoading.classList.add('hidden');
+                    taxIdGroup.classList.remove('hidden');
+                }, 2000);
+            } else {
+                companyGroup.classList.add('hidden');
+                taxIdGroup.classList.add('hidden');
+                ajaxLoading.classList.add('hidden');
+            }
+            
+            // Show manager fields only for enterprise
+            if (value === 'enterprise') {
+                managerPhoneGroup.classList.remove('hidden');
+                managerNotesGroup.classList.remove('hidden');
+            } else {
+                managerPhoneGroup.classList.add('hidden');
+                managerNotesGroup.classList.add('hidden');
+            }
+        });
+
+        // ========================================
+        // NEWSLETTER CHECKBOX (Internal JS)
+        // ========================================
+        (function() {
+            const newsletterCheckbox = document.getElementById('newsletter');
+            
+            newsletterCheckbox.addEventListener('change', function() {
+                const isChecked = this.checked;
+                this.setAttribute('data-subscribed', isChecked ? 'yes' : 'no');
+                console.log('Newsletter subscription:', isChecked ? 'SUBSCRIBED' : 'UNSUBSCRIBED');
+                
+                // Visual feedback
+                const label = document.querySelector('label[for="newsletter"]');
+                if (label) {
+                    if (isChecked) {
+                        label.style.color = '#51cf66';
+                        label.style.fontWeight = '600';
+                    } else {
+                        label.style.color = '#333';
+                        label.style.fontWeight = 'normal';
+                    }
+                }
+            });
+            
+            // Initialize
+            newsletterCheckbox.setAttribute('data-subscribed', 'no');
+        })();
+
+        // ========================================
+        // SHADOW DOM - Rating Widget
+        // ========================================
+        class RatingWidget extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: 'open' });
+            }
+            
+            connectedCallback() {
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        .rating-container {
+                            display: flex;
+                            gap: 10px;
+                            align-items: center;
+                        }
+                        .star {
+                            font-size: 30px;
+                            cursor: pointer;
+                            color: #ccc;
+                            transition: color 0.2s;
+                        }
+                        .star.active {
+                            color: #ffd700;
+                        }
+                        .star:hover {
+                            color: #ffed4e;
+                        }
+                        input {
+                            display: none;
+                        }
+                    </style>
+                    <div class="rating-container">
+                        <span class="star" data-rating="1">★</span>
+                        <span class="star" data-rating="2">★</span>
+                        <span class="star" data-rating="3">★</span>
+                        <span class="star" data-rating="4">★</span>
+                        <span class="star" data-rating="5">★</span>
+                        <input type="hidden" id="rating" name="rating" value="0">
+                    </div>
+                `;
+                
+                const stars = this.shadowRoot.querySelectorAll('.star');
+                const input = this.shadowRoot.querySelector('input');
+                
+                stars.forEach(star => {
+                    star.addEventListener('click', () => {
+                        const rating = star.getAttribute('data-rating');
+                        input.value = rating;
+                        
+                        // Update visual state
+                        stars.forEach(s => {
+                            if (parseInt(s.getAttribute('data-rating')) <= parseInt(rating)) {
+                                s.classList.add('active');
+                            } else {
+                                s.classList.remove('active');
+                            }
+                        });
+                        
+                        console.log('Rating selected:', rating);
+                    });
+                });
+            }
+        }
+        
+        customElements.define('rating-widget', RatingWidget);
+
+        // ========================================
+        // FORM SUBMISSION
+        // ========================================
+        document.getElementById('part2Form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('✅ Form submitted successfully!\n\nIn a real app, this would send data to the server.');
+            console.log('Form submitted');
+        });
+
+        // Initialize
+        console.log('✓ Enhanced test form loaded successfully');
+    </script>
+</body>
+</html>

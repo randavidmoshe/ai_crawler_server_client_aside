@@ -54,781 +54,907 @@
         {
             "name": "fullName",
             "iframe_context": null,
+            "has_js": null,
             "create_action": {
-                "create_type": "enter_text",
                 "action_description": "enter full name",
-                "update_css": "input[id='fullName']",
                 "non_editable_condition": {},
                 "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "enter_text",
+                        "locator": "#fullName",
+                        "value": "{fullName}"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "50"
+                "type": "assign_value",
+                "value": "{fullName}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "50"
-            },
-            "verification": {
-                "verification_css": "input[id='fullName']",
-                "verification_type": "element_value"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "enter_text",
-                "action_description": "enter full name",
-                "update_css": "input[id='fullName']",
-                "non_editable_condition": {},
-                "update_mandatory": true,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "email",
             "iframe_context": null,
+            "has_js": null,
             "create_action": {
-                "create_type": "enter_text",
                 "action_description": "enter email address",
-                "update_css": "input[id='email']",
                 "non_editable_condition": {},
                 "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "enter_text",
+                        "locator": "#email",
+                        "value": "{email}"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_email"
+                "type": "assign_value",
+                "value": "{email}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_email"
-            },
-            "verification": {
-                "verification_css": "input[id='email']",
-                "verification_type": "element_value"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "enter_text",
-                "action_description": "enter email address",
-                "update_css": "input[id='email']",
-                "non_editable_condition": {},
-                "update_mandatory": true,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "applicationType",
             "iframe_context": null,
+            "has_js": null,
             "create_action": {
-                "create_type": "select_dropdown",
                 "action_description": "select application type",
-                "update_css": "select[id='applicationType']",
                 "non_editable_condition": {},
                 "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "select_dropdown",
+                        "locator": "#applicationType",
+                        "value": "{applicationType}"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_dropdown_value"
+                "type": "assign_value",
+                "value": "{applicationType}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_dropdown_value"
-            },
-            "verification": {
-                "verification_css": "select[id='applicationType']",
-                "verification_type": "element_value"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "select_dropdown",
-                "action_description": "select application type",
-                "update_css": "select[id='applicationType']",
-                "non_editable_condition": {},
-                "update_mandatory": true,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "companyName",
             "iframe_context": null,
+            "has_js": null,
             "create_action": {
-                "create_type": "enter_text",
                 "action_description": "enter company name",
-                "update_css": "input[id='companyName']",
                 "non_editable_condition": {
                     "operator": "or",
                     "applicationType": [
                         "personal"
                     ]
                 },
-                "update_mandatory": false,
+                "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "enter_text",
+                        "locator": "#companyName",
+                        "value": "{companyName}"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "50"
+                "type": "assign_value",
+                "value": "{companyName}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "50"
-            },
-            "verification": {
-                "verification_css": "input[id='companyName']",
-                "verification_type": "element_value"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
             "update_action": {
-                "create_type": "enter_text",
-                "action_description": "enter company name",
-                "update_css": "input[id='companyName']",
                 "non_editable_condition": {
                     "operator": "or",
                     "applicationType": [
                         "personal"
                     ]
-                },
-                "update_mandatory": false,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                }
             },
             "api_name": ""
         },
         {
             "name": "taxId",
             "iframe_context": null,
+            "has_js": null,
             "create_action": {
-                "create_type": "enter_text",
                 "action_description": "enter tax ID",
-                "update_css": "input[id='taxId']",
                 "non_editable_condition": {
                     "operator": "or",
                     "applicationType": [
                         "personal"
                     ]
                 },
-                "update_mandatory": false,
+                "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "enter_text",
+                        "locator": "#taxId",
+                        "value": "{taxId}"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "20"
+                "type": "assign_value",
+                "value": "{taxId}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "20"
-            },
-            "verification": {
-                "verification_css": "input[id='taxId']",
-                "verification_type": "element_value"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
             "update_action": {
-                "create_type": "enter_text",
-                "action_description": "enter tax ID",
-                "update_css": "input[id='taxId']",
                 "non_editable_condition": {
                     "operator": "or",
                     "applicationType": [
                         "personal"
                     ]
-                },
-                "update_mandatory": false,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                }
             },
             "api_name": ""
         },
         {
-            "name": "hover_special_options",
+            "name": "startDate",
             "iframe_context": null,
+            "has_js": null,
             "create_action": {
-                "create_type": "hover",
-                "action_description": "hover over special options trigger",
-                "update_css": ".hover-trigger",
+                "action_description": "enter start date",
                 "non_editable_condition": {},
                 "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "enter_text",
+                        "locator": "#startDate",
+                        "value": "{startDate}"
+                    }
+                ]
+            },
+            "update_fields_assignment": {
+                "type": "assign_value",
+                "value": "{startDate}",
+                "more_info": "Send date in format: YYYY-MM-DD"
+            },
+            "verification_fields_assignment": {},
+            "verification": {},
+            "update_api_fields_assignment": {},
+            "update_action": {},
+            "api_name": ""
+        },
+        {
+            "name": "hover_for_special_options",
+            "iframe_context": null,
+            "has_js": null,
+            "create_action": {
+                "action_description": "hover to reveal special options",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "hover",
+                        "locator": ".hover-container button"
+                    }
+                ]
             },
             "update_fields_assignment": {},
             "verification_fields_assignment": {},
-            "verification": {
-                "verification_css": ".hover-content",
-                "verification_type": "element_visible"
-            },
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "hover",
-                "action_description": "hover over special options trigger",
-                "update_css": ".hover-trigger",
-                "non_editable_condition": {},
-                "update_mandatory": true,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "specialCode",
             "iframe_context": null,
+            "has_js": null,
             "create_action": {
-                "create_type": "enter_text",
                 "action_description": "enter special code",
-                "update_css": "input[id='specialCode']",
                 "non_editable_condition": {},
-                "update_mandatory": false,
+                "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "enter_text",
+                        "locator": "#specialCode",
+                        "value": "{specialCode}"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "20"
+                "type": "assign_value",
+                "value": "{specialCode}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "20"
-            },
-            "verification": {
-                "verification_css": "input[id='specialCode']",
-                "verification_type": "element_value"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "enter_text",
-                "action_description": "enter special code",
-                "update_css": "input[id='specialCode']",
-                "non_editable_condition": {},
-                "update_mandatory": false,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "phone",
             "iframe_context": null,
+            "has_js": null,
             "create_action": {
-                "create_type": "enter_text",
                 "action_description": "enter phone number",
-                "update_css": "input[id='phone']",
                 "non_editable_condition": {},
-                "update_mandatory": false,
+                "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "enter_text",
+                        "locator": "#phone",
+                        "value": "{phone}"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "20"
+                "type": "assign_value",
+                "value": "{phone}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "20"
-            },
-            "verification": {
-                "verification_css": "input[id='phone']",
-                "verification_type": "element_value"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "enter_text",
-                "action_description": "enter phone number",
-                "update_css": "input[id='phone']",
-                "non_editable_condition": {},
-                "update_mandatory": false,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "notes",
             "iframe_context": null,
+            "has_js": null,
             "create_action": {
-                "create_type": "enter_text",
                 "action_description": "enter additional notes",
-                "update_css": "textarea[id='notes']",
                 "non_editable_condition": {},
-                "update_mandatory": false,
+                "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "enter_text",
+                        "locator": "#notes",
+                        "value": "{notes}"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "200"
+                "type": "assign_value",
+                "value": "{notes}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "200"
+            "verification_fields_assignment": {},
+            "verification": {},
+            "update_api_fields_assignment": {},
+            "update_action": {},
+            "api_name": ""
+        },
+        {
+            "name": "click_details_tab",
+            "iframe_context": null,
+            "has_js": null,
+            "create_action": {
+                "action_description": "click details tab",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "1",
+                "steps": [
+                    {
+                        "action": "click",
+                        "locator": "button[onclick=\"showTab('details')\"]"
+                    }
+                ]
             },
-            "verification": {
-                "verification_css": "textarea[id='notes']",
-                "verification_type": "element_value"
+            "update_fields_assignment": {},
+            "verification_fields_assignment": {},
+            "verification": {},
+            "update_api_fields_assignment": {},
+            "update_action": {},
+            "api_name": ""
+        },
+        {
+            "name": "referralSource",
+            "iframe_context": null,
+            "has_js": null,
+            "create_action": {
+                "action_description": "select referral source",
+                "non_editable_condition": {},
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "select_dropdown",
+                        "locator": "#referralSource",
+                        "value": "{referralSource}"
+                    }
+                ]
             },
+            "update_fields_assignment": {
+                "type": "assign_value",
+                "value": "{referralSource}",
+                "more_info": ""
+            },
+            "verification_fields_assignment": {},
+            "verification": {},
+            "update_api_fields_assignment": {},
+            "update_action": {},
+            "api_name": ""
+        },
+        {
+            "name": "managerPhone",
+            "iframe_context": null,
+            "has_js": null,
+            "create_action": {
+                "action_description": "enter manager phone number",
+                "non_editable_condition": {
+                    "operator": "or",
+                    "applicationType": [
+                        "personal"
+                    ]
+                },
+                "update_mandatory": true,
+                "validate_non_editable": false,
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "enter_text",
+                        "locator": "#managerPhone",
+                        "value": "{managerPhone}"
+                    }
+                ]
+            },
+            "update_fields_assignment": {
+                "type": "assign_value",
+                "value": "{managerPhone}",
+                "more_info": ""
+            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
             "update_action": {
-                "create_type": "enter_text",
-                "action_description": "enter additional notes",
-                "update_css": "textarea[id='notes']",
-                "non_editable_condition": {},
-                "update_mandatory": false,
+                "non_editable_condition": {
+                    "operator": "or",
+                    "applicationType": [
+                        "personal"
+                    ]
+                }
+            },
+            "api_name": ""
+        },
+        {
+            "name": "managerNotes",
+            "iframe_context": null,
+            "has_js": null,
+            "create_action": {
+                "action_description": "enter manager notes",
+                "non_editable_condition": {
+                    "operator": "or",
+                    "applicationType": [
+                        "personal"
+                    ]
+                },
+                "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "enter_text",
+                        "locator": "#managerNotes",
+                        "value": "{managerNotes}"
+                    }
+                ]
+            },
+            "update_fields_assignment": {
+                "type": "assign_value",
+                "value": "{managerNotes}",
+                "more_info": ""
+            },
+            "verification_fields_assignment": {},
+            "verification": {},
+            "update_api_fields_assignment": {},
+            "update_action": {
+                "non_editable_condition": {
+                    "operator": "or",
+                    "applicationType": [
+                        "personal"
+                    ]
+                }
             },
             "api_name": ""
         },
         {
             "name": "click_address_tab",
             "iframe_context": null,
+            "has_js": null,
             "create_action": {
-                "create_type": "click_button",
                 "action_description": "click address tab",
-                "update_css": "button[data-tab='address']",
                 "non_editable_condition": {},
                 "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "1"
+                "webdriver_sleep_before_action": "1",
+                "steps": [
+                    {
+                        "action": "click",
+                        "locator": "button[onclick=\"showTab('address')\"]"
+                    }
+                ]
             },
             "update_fields_assignment": {},
             "verification_fields_assignment": {},
-            "verification": {
-                "verification_css": "#address-tab",
-                "verification_type": "element_visible"
-            },
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "click_button",
-                "action_description": "click address tab",
-                "update_css": "button[data-tab='address']",
-                "non_editable_condition": {},
-                "update_mandatory": true,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "1"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "street",
             "iframe_context": "addressIframe",
+            "has_js": null,
             "create_action": {
-                "create_type": "enter_text",
                 "action_description": "enter street address",
-                "update_css": "input[id='street']",
                 "non_editable_condition": {},
-                "update_mandatory": false,
+                "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "1"
+                "webdriver_sleep_before_action": "1",
+                "steps": [
+                    {
+                        "action": "switch_to_frame",
+                        "locator": "#addressIframe"
+                    },
+                    {
+                        "action": "enter_text",
+                        "locator": "#street",
+                        "value": "{street}"
+                    },
+                    {
+                        "action": "switch_to_parent_frame"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "50"
+                "type": "assign_value",
+                "value": "{street}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "50"
-            },
-            "verification": {
-                "verification_css": "input[id='street']",
-                "verification_type": "element_value"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "enter_text",
-                "action_description": "enter street address",
-                "update_css": "input[id='street']",
-                "non_editable_condition": {},
-                "update_mandatory": false,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "1"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "city",
             "iframe_context": "addressIframe",
+            "has_js": null,
             "create_action": {
-                "create_type": "enter_text",
                 "action_description": "enter city",
-                "update_css": "input[id='city']",
                 "non_editable_condition": {},
-                "update_mandatory": false,
+                "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "switch_to_frame",
+                        "locator": "#addressIframe"
+                    },
+                    {
+                        "action": "enter_text",
+                        "locator": "#city",
+                        "value": "{city}"
+                    },
+                    {
+                        "action": "switch_to_parent_frame"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "30"
+                "type": "assign_value",
+                "value": "{city}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "30"
-            },
-            "verification": {
-                "verification_css": "input[id='city']",
-                "verification_type": "element_value"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "enter_text",
-                "action_description": "enter city",
-                "update_css": "input[id='city']",
-                "non_editable_condition": {},
-                "update_mandatory": false,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "state",
             "iframe_context": "addressIframe",
+            "has_js": null,
             "create_action": {
-                "create_type": "select_dropdown",
                 "action_description": "select state",
-                "update_css": "select[id='state']",
                 "non_editable_condition": {},
-                "update_mandatory": false,
+                "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "switch_to_frame",
+                        "locator": "#addressIframe"
+                    },
+                    {
+                        "action": "select_dropdown",
+                        "locator": "#state",
+                        "value": "{state}"
+                    },
+                    {
+                        "action": "switch_to_parent_frame"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_dropdown_value"
+                "type": "assign_value",
+                "value": "{state}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_dropdown_value"
-            },
-            "verification": {
-                "verification_css": "select[id='state']",
-                "verification_type": "element_value"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "select_dropdown",
-                "action_description": "select state",
-                "update_css": "select[id='state']",
-                "non_editable_condition": {},
-                "update_mandatory": false,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "zipCode",
             "iframe_context": "addressIframe",
+            "has_js": null,
             "create_action": {
-                "create_type": "enter_text",
                 "action_description": "enter ZIP code",
-                "update_css": "input[id='zipCode']",
                 "non_editable_condition": {},
-                "update_mandatory": false,
+                "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "switch_to_frame",
+                        "locator": "#addressIframe"
+                    },
+                    {
+                        "action": "enter_text",
+                        "locator": "#zipCode",
+                        "value": "{zipCode}"
+                    },
+                    {
+                        "action": "switch_to_parent_frame"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "10"
+                "type": "assign_value",
+                "value": "{zipCode}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "10"
-            },
-            "verification": {
-                "verification_css": "input[id='zipCode']",
-                "verification_type": "element_value"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "enter_text",
-                "action_description": "enter ZIP code",
-                "update_css": "input[id='zipCode']",
-                "non_editable_condition": {},
-                "update_mandatory": false,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "emergencyName",
             "iframe_context": "contactIframe",
+            "has_js": null,
             "create_action": {
-                "create_type": "enter_text",
                 "action_description": "enter emergency contact name",
-                "update_css": "input[id='emergencyName']",
                 "non_editable_condition": {},
-                "update_mandatory": false,
+                "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "1"
+                "webdriver_sleep_before_action": "1",
+                "steps": [
+                    {
+                        "action": "switch_to_frame",
+                        "locator": "#addressIframe"
+                    },
+                    {
+                        "action": "switch_to_frame",
+                        "locator": "#contactIframe"
+                    },
+                    {
+                        "action": "enter_text",
+                        "locator": "#emergencyName",
+                        "value": "{emergencyName}"
+                    },
+                    {
+                        "action": "switch_to_parent_frame"
+                    },
+                    {
+                        "action": "switch_to_parent_frame"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "50"
+                "type": "assign_value",
+                "value": "{emergencyName}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "50"
-            },
-            "verification": {
-                "verification_css": "input[id='emergencyName']",
-                "verification_type": "element_value"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "enter_text",
-                "action_description": "enter emergency contact name",
-                "update_css": "input[id='emergencyName']",
-                "non_editable_condition": {},
-                "update_mandatory": false,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "1"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "emergencyPhone",
             "iframe_context": "contactIframe",
+            "has_js": null,
             "create_action": {
-                "create_type": "enter_text",
-                "action_description": "enter emergency contact phone",
-                "update_css": "input[id='emergencyPhone']",
+                "action_description": "enter emergency phone number",
                 "non_editable_condition": {},
-                "update_mandatory": false,
+                "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "switch_to_frame",
+                        "locator": "#addressIframe"
+                    },
+                    {
+                        "action": "switch_to_frame",
+                        "locator": "#contactIframe"
+                    },
+                    {
+                        "action": "enter_text",
+                        "locator": "#emergencyPhone",
+                        "value": "{emergencyPhone}"
+                    },
+                    {
+                        "action": "switch_to_parent_frame"
+                    },
+                    {
+                        "action": "switch_to_parent_frame"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "20"
+                "type": "assign_value",
+                "value": "{emergencyPhone}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "20"
-            },
-            "verification": {
-                "verification_css": "input[id='emergencyPhone']",
-                "verification_type": "element_value"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "enter_text",
-                "action_description": "enter emergency contact phone",
-                "update_css": "input[id='emergencyPhone']",
-                "non_editable_condition": {},
-                "update_mandatory": false,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "emergencyEmail",
             "iframe_context": "contactIframe",
+            "has_js": null,
             "create_action": {
-                "create_type": "enter_text",
-                "action_description": "enter emergency contact email",
-                "update_css": "input[id='emergencyEmail']",
+                "action_description": "enter emergency email address",
                 "non_editable_condition": {},
-                "update_mandatory": false,
+                "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "switch_to_frame",
+                        "locator": "#addressIframe"
+                    },
+                    {
+                        "action": "switch_to_frame",
+                        "locator": "#contactIframe"
+                    },
+                    {
+                        "action": "enter_text",
+                        "locator": "#emergencyEmail",
+                        "value": "{emergencyEmail}"
+                    },
+                    {
+                        "action": "switch_to_parent_frame"
+                    },
+                    {
+                        "action": "switch_to_parent_frame"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_email"
+                "type": "assign_value",
+                "value": "{emergencyEmail}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_email"
-            },
-            "verification": {
-                "verification_css": "input[id='emergencyEmail']",
-                "verification_type": "element_value"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "enter_text",
-                "action_description": "enter emergency contact email",
-                "update_css": "input[id='emergencyEmail']",
-                "non_editable_condition": {},
-                "update_mandatory": false,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "click_preferences_tab",
             "iframe_context": null,
+            "has_js": null,
             "create_action": {
-                "create_type": "click_button",
                 "action_description": "click preferences tab",
-                "update_css": "button[data-tab='preferences']",
                 "non_editable_condition": {},
                 "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "2"
+                "webdriver_sleep_before_action": "1",
+                "steps": [
+                    {
+                        "action": "click",
+                        "locator": "button[onclick=\"showTab('preferences')\"]"
+                    }
+                ]
             },
             "update_fields_assignment": {},
             "verification_fields_assignment": {},
-            "verification": {
-                "verification_css": "#preferences-tab",
-                "verification_type": "element_visible"
-            },
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "click_button",
-                "action_description": "click preferences tab",
-                "update_css": "button[data-tab='preferences']",
-                "non_editable_condition": {},
-                "update_mandatory": true,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "2"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "newsletter",
             "iframe_context": null,
+            "has_js": "newsletterCheckbox.addEventListener('change', function() { this.setAttribute('data-subscribed', this.checked ? 'yes' : 'no'); });",
             "create_action": {
-                "create_type": "click_checkbox",
-                "action_description": "subscribe to newsletter",
-                "update_css": "input[id='newsletter']",
+                "action_description": "toggle newsletter subscription",
                 "non_editable_condition": {},
-                "update_mandatory": false,
+                "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "custom_python",
+                        "code": "elem = driver.find_element(By.CSS_SELECTOR, '#newsletter'); current = elem.get_attribute('data-subscribed'); target = 'yes' if field_value else 'no'; if current != target: elem.click()",
+                        "locator": "#newsletter"
+                    }
+                ]
             },
             "update_fields_assignment": {
                 "type": "assign_value",
-                "value": true
+                "value": "{newsletter}",
+                "more_info": "Send boolean true/false"
             },
-            "verification_fields_assignment": {
-                "type": "assign_value",
-                "value": true
-            },
-            "verification": {
-                "verification_css": "input[id='newsletter']",
-                "verification_type": "element_checked"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "click_checkbox",
-                "action_description": "subscribe to newsletter",
-                "update_css": "input[id='newsletter']",
-                "non_editable_condition": {},
-                "update_mandatory": false,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "terms",
             "iframe_context": null,
+            "has_js": "termsCheckbox.addEventListener('change', function() { this.setAttribute('data-agreed', this.checked ? 'true' : 'false'); });",
             "create_action": {
-                "create_type": "click_checkbox",
                 "action_description": "agree to terms and conditions",
-                "update_css": "input[id='terms']",
                 "non_editable_condition": {},
                 "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "custom_python",
+                        "code": "elem = driver.find_element(By.CSS_SELECTOR, '#terms'); current = elem.get_attribute('data-agreed'); target = 'true' if field_value else 'false'; if current != target: elem.click()",
+                        "locator": "#terms"
+                    }
+                ]
             },
             "update_fields_assignment": {
                 "type": "assign_value",
-                "value": true
+                "value": "{terms}",
+                "more_info": "Send boolean true/false"
             },
-            "verification_fields_assignment": {
-                "type": "assign_value",
-                "value": true
-            },
-            "verification": {
-                "verification_css": "input[id='terms']",
-                "verification_type": "element_checked"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "click_checkbox",
-                "action_description": "agree to terms and conditions",
-                "update_css": "input[id='terms']",
+            "update_action": {},
+            "api_name": ""
+        },
+        {
+            "name": "rating",
+            "iframe_context": null,
+            "has_js": "star.addEventListener('click', () => { input.value = rating; });",
+            "create_action": {
+                "action_description": "select rating",
                 "non_editable_condition": {},
                 "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "0.5"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "custom_python",
+                        "code": "shadow_root = driver.find_element(By.CSS_SELECTOR, '#ratingWidget').shadow_root; stars = shadow_root.find_elements(By.CSS_SELECTOR, '.star'); stars[int(field_value) - 1].click()",
+                        "locator": "#ratingWidget"
+                    }
+                ]
             },
+            "update_fields_assignment": {
+                "type": "assign_value",
+                "value": "{rating}",
+                "more_info": "Send integer 1-5"
+            },
+            "verification_fields_assignment": {},
+            "verification": {},
+            "update_api_fields_assignment": {},
+            "update_action": {},
             "api_name": ""
         },
         {
             "name": "ratingComment",
             "iframe_context": null,
+            "has_js": null,
             "create_action": {
-                "create_type": "enter_text",
-                "action_description": "enter rating comment in shadow DOM",
-                "update_css": "input[id='ratingComment']",
+                "action_description": "enter rating comment",
                 "non_editable_condition": {},
-                "update_mandatory": false,
+                "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "1"
+                "webdriver_sleep_before_action": "0.5",
+                "steps": [
+                    {
+                        "action": "enter_text",
+                        "locator": "#ratingComment",
+                        "value": "{ratingComment}"
+                    }
+                ]
             },
             "update_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "100"
+                "type": "assign_value",
+                "value": "{ratingComment}",
+                "more_info": ""
             },
-            "verification_fields_assignment": {
-                "type": "assign_random_text",
-                "size": "100"
-            },
-            "verification": {
-                "verification_css": "input[id='ratingComment']",
-                "verification_type": "element_value"
-            },
+            "verification_fields_assignment": {},
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "enter_text",
-                "action_description": "enter rating comment in shadow DOM",
-                "update_css": "input[id='ratingComment']",
-                "non_editable_condition": {},
-                "update_mandatory": false,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "1"
-            },
+            "update_action": {},
             "api_name": ""
         },
         {
-            "name": "submitBtn",
+            "name": "click_next",
             "iframe_context": null,
+            "has_js": null,
+            "button_type": "navigation",
             "create_action": {
-                "create_type": "click_button",
-                "action_description": "submit form",
-                "update_css": "button[id='submitBtn']",
+                "action_description": "click next button to go to part 2",
                 "non_editable_condition": {},
                 "update_mandatory": true,
                 "validate_non_editable": false,
-                "webdriver_sleep_before_action": "2"
+                "webdriver_sleep_before_action": "1",
+                "steps": [
+                    {
+                        "action": "click",
+                        "locator": "button[onclick='goToPartTwo()']"
+                    }
+                ]
             },
             "update_fields_assignment": {},
             "verification_fields_assignment": {},
-            "verification": {
-                "verification_css": "#successMessage",
-                "verification_type": "element_visible"
-            },
+            "verification": {},
             "update_api_fields_assignment": {},
-            "update_action": {
-                "create_type": "click_button",
-                "action_description": "submit form",
-                "update_css": "button[id='submitBtn']",
-                "non_editable_condition": {},
-                "update_mandatory": true,
-                "validate_non_editable": false,
-                "webdriver_sleep_before_action": "2"
-            },
+            "update_action": {},
             "api_name": ""
         }
     ]

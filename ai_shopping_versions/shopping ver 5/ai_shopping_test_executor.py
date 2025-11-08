@@ -56,7 +56,7 @@ SHOPPING_SITES = {
 # Generic test cases file
 import os
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-GENERIC_TEST_CASES_FILE = os.path.join(SCRIPT_DIR, "generic_shopping_test_cases.json")
+GENERIC_TEST_CASES_FILE = os.path.join(SCRIPT_DIR, "generic_form_page_crawler_test_cases.json")
 DOM_CACHE_FILE = os.path.join(SCRIPT_DIR, "dom_cache.json")
 PROJECTS_BASE_DIR = os.path.expanduser("~/automation_product_config/shopping_site_projects")
 # ============================================================
@@ -886,7 +886,7 @@ class TestCaseRepository:
     """Load generic test cases from JSON file"""
 
     def __init__(self, cache_file: str = GENERIC_TEST_CASES_FILE):
-        self.test_cases_file = cache_file  # Now points to generic_shopping_test_cases.json
+        self.test_cases_file = cache_file  # Now points to generic_form_page_crawler_test_cases.json
         # Get directory where the script is located
         script_dir = os.path.dirname(os.path.abspath(__file__))
         self.cache_path = os.path.join(script_dir, cache_file)
