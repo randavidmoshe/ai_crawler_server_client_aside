@@ -14,6 +14,9 @@ import json
 import hashlib
 from typing import List, Dict, Optional
 
+import logging
+logger = logging.getLogger('init_logger.main_from_page')
+result_logger_gui = logging.getLogger('init_result_logger_gui.main_from_page')
 
 class LocalTestOrchestrator:
     """
@@ -27,10 +30,11 @@ class LocalTestOrchestrator:
         anthropic_api_key: str,
         test_cases_file: str,
         browser: str = "chrome",
-        headless: bool = False
+        headless: bool = False,
+        screenshot_folder: Optional[str] = None
     ):
-        # Initialize Selenium (from agent code)
-        self.selenium = AgentSelenium()
+        # Initialize Selenium (from agent code) with screenshot folder
+        self.selenium = AgentSelenium(screenshot_folder=screenshot_folder)
         
         # Initialize AI helper (server code)
         self.ai = AIHelper(api_key=anthropic_api_key)
@@ -133,19 +137,71 @@ class LocalTestOrchestrator:
         
         print(f"✅ DOM extracted: {len(dom_html)} chars, hash: {self.current_dom_hash[:16]}...")
         
-        # Generate initial steps with AI
+        # Generate initial steps with AI (with screenshot for UI verification)
         print("\n🤖 Generating test steps with AI...")
-        steps = self.ai.generate_test_steps(
+        print("📸 Capturing screenshot for UI verification...")
+        
+        # Capture screenshot (base64, not saved to folder)
+        screenshot_result = self.selenium.capture_screenshot(
+            scenario_description="initial_ui_check",
+            encode_base64=True,
+            save_to_folder=False
+        )
+        
+        if not screenshot_result["success"]:
+            print(f"⚠️  Failed to capture screenshot: {screenshot_result.get('error')}")
+            screenshot_base64 = None
+        else:
+            screenshot_base64 = screenshot_result["screenshot"]
+            print("✅ Screenshot captured for AI analysis")
+        
+        # Generate steps with UI verification
+        result = self.ai.generate_test_steps(
             dom_html=dom_html,
             test_cases=self.test_cases,
-            test_context=self.test_context
+            test_context=self.test_context,
+            screenshot_base64=screenshot_base64
         )
+        
+        steps = result.get("steps", [])
+        ui_issue = result.get("ui_issue", "")
         
         if not steps:
             print("❌ Failed to generate steps")
             return False
         
         print(f"✅ Generated {len(steps)} steps")
+        
+        # Handle UI issue if detected
+        if ui_issue:
+            print(f"\n⚠️  UI ISSUE DETECTED: {ui_issue}")
+            
+            # Add to reported issues list (split by comma to handle multiple issues)
+            for issue in ui_issue.split(','):
+                issue = issue.strip()
+                if issue and issue not in self.test_context.reported_ui_issues:
+                    self.test_context.reported_ui_issues.append(issue)
+            
+            # Log to both loggers
+            import logging
+            logger = logging.getLogger('init_logger.form_page_test')
+            result_logger_gui = logging.getLogger('init_result_logger_gui.form_page_test')
+            
+            logger.warning(f"UI Issue detected: {ui_issue}")
+            result_logger_gui.warning(f"UI Issue detected: {ui_issue}")
+            
+            # Capture and save screenshot to folder
+            ui_screenshot_result = self.selenium.capture_screenshot(
+                scenario_description="ui_issue",
+                encode_base64=False,
+                save_to_folder=True
+            )
+            
+            if ui_screenshot_result["success"]:
+                print(f"📸 UI issue screenshot saved: {ui_screenshot_result['filename']}")
+            
+            print("⚠️  Continuing test despite UI issue...\n")
+        
         self._print_steps(steps)
         
         # Execute steps
@@ -154,6 +210,8 @@ class LocalTestOrchestrator:
         print("="*70)
         
         executed_steps = []
+        consecutive_failures = 0
+        max_consecutive_failures = 2
         i = 0
         
         while i < len(steps):
@@ -168,6 +226,16 @@ class LocalTestOrchestrator:
             if not result["success"]:
                 print(f"❌ Step failed: {result.get('error')}")
                 
+                # Increment consecutive failure counter
+                consecutive_failures += 1
+                print(f"⚠️  Consecutive failures: {consecutive_failures}/{max_consecutive_failures}")
+                
+                # Check if we've hit the max consecutive failures
+                if consecutive_failures >= max_consecutive_failures:
+                    print(f"\n❌ TERMINATING: Reached maximum consecutive failures ({max_consecutive_failures})")
+                    print(f"   Last failed step: {step.get('description')}")
+                    return False
+                
                 # Try failure recovery with AI
                 print("\n🔧 Attempting failure recovery with AI...")
                 
@@ -180,17 +248,19 @@ class LocalTestOrchestrator:
                     print("❌ Failed to extract DOM for recovery")
                     return False
                 
-                # Capture screenshot for AI vision
-                screenshot_result = self.selenium.capture_screenshot(encode_base64=False)
+                # Capture screenshot with descriptive scenario
+                step_description = step.get('description', 'unknown_step')
+                screenshot_result = self.selenium.capture_screenshot(
+                    scenario_description=f"error_{step_description}",
+                    encode_base64=False
+                )
+                
                 if not screenshot_result["success"]:
                     print("❌ Failed to capture screenshot for recovery")
                     return False
                 
-                # Save screenshot temporarily
-                import tempfile
-                screenshot_path = tempfile.mktemp(suffix='.png')
-                with open(screenshot_path, 'wb') as f:
-                    f.write(screenshot_result["screenshot"])
+                screenshot_path = screenshot_result["filepath"]
+                print(f"📸 Screenshot saved: {screenshot_result['filename']}")
                 
                 # Ask AI to analyze failure and generate recovery steps
                 recovery_steps = self.ai.analyze_failure_and_recover(
@@ -200,15 +270,8 @@ class LocalTestOrchestrator:
                     screenshot_path=screenshot_path,
                     test_cases=self.test_cases,
                     test_context=self.test_context,
-                    attempt_number=1
+                    attempt_number=consecutive_failures
                 )
-                
-                # Clean up temp screenshot
-                try:
-                    import os
-                    os.remove(screenshot_path)
-                except:
-                    pass
                 
                 if not recovery_steps:
                     print("❌ Failed to generate recovery steps")
@@ -224,6 +287,8 @@ class LocalTestOrchestrator:
                 i = len(executed_steps)
                 continue
             
+            # Step succeeded - reset consecutive failure counter
+            consecutive_failures = 0
             print(f"✅ Step completed")
             executed_steps.append(step)
             
@@ -280,18 +345,68 @@ class LocalTestOrchestrator:
                     # Re-extract DOM
                     stable_dom = self.selenium.extract_form_dom_with_js()
                     
-                    # Regenerate steps
-                    new_steps = self.ai.regenerate_steps(
+                    # Capture screenshot for UI verification (base64, not saved)
+                    print("📸 Capturing screenshot for UI verification...")
+                    screenshot_result = self.selenium.capture_screenshot(
+                        scenario_description="dom_change_ui_check",
+                        encode_base64=True,
+                        save_to_folder=False
+                    )
+                    
+                    if not screenshot_result["success"]:
+                        print(f"⚠️  Failed to capture screenshot: {screenshot_result.get('error')}")
+                        screenshot_base64 = None
+                    else:
+                        screenshot_base64 = screenshot_result["screenshot"]
+                        print("✅ Screenshot captured for AI analysis")
+                    
+                    # Regenerate steps with UI verification
+                    result = self.ai.regenerate_steps(
                         dom_html=stable_dom["dom_html"],
                         executed_steps=executed_steps,
                         test_cases=self.test_cases,
-                        test_context=self.test_context
+                        test_context=self.test_context,
+                        screenshot_base64=screenshot_base64
                     )
+                    
+                    new_steps = result.get("steps", [])
+                    ui_issue = result.get("ui_issue", "")
                     
                     if new_steps:
                         steps = executed_steps + new_steps
                         self.current_dom_hash = stable_dom["dom_hash"]
                         print(f"✅ Regenerated {len(new_steps)} new steps")
+                        
+                        # Handle UI issue if detected
+                        if ui_issue:
+                            print(f"\n⚠️  UI ISSUE DETECTED: {ui_issue}")
+                            
+                            # Add to reported issues list (split by comma to handle multiple issues)
+                            for issue in ui_issue.split(','):
+                                issue = issue.strip()
+                                if issue and issue not in self.test_context.reported_ui_issues:
+                                    self.test_context.reported_ui_issues.append(issue)
+                            
+                            # Log to both loggers
+                            import logging
+                            logger = logging.getLogger('init_logger.form_page_test')
+                            result_logger_gui = logging.getLogger('init_result_logger_gui.form_page_test')
+                            
+                            logger.warning(f"UI Issue detected after DOM change: {ui_issue}")
+                            result_logger_gui.warning(f"UI Issue detected after DOM change: {ui_issue}")
+                            
+                            # Capture and save screenshot to folder
+                            ui_screenshot_result = self.selenium.capture_screenshot(
+                                scenario_description="ui_issue",
+                                encode_base64=False,
+                                save_to_folder=True
+                            )
+                            
+                            if ui_screenshot_result["success"]:
+                                print(f"📸 UI issue screenshot saved: {ui_screenshot_result['filename']}")
+                            
+                            print("⚠️  Continuing test despite UI issue...\n")
+                        
                         self._print_steps(new_steps)
             
             i += 1
@@ -334,6 +449,9 @@ class TestContext:
         self.registered_name = None
         self.registered_email = None
         self.registered_password = None
+        
+        # UI issue tracking - list of all issues reported so far
+        self.reported_ui_issues = []
     
     def add_filled_field(self, selector: str, value: str):
         self.filled_fields[selector] = value
@@ -380,7 +498,8 @@ def main():
         "test_url": "http://localhost:8000/index.html",
         "test_cases_file": "generic_form_page_crawler_test_cases.json",
         "browser": "chrome",  # chrome, firefox, edge
-        "headless": False
+        "headless": False,
+        "screenshot_folder": None  # None = default to Desktop, or specify path like "screenshots" or "/path/to/folder"
     }
     
     print("="*70)
@@ -389,6 +508,7 @@ def main():
     print(f"URL: {config['test_url']}")
     print(f"Browser: {config['browser']}")
     print(f"Headless: {config['headless']}")
+    print(f"Screenshot folder: {config['screenshot_folder'] or 'Desktop (default)'}")
     print("="*70)
     
     # Create orchestrator
@@ -396,7 +516,8 @@ def main():
         anthropic_api_key=config["anthropic_api_key"],
         test_cases_file=config["test_cases_file"],
         browser=config["browser"],
-        headless=config["headless"]
+        headless=config["headless"],
+        screenshot_folder=config["screenshot_folder"]
     )
     
     # Run test

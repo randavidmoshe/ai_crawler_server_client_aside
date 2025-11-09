@@ -581,6 +581,342 @@
             font-weight: 600;
             margin-left: 8px;
         }
+
+        /* Findings Section */
+        .findings-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .findings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .findings-header h3 {
+            color: #667eea;
+            font-size: 18px;
+            margin: 0;
+        }
+
+        .btn-add-finding {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-add-finding:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .findings-list {
+            margin-top: 15px;
+        }
+
+        .finding-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .finding-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .finding-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 8px;
+        }
+
+        .finding-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #333;
+            flex: 1;
+        }
+
+        .finding-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-edit-finding,
+        .btn-delete-finding {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-edit-finding {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-edit-finding:hover {
+            background: #5568d3;
+        }
+
+        .btn-delete-finding {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-delete-finding:hover {
+            background: #c82333;
+        }
+
+        .finding-description {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .empty-findings {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+            font-style: italic;
+        }
+
+        /* Engagements Section - Similar to Findings but with different color scheme */
+        .engagements-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f0f8ff;
+            border-radius: 8px;
+            border: 2px solid #b8daff;
+        }
+
+        .engagements-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .engagements-header h3 {
+            color: #0056b3;
+            font-size: 18px;
+            margin: 0;
+        }
+
+        .btn-add-engagement {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-add-engagement:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 123, 255, 0.4);
+        }
+
+        .engagements-list {
+            margin-top: 15px;
+        }
+
+        .engagement-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border: 2px solid #b8daff;
+            transition: all 0.3s;
+        }
+
+        .engagement-item:hover {
+            border-color: #007bff;
+            box-shadow: 0 2px 8px rgba(0,123,255,0.2);
+        }
+
+        .engagement-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 8px;
+        }
+
+        .engagement-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #0056b3;
+            flex: 1;
+        }
+
+        .engagement-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-edit-engagement,
+        .btn-delete-engagement {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-edit-engagement {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-edit-engagement:hover {
+            background: #0056b3;
+        }
+
+        .btn-delete-engagement {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-delete-engagement:hover {
+            background: #c82333;
+        }
+
+        .engagement-description {
+            color: #495057;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .empty-engagements {
+            text-align: center;
+            padding: 30px;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        /* Corrupted Border Test - Looks WEIRD and Broken */
+        .corrupted-border-test input {
+            border-left-width: 20px !important;
+            border-right-width: 2px !important;
+            border-left-color: #ff6b6b !important;
+            margin-left: 15px !important;
+            padding-left: 30px !important;
+            padding-right: 5px !important;
+            transform: skew(-1deg) !important;
+        }
+
+        /* Email field - right border extends too far (UI bug look) */
+        .email-shorter input {
+            border-right-width: 25px !important;
+            border-right-color: #e0e0e0 !important;
+            padding-right: 40px !important;
+        }
+
+        /* Finding Modal */
+        .finding-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            animation: fadeIn 0.3s;
+        }
+
+        .finding-modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .finding-modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: scaleIn 0.3s;
+        }
+
+        .finding-modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            margin: -30px -30px 20px -30px;
+            border-radius: 12px 12px 0 0;
+            text-align: center;
+        }
+
+        .finding-modal-header h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .finding-modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-save-finding,
+        .btn-cancel-finding {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-save-finding {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+
+        .btn-save-finding:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-cancel-finding {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-cancel-finding:hover {
+            background: #5a6268;
+        }
     </style>
 </head>
 <body>
@@ -622,16 +958,16 @@
                     <!-- Details Tab -->
                     <div id="details-tab" class="tab-content active">
                         <div class="form-group">
-                            <label for="fullName">Full Name *</label>
+                            <label for="fullName">Person Name *</label>
                             <input type="text" id="fullName" name="fullName" required placeholder="John Doe">
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group email-shorter">
                             <label for="email">Email Address *</label>
                             <input type="email" id="email" name="email" required placeholder="john@example.com">
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group corrupted-border-test">
                             <label for="phone">Phone Number *</label>
                             <input type="tel" id="phone" name="phone" required placeholder="+1 (555) 123-4567">
                         </div>
@@ -685,6 +1021,36 @@
                         <div id="managerNotesGroup" class="form-group hidden">
                             <label for="managerNotes">Manager Notes * <span class="badge">Enterprise Only</span></label>
                             <textarea id="managerNotes" name="managerNotes" placeholder="Special requirements..."></textarea>
+                        </div>
+
+                        <!-- Findings Section -->
+                        <div id="findingsSection" class="findings-section hidden">
+                            <div class="findings-header">
+                                <h3>🔍 Findings</h3>
+                                <button type="button" class="btn-add-finding" onclick="openFindingModal()">
+                                    ➕ Add Finding
+                                </button>
+                            </div>
+                            <div id="findingsList" class="findings-list">
+                                <div class="empty-findings">
+                                    No findings added yet. Click "Add Finding" to create one.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Engagements Section -->
+                        <div id="engagementsSection" class="engagements-section hidden">
+                            <div class="engagements-header">
+                                <h3>🤝 Engagements</h3>
+                                <button type="button" class="btn-add-engagement" onclick="openEngagementModal()">
+                                    ➕ Add Engagement
+                                </button>
+                            </div>
+                            <div id="engagementsList" class="engagements-list">
+                                <div class="empty-engagements">
+                                    No engagements added yet. Click "Add Engagement" to create one.
+                                </div>
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -855,6 +1221,48 @@
         </div>
     </div>
 
+    <!-- Finding Modal -->
+    <div id="findingModal" class="finding-modal">
+        <div class="finding-modal-content">
+            <div class="finding-modal-header">
+                <h2 id="findingModalTitle">🔍 Add Finding</h2>
+            </div>
+            <div class="form-group">
+                <label for="findingName">Finding Name *</label>
+                <input type="text" id="findingName" placeholder="e.g., Security Issue">
+            </div>
+            <div class="form-group">
+                <label for="findingDescription">Finding Description *</label>
+                <textarea id="findingDescription" rows="6" placeholder="Enter detailed finding description..."></textarea>
+            </div>
+            <div class="finding-modal-buttons">
+                <button class="btn-cancel-finding" onclick="closeFindingModal()">Cancel</button>
+                <button class="btn-save-finding" onclick="saveFinding()">✓ Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Engagements Modal -->
+    <div id="engagementModal" class="finding-modal">
+        <div class="finding-modal-content">
+            <div class="finding-modal-header">
+                <h2 id="engagementModalTitle">🤝 Add Engagement</h2>
+            </div>
+            <div class="form-group">
+                <label for="engagementName">Engagement Name *</label>
+                <input type="text" id="engagementName" placeholder="e.g., Client Meeting">
+            </div>
+            <div class="form-group">
+                <label for="engagementDescription">Engagement Description *</label>
+                <textarea id="engagementDescription" rows="6" placeholder="Enter detailed engagement description..."></textarea>
+            </div>
+            <div class="finding-modal-buttons">
+                <button class="btn-cancel-finding" onclick="closeEngagementModal()">Cancel</button>
+                <button class="btn-save-finding" onclick="saveEngagement()">✓ Save</button>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript -->
     <script>
         // ========================================
@@ -968,7 +1376,7 @@
             
             // Basic required fields
             if (!document.getElementById('fullName').value.trim()) {
-                errors.push('Full Name is required');
+                errors.push('Person Name is required');
             }
             if (!document.getElementById('email').value.trim()) {
                 errors.push('Email Address is required');
@@ -1173,6 +1581,12 @@
                 jobTitle: jobDescriptionData.jobTitle || '',
                 jobDescription: jobDescriptionData.jobDescription || '',
                 
+                // Findings
+                findings: findings,
+                
+                // Engagements
+                engagements: engagements,
+                
                 // Metadata
                 savedDate: new Date().toISOString()
             };
@@ -1317,6 +1731,18 @@
                 jobTitle: formData.jobTitle || '',
                 jobDescription: formData.jobDescription || ''
             };
+            
+            // Findings
+            if (formData.findings) {
+                findings = formData.findings;
+                renderFindings();
+            }
+            
+            // Engagements
+            if (formData.engagements) {
+                engagements = formData.engagements;
+                renderEngagements();
+            }
             
             // Trigger conditional fields if needed
             const applicationType = document.getElementById('applicationType');
@@ -1466,6 +1892,12 @@
                 managerPhoneInput.setAttribute('required', 'required');
                 managerNotesInput.setAttribute('required', 'required');
                 
+                // Show findings section for enterprise
+                document.getElementById('findingsSection').classList.remove('hidden');
+                
+                // Show engagements section for enterprise
+                document.getElementById('engagementsSection').classList.remove('hidden');
+                
                 // Show success message for Enterprise
                 showSuccessMessage('👋 Hello Enterprise man');
             } else {
@@ -1473,8 +1905,222 @@
                 managerNotesGroup.classList.add('hidden');
                 managerPhoneInput.removeAttribute('required');
                 managerNotesInput.removeAttribute('required');
+                
+                // Hide findings section for non-enterprise
+                document.getElementById('findingsSection').classList.add('hidden');
+                
+                // Hide engagements section for non-enterprise
+                document.getElementById('engagementsSection').classList.add('hidden');
             }
         });
+
+        // ========================================
+        // FINDINGS MANAGEMENT
+        // ========================================
+        let findings = [];
+        let editingFindingIndex = null;
+
+        function openFindingModal(index = null) {
+            const modal = document.getElementById('findingModal');
+            const modalTitle = document.getElementById('findingModalTitle');
+            const nameInput = document.getElementById('findingName');
+            const descInput = document.getElementById('findingDescription');
+            
+            if (index !== null) {
+                // Edit mode
+                editingFindingIndex = index;
+                modalTitle.textContent = '✏️ Edit Finding';
+                nameInput.value = findings[index].name;
+                descInput.value = findings[index].description;
+            } else {
+                // Add mode
+                editingFindingIndex = null;
+                modalTitle.textContent = '🔍 Add Finding';
+                nameInput.value = '';
+                descInput.value = '';
+            }
+            
+            modal.classList.add('show');
+        }
+
+        function closeFindingModal() {
+            const modal = document.getElementById('findingModal');
+            modal.classList.remove('show');
+            editingFindingIndex = null;
+            document.getElementById('findingName').value = '';
+            document.getElementById('findingDescription').value = '';
+        }
+
+        function saveFinding() {
+            const nameInput = document.getElementById('findingName');
+            const descInput = document.getElementById('findingDescription');
+            
+            const name = nameInput.value.trim();
+            const description = descInput.value.trim();
+            
+            if (!name || !description) {
+                alert('Please fill in both finding name and description.');
+                return;
+            }
+            
+            if (editingFindingIndex !== null) {
+                // Update existing finding
+                findings[editingFindingIndex] = { name, description };
+                showSuccessMessage('✏️ Finding updated successfully!');
+            } else {
+                // Add new finding
+                findings.push({ name, description });
+                showSuccessMessage('✓ Finding added successfully!');
+            }
+            
+            renderFindings();
+            closeFindingModal();
+        }
+
+        function deleteFinding(index) {
+            if (confirm('Are you sure you want to delete this finding?')) {
+                findings.splice(index, 1);
+                renderFindings();
+                showSuccessMessage('🗑️ Finding deleted successfully!');
+            }
+        }
+
+        function renderFindings() {
+            const findingsList = document.getElementById('findingsList');
+            
+            if (findings.length === 0) {
+                findingsList.innerHTML = `
+                    <div class="empty-findings">
+                        No findings added yet. Click "Add Finding" to create one.
+                    </div>
+                `;
+                return;
+            }
+            
+            findingsList.innerHTML = findings.map((finding, index) => `
+                <div class="finding-item">
+                    <div class="finding-header">
+                        <div class="finding-name">${escapeHtml(finding.name)}</div>
+                        <div class="finding-actions">
+                            <button class="btn-edit-finding" onclick="openFindingModal(${index})">
+                                ✏️ Edit
+                            </button>
+                            <button class="btn-delete-finding" onclick="deleteFinding(${index})">
+                                🗑️ Delete
+                            </button>
+                        </div>
+                    </div>
+                    <div class="finding-description">${escapeHtml(finding.description)}</div>
+                </div>
+            `).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ========================================
+        // ENGAGEMENTS MANAGEMENT FUNCTIONS
+        // ========================================
+        let engagements = [];
+        let editingEngagementIndex = null;
+
+        function openEngagementModal(index = null) {
+            const modal = document.getElementById('engagementModal');
+            const modalTitle = document.getElementById('engagementModalTitle');
+            const nameInput = document.getElementById('engagementName');
+            const descInput = document.getElementById('engagementDescription');
+            
+            if (index !== null) {
+                // Edit mode
+                editingEngagementIndex = index;
+                modalTitle.textContent = '✏️ Edit Engagement';
+                nameInput.value = engagements[index].name;
+                descInput.value = engagements[index].description;
+            } else {
+                // Add mode
+                editingEngagementIndex = null;
+                modalTitle.textContent = '🤝 Add Engagement';
+                nameInput.value = '';
+                descInput.value = '';
+            }
+            
+            modal.classList.add('show');
+        }
+
+        function closeEngagementModal() {
+            const modal = document.getElementById('engagementModal');
+            modal.classList.remove('show');
+            editingEngagementIndex = null;
+            document.getElementById('engagementName').value = '';
+            document.getElementById('engagementDescription').value = '';
+        }
+
+        function saveEngagement() {
+            const nameInput = document.getElementById('engagementName');
+            const descInput = document.getElementById('engagementDescription');
+            
+            const name = nameInput.value.trim();
+            const description = descInput.value.trim();
+            
+            if (!name || !description) {
+                alert('Please fill in both engagement name and description.');
+                return;
+            }
+            
+            if (editingEngagementIndex !== null) {
+                // Update existing engagement
+                engagements[editingEngagementIndex] = { name, description };
+                showSuccessMessage('✏️ Engagement updated successfully!');
+            } else {
+                // Add new engagement
+                engagements.push({ name, description });
+                showSuccessMessage('✓ Engagement added successfully!');
+            }
+            
+            renderEngagements();
+            closeEngagementModal();
+        }
+
+        function deleteEngagement(index) {
+            if (confirm('Are you sure you want to delete this engagement?')) {
+                engagements.splice(index, 1);
+                renderEngagements();
+                showSuccessMessage('🗑️ Engagement deleted successfully!');
+            }
+        }
+
+        function renderEngagements() {
+            const engagementsList = document.getElementById('engagementsList');
+            
+            if (engagements.length === 0) {
+                engagementsList.innerHTML = `
+                    <div class="empty-engagements">
+                        No engagements added yet. Click "Add Engagement" to create one.
+                    </div>
+                `;
+                return;
+            }
+            
+            engagementsList.innerHTML = engagements.map((engagement, index) => `
+                <div class="engagement-item">
+                    <div class="engagement-header">
+                        <div class="engagement-name">${escapeHtml(engagement.name)}</div>
+                        <div class="engagement-actions">
+                            <button class="btn-edit-engagement" onclick="openEngagementModal(${index})">
+                                ✏️ Edit
+                            </button>
+                            <button class="btn-delete-engagement" onclick="deleteEngagement(${index})">
+                                🗑️ Delete
+                            </button>
+                        </div>
+                    </div>
+                    <div class="engagement-description">${escapeHtml(engagement.description)}</div>
+                </div>
+            `).join('');
+        }
 
         // ========================================
         // NEWSLETTER CHECKBOX (Internal JS)

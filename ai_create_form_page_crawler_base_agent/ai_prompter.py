@@ -167,11 +167,15 @@ class AIHelper:
             previous_steps: Optional[List[Dict]] = None,
             step_where_dom_changed: Optional[int] = None,
             test_context=None,
-            is_first_iteration: bool = False
-    ) -> List[Dict[str, Any]]:
+            is_first_iteration: bool = False,
+            screenshot_base64: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Generate Selenium test steps based on DOM and test cases.
         If DOM changed, provide previous steps and which step caused the change.
+        
+        Returns:
+            Dict with 'steps' (list) and 'ui_issue' (string)
         """
         
         # Build the prompt
@@ -223,19 +227,85 @@ based on this NEW DOM state.
             else:
                 credentials_instruction = "=== NO CREDENTIALS AVAILABLE ===\nSkip any login/registration tests.\n"
 
-        prompt = f"""You are a test automation expert generating Selenium WebDriver test steps for a form page.
+        # Build previously reported UI issues section
+        previously_reported_section = ""
+        if test_context and test_context.reported_ui_issues:
+            issues_list = "\n".join([f"- {issue}" for issue in test_context.reported_ui_issues])
+            previously_reported_section = f"""
+=== PREVIOUSLY REPORTED UI ISSUES ===
+You have already reported these UI issues in earlier steps of this test:
+{issues_list}
+
+**CRITICAL: DO NOT report these issues again!**
+Only report NEW issues that are not in the list above.
+If all visible issues are already in the list, leave ui_issue as empty string "".
+===============================================================================
+
+"""
+
+        prompt = f"""You are a test automation expert. You have TWO SEPARATE TASKS to complete:
+
+        ================================================================================
+        TASK 1: UI VERIFICATION (DO THIS FIRST - ISOLATED FROM TASK 2)
+        ================================================================================
+        
+        {previously_reported_section}You are provided with a screenshot of the current page. Your FIRST task is to perform a thorough UI verification by analyzing the screenshot for visual defects.
+        
+        **MANDATORY SYSTEMATIC SCAN - Follow this checklist in order:**
+        
+        **Step 1: Scan Page Edges and Background**
+        - Check TOP-LEFT corner of the entire viewport
+        - Check TOP-RIGHT corner of the entire viewport  
+        - Check BOTTOM-LEFT corner of the entire viewport
+        - Check BOTTOM-RIGHT corner of the entire viewport
+        - Check the BACKGROUND area around the form container
+        - Check the HEADER area above the form
+        - Look for any floating, orphaned, or disconnected visual elements (colored boxes, shapes, artifacts)
+        
+        **Step 2: Scan Each Form Field Individually**
+        Go through EVERY visible form field one by one and check:
+        - LEFT side of the field - any unexpected borders, boxes, or artifacts?
+        - RIGHT side of the field - any unexpected borders, boxes, or artifacts?
+        - TOP of the field - any unexpected borders, boxes, or artifacts?
+        - BOTTOM of the field - any unexpected borders, boxes, or artifacts?
+        - INSIDE the field - any styling issues, corrupted visuals?
+        
+        **What to Look For:**
+        1. **Overlapping Elements** - Buttons, fields, or text covering each other
+        2. **Unexpected Overlays** - Cookie banners or chat widgets blocking elements
+        3. **Broken Layout** - Misaligned elements, horizontal scrollbars
+        4. **Missing/Broken Visual Elements** - Broken icons, missing graphics
+        5. **Visual Artifacts** - Unexpected colored boxes, shapes, borders (RED boxes, GREEN boxes, GRAY boxes, BLUE boxes, etc.)
+        6. **Styling Defects** - Corrupted borders, inconsistent colors/backgrounds
+        7. **Positioning Anomalies** - Elements floating outside containers
+        8. **Spacing Issues** - Excessive or missing spacing
+        
+        **IMPORTANT:**
+        - Don't stop after finding ONE issue - continue checking ALL areas and ALL fields
+        - Some issues are subtle (small gray boxes) while others are obvious (bright red/green boxes)
+        - Report ALL issues you find, comma-separated
+        - Be specific: mention which field has which issue, or where in the page the issue appears
+        
+        **Example of complete report:**
+        "Phone Number field has red border artifact on left side, Email Address field has gray box on right side, Green square visible in top-right corner of page"
+        
+        ================================================================================
+        TASK 2: GENERATE TEST STEPS (DO THIS SECOND - AFTER UI VERIFICATION)
+        ================================================================================
+        
+        Now generate Selenium WebDriver test steps for the form page.
 
         === SELECTOR GUIDELINES ===
 
         **Use CSS selectors (RECOMMENDED):**
-           ✅ button[data-testid='submit']                  ← Best: test identifiers
-           ✅ button[type='submit']                         ← Good: semantic attributes
            ✅ input[name='email']                           ← Good: form attributes
            ✅ input[data-qa='username-input']               ← Best: unique data attributes
            ✅ #email-field                                  ← Good: unique ID
            ✅ select[name='country']                        ← Good: dropdowns
            ✅ .submit-button                                ← Good: specific classes
-
+        
+        ** or buttons like accept/save/submit/ok use unique locators as most look alike  - so maybe XPATH for them
+        
         **General Priority (for any element):**
            Priority 1: data-qa, data-testid, data-test attributes
            Priority 2: name, type, id attributes
@@ -250,10 +320,7 @@ based on this NEW DOM state.
 
         **Good Examples:**
 
-        Buttons:
-        ✅ "selector": "button[type='submit']"
-        ✅ "selector": "button[data-testid='save-btn']"
-        ✅ "selector": "#submitButton"
+        
 
         Input Fields:
         ✅ "selector": "input[name='email']"
@@ -267,6 +334,7 @@ based on this NEW DOM state.
         Dropdowns:
         ✅ "selector": "select[name='country']"
         ✅ "selector": "#state-dropdown"
+        ✅ they can be also custom dropdowns
 
         **Key Rules:**
         - Prefer CSS selectors with attributes (name, id, data-*, type)
@@ -310,6 +378,42 @@ based on this NEW DOM state.
         - Selection controls (dropdowns, radio buttons, checkboxes)
         - Tabs or sections that organize the form
         - Navigation buttons (Next, Previous, Save, Submit)
+        - List items (sections with "Add" / "Add New" / "+" buttons to add multiple entries)
+        
+        **MANDATORY: LIST ITEMS HANDLING**
+        ================================================================================
+        If the form has a section for adding list items (e.g., "Add Item", "Add New", "+ Add", "Create Entry"):
+        
+        **YOU MUST ADD EXACTLY 2 ITEMS** by following this pattern:
+        
+        **First Item:**
+        1. Click the "Add" / "Add New" / "+" button to open the item form/modal
+        2. Fill ALL fields that appear in the modal/form
+        3. Click the save/submit button ("Save", "Submit", "OK", "Add", "Accept", etc.)
+        4. Wait for the modal to close or item to be added
+        
+        **Second Item (CRITICAL - DON'T FORGET THIS):**
+        5. Click the "Add" / "Add New" / "+" button AGAIN to add a second item
+        6. Fill ALL fields with DIFFERENT values from the first item
+        7. Click the save/submit button again
+        8. Wait for the modal to close or item to be added
+        
+        **Example Step Sequence:**
+        ```
+        Step X: Click "Add Item" button
+        Step X+1: Fill "Name" field with "Item 1"
+        Step X+2: Fill "Description" field with "First item description"
+        Step X+3: Click "Save" button
+        Step X+4: Wait for modal to close (1 second)
+        Step X+5: Click "Add Item" button AGAIN (for second item)
+        Step X+6: Fill "Name" field with "Item 2"
+        Step X+7: Fill "Description" field with "Second item description"
+        Step X+8: Click "Save" button
+        Step X+9: Wait for modal to close (1 second)
+        ```
+        
+        **IMPORTANT:** Do not skip list items! If you see an "Add" button for a list, you MUST add 2 items before moving to the next section.
+        ================================================================================
         
         **CRITICAL: Tab/Section Handling:**
         If the form has tabs or sections:
@@ -339,8 +443,10 @@ based on this NEW DOM state.
         **At EVERY junction, you must:**
         1. Identify available options (e.g., dropdown has 5 options)
         2. Make a RANDOM choice (don't always pick the first!)
-        3. Fill ALL fields that appear as a result
+        3. Fill ALL fields and list items and dropdowns and anything else a user fills up that appear as a result
         4. Continue to next junction
+        
+        
         
         **Your Testing Path - Act Like a Real User:**
         You should follow ONE RANDOM path through the form, like a real user would:
@@ -465,7 +571,7 @@ based on this NEW DOM state.
            - "test_case": string (which test this belongs to)
            - "action": string (navigate, click, fill, select, verify, etc.)
            - "description": string (human-readable description)
-           - "selector": string or null (CSS selector - see guidelines above!)
+           - "selector": string or null (CSS selector is preferred - see guidelines above!)
            - "value": string or null (value for fill/select actions)
            - "verification": string or null (what to verify after action)
            - "wait_seconds": number (seconds to wait after action)
@@ -494,6 +600,7 @@ based on this NEW DOM state.
            - "Complete form" → Generate steps for all sections/tabs
            - "Navigate to next section" → Click next button and verify new section
            - "Make random selection" → For dropdowns/radios, choose randomly from available options
+           - **"Add list items" → Generate steps to add EXACTLY 2 items: Click Add → Fill fields → Save → Click Add AGAIN → Fill different values → Save**
            - Real users fill ALL visible fields, not just required ones!
 
 
@@ -591,6 +698,16 @@ based on this NEW DOM state.
             "wait_seconds": 0.5
           }},
           {{
+            "step_number": 9,
+            "test_case": "Complete Form Following Random Path",
+            "action": "click",
+            "description": "Click the Add button to add a new finding item",
+            "selector": "button.btn-add-finding",
+            "value": null,
+            "verification": null,
+            "wait_seconds": 0.5
+          }},
+          {{
             "step_number": 10,
             "test_case": "Complete Form Following Random Path",
             "action": "select",
@@ -637,20 +754,55 @@ based on this NEW DOM state.
 
         {context}
 
-        Now generate the test steps as a JSON array. ONLY output the JSON array, nothing else.
+        === RESPONSE FORMAT ===
+        Return ONLY a JSON object with this structure:
+
+        ```json
+        {{
+          "steps": [
+            {{"step_number": 1, "action": "fill", "selector": "input#field", "value": "value", "description": "Fill field"}},
+            {{"step_number": 2, "action": "click", "selector": "button.submit", "description": "Submit form"}}
+          ],
+          "ui_issue": ""
+        }}
+        ```
+
+        - **steps**: Array of step objects to execute
+        - **ui_issue**: Empty string if UI is fine, or description of issue if detected (e.g., "Cookie banner overlapping submit button")
+
+        Return ONLY the JSON object, no other text.
         """
         
         try:
             logger.info("[AIHelper] Sending request to Claude API...")
             print("[AIHelper] Sending request to Claude API...")
 
-            # Use retry wrapper
-            response_text = self._call_api_with_retry(prompt, max_tokens=16000, max_retries=3)
+            # Use retry wrapper (with or without screenshot)
+            if screenshot_base64:
+                # Use multimodal API with screenshot
+                message_content = [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/png",
+                            "data": screenshot_base64
+                        }
+                    },
+                    {
+                        "type": "text",
+                        "text": prompt
+                    }
+                ]
+                response_text = self._call_api_with_retry_multimodal(message_content, max_tokens=16000, max_retries=3)
+            else:
+                # Text-only API (backward compatibility)
+                response_text = self._call_api_with_retry(prompt, max_tokens=16000, max_retries=3)
             
             if response_text is None:
                 print("[AIHelper] ❌ Failed to get response from API after retries")
                 logger.error("[AIHelper] Failed to get response from API after retries")
-                return []
+                return {"steps": [], "ui_issue": ""}
             
             logger.info(f"[AIHelper] Received response ({len(response_text)} chars)")
             print(f"[AIHelper] Received response ({len(response_text)} chars)")
@@ -665,32 +817,50 @@ based on this NEW DOM state.
                 response_text = response_text[:-3]
             response_text = response_text.strip()
             
-            steps = json.loads(response_text)
+            # Try parsing as object first (new format with ui_issue)
+            try:
+                result = json.loads(response_text)
+                if isinstance(result, dict) and "steps" in result:
+                    # New format: {"steps": [...], "ui_issue": "..."}
+                    steps = result.get("steps", [])
+                    ui_issue = result.get("ui_issue", "")
+                    
+                    logger.info(f"[AIHelper] Successfully parsed {len(steps)} steps")
+                    print(f"[AIHelper] Successfully parsed {len(steps)} steps")
+                    
+                    if ui_issue:
+                        print(f"[AIHelper] ⚠️  UI Issue detected: {ui_issue}")
+                    
+                    return {"steps": steps, "ui_issue": ui_issue}
+                elif isinstance(result, list):
+                    # Old format: just array of steps (backward compatibility)
+                    logger.info(f"[AIHelper] Successfully parsed {len(result)} steps (legacy format)")
+                    print(f"[AIHelper] Successfully parsed {len(result)} steps (legacy format)")
+                    return {"steps": result, "ui_issue": ""}
+                else:
+                    raise ValueError("Unexpected response format")
+            except (json.JSONDecodeError, ValueError) as e:
+                # Failed to parse
+                result_logger_gui.error(f"[AIHelper] Failed to parse JSON: {e}")
+                print(f"[AIHelper] Failed to parse JSON: {e}")
+                print(f"[AIHelper] Response text: {response_text[:500]}")
+                return {"steps": [], "ui_issue": ""}
             
-            logger.info(f"[AIHelper] Successfully parsed {len(steps)} steps")
-            print(f"[AIHelper] Successfully parsed {len(steps)} steps")
-            
-            return steps
-            
-        except json.JSONDecodeError as e:
-            result_logger_gui.error(f"[AIHelper] Failed to parse JSON: {e}")
-            print(f"[AIHelper] Failed to parse JSON: {e}")
-            print(f"[AIHelper] Response text: {response_text[:500]}")
-            return []
         except Exception as e:
             result_logger_gui.error(f"[AIHelper] Error: {e}")
             print(f"[AIHelper] Error: {e}")
             import traceback
             traceback.print_exc()
-            return []
+            return {"steps": [], "ui_issue": ""}
     
     def regenerate_steps(
         self,
         dom_html: str,
         executed_steps: list,
         test_cases: list,
-        test_context
-    ) -> list:
+        test_context,
+        screenshot_base64: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
         Regenerate remaining steps after DOM change
         
@@ -699,9 +869,10 @@ based on this NEW DOM state.
             executed_steps: Steps already executed
             test_cases: Test cases
             test_context: Test context
+            screenshot_base64: Optional base64 screenshot for UI verification
             
         Returns:
-            List of new steps to execute
+            Dict with 'steps' (list) and 'ui_issue' (string)
         """
         try:
             print(f"[AIHelper] Regenerating steps after DOM change...")
@@ -723,8 +894,74 @@ based on this NEW DOM state.
 {json.dumps(test_cases, indent=2)}
 """
             
-            # Build full prompt
-            prompt = f"""You are a web automation expert. The DOM has changed after executing some steps. 
+            # Build previously reported UI issues section
+            previously_reported_section = ""
+            if test_context and test_context.reported_ui_issues:
+                issues_list = "\n".join([f"- {issue}" for issue in test_context.reported_ui_issues])
+                previously_reported_section = f"""
+=== PREVIOUSLY REPORTED UI ISSUES ===
+You have already reported these UI issues in earlier steps of this test:
+{issues_list}
+
+**CRITICAL: DO NOT report these issues again!**
+Only report NEW issues that are not in the list above.
+If all visible issues are already in the list, leave ui_issue as empty string "".
+===============================================================================
+
+"""
+            
+            # Build full prompt with UI verification as separate task
+            prompt = f"""You are a web automation expert. You have TWO SEPARATE TASKS to complete:
+
+================================================================================
+TASK 1: UI VERIFICATION (DO THIS FIRST - ISOLATED FROM TASK 2)
+================================================================================
+
+{previously_reported_section}You are provided with a screenshot of the current page. Your FIRST task is to perform a thorough UI verification by analyzing the screenshot for visual defects.
+
+**MANDATORY SYSTEMATIC SCAN - Follow this checklist in order:**
+
+**Step 1: Scan Page Edges and Background**
+- Check TOP-LEFT corner of the entire viewport
+- Check TOP-RIGHT corner of the entire viewport  
+- Check BOTTOM-LEFT corner of the entire viewport
+- Check BOTTOM-RIGHT corner of the entire viewport
+- Check the BACKGROUND area around the form container
+- Check the HEADER area above the form
+- Look for any floating, orphaned, or disconnected visual elements (colored boxes, shapes, artifacts)
+
+**Step 2: Scan Each Form Field Individually**
+Go through EVERY visible form field one by one and check:
+- LEFT side of the field - any unexpected borders, boxes, or artifacts?
+- RIGHT side of the field - any unexpected borders, boxes, or artifacts?
+- TOP of the field - any unexpected borders, boxes, or artifacts?
+- BOTTOM of the field - any unexpected borders, boxes, or artifacts?
+- INSIDE the field - any styling issues, corrupted visuals?
+
+**What to Look For:**
+1. **Overlapping Elements** - Buttons, fields, or text covering each other
+2. **Unexpected Overlays** - Cookie banners or chat widgets blocking elements
+3. **Broken Layout** - Misaligned elements, horizontal scrollbars
+4. **Missing/Broken Visual Elements** - Broken icons, missing graphics
+5. **Visual Artifacts** - Unexpected colored boxes, shapes, borders (RED boxes, GREEN boxes, GRAY boxes, BLUE boxes, etc.)
+6. **Styling Defects** - Corrupted borders, inconsistent colors/backgrounds
+7. **Positioning Anomalies** - Elements floating outside containers
+8. **Spacing Issues** - Excessive or missing spacing
+
+**IMPORTANT:**
+- Don't stop after finding ONE issue - continue checking ALL areas and ALL fields
+- Some issues are subtle (small gray boxes) while others are obvious (bright red/green boxes)
+- Report ALL issues you find, comma-separated
+- Be specific: mention which field has which issue, or where in the page the issue appears
+
+**Example of complete report:**
+"Phone Number field has red border artifact on left side, Email Address field has gray box on right side, Green square visible in top-right corner of page"
+
+================================================================================
+TASK 2: GENERATE REMAINING TEST STEPS (DO THIS SECOND - AFTER UI VERIFICATION)
+================================================================================
+
+The DOM has changed after executing some steps.
 
 {executed_context}
 
@@ -738,57 +975,99 @@ The DOM changed, and here is the NEW current state:
 ## Your Task:
 Based on the steps already completed and the NEW DOM state, generate the REMAINING steps needed to complete the form test.
 
+**CRITICAL: LIST ITEMS REQUIREMENT - CHECK THIS FIRST BEFORE ANYTHING ELSE:**
+Each list section requires EXACTLY 2 items total. **IMMEDIATELY look at the LAST executed step above:**
+- **Did the LAST step just save a list item?** (Look for "Save Finding", "Save Engagement", "Save [Something]" in the last step)
+- **If YES:** YOU MUST ADD A SECOND ITEM OF THAT SAME TYPE RIGHT NOW AS YOUR FIRST GENERATED STEP!
+- **Do NOT move to other list types or fields until you complete the current list type!**
+- Use the SAME "Add" button you just used → Fill fields with different values → Save
+
+**Example:** If last step was "Save Finding" → Your first step MUST be "Click Add Finding button again"
+
 Generate steps to:
-1. Fill all remaining form fields
-2. Handle any dropdowns, checkboxes, or special inputs
-3. Submit the form
-4. Verify success
+1. **FIRST AND MOST IMPORTANT: If the last executed step saved a list item, add the second item of that same type NOW (Click the same Add button → Fill → Save)**
+2. Check for OTHER list sections that also need 2 items each
+3. Fill all remaining form fields
+4. Handle any dropdowns, checkboxes, or special inputs
+5. Submit the form
+6. Verify success
 
 ## Response Format:
-Return ONLY a JSON array of step objects:
+Return ONLY a JSON object with this structure:
 
 ```json
-[
-  {{"step_number": 1, "action": "fill", "selector": "input#field", "value": "value", "description": "Fill field"}},
-  {{"step_number": 2, "action": "click", "selector": "button.submit", "description": "Submit form"}}
-]
+{{
+  "steps": [
+    {{"step_number": 1, "action": "fill", "selector": "input#field", "value": "value", "description": "Fill field"}},
+    {{"step_number": 2, "action": "click", "selector": "button.submit", "description": "Submit form"}}
+  ],
+  "ui_issue": ""
+}}
 ```
+
+- **steps**: Array of step objects to execute
+- **ui_issue**: Empty string if UI is fine, or description of ALL issues found (comma-separated)
 
 Available actions: fill, select, click, verify, wait, wait_for_ready, scroll, hover, switch_to_frame, switch_to_default, switch_to_shadow_root
 
 **CRITICAL:** Never use wait with value > 10 seconds! For AJAX, use wait_for_ready instead.
 
-Return ONLY the JSON array, no other text.
+Return ONLY the JSON object, no other text.
 """
             
-            # Call Claude API with retry
+            # Call Claude API with retry (with or without screenshot)
             result_logger_gui.info("[AIHelper] Sending regeneration request to Claude API...")
             
-            response_text = self._call_api_with_retry(prompt, max_tokens=16000, max_retries=3)
+            if screenshot_base64:
+                # Use multimodal API with screenshot
+                message_content = [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/png",
+                            "data": screenshot_base64
+                        }
+                    },
+                    {
+                        "type": "text",
+                        "text": prompt
+                    }
+                ]
+                response_text = self._call_api_with_retry_multimodal(message_content, max_tokens=16000, max_retries=3)
+            else:
+                # Text-only API
+                response_text = self._call_api_with_retry(prompt, max_tokens=16000, max_retries=3)
             
             if response_text is None:
                 print("[AIHelper] ❌ Failed to regenerate steps after retries")
-                return []
+                return {"steps": [], "ui_issue": ""}
             
             print(f"[AIHelper] Received regeneration response ({len(response_text)} chars)")
             
-            # Parse JSON steps
+            # Parse JSON response
             import re
-            json_match = re.search(r'\[[\s\S]*\]', response_text)
+            json_match = re.search(r'\{[\s\S]*\}', response_text)
             
             if json_match:
-                new_steps = json.loads(json_match.group())
-                print(f"[AIHelper] Successfully regenerated {len(new_steps)} new steps")
-                return new_steps
+                response_data = json.loads(json_match.group())
+                steps = response_data.get("steps", [])
+                ui_issue = response_data.get("ui_issue", "")
+                
+                print(f"[AIHelper] Successfully regenerated {len(steps)} new steps")
+                if ui_issue:
+                    print(f"[AIHelper] ⚠️  UI Issue detected: {ui_issue}")
+                
+                return {"steps": steps, "ui_issue": ui_issue}
             else:
-                print("[AIHelper] No JSON array found in regeneration response")
-                return []
+                print("[AIHelper] No JSON object found in regeneration response")
+                return {"steps": [], "ui_issue": ""}
                 
         except Exception as e:
             print(f"[AIHelper] Error regenerating steps: {e}")
             import traceback
             traceback.print_exc()
-            return []
+            return {"steps": [], "ui_issue": ""}
 
     def discover_test_scenarios(self, dom_html: str, already_tested: list, max_scenarios: int = 5) -> list:
         """
@@ -846,6 +1125,7 @@ Return ONLY the JSON array, no other text.
     - "Fill all required fields in personal info section"
     - "Select option from dropdown that reveals additional fields"
     - "Fill conditional fields that appeared"
+    - "Add list items"
     - "Click next to go to payment section"
     - "Complete payment fields"
     - "Submit form"
@@ -854,6 +1134,7 @@ Return ONLY the JSON array, no other text.
     Focus on:
     - Unused form fields or sections
     - Different paths through conditional logic
+    - List items
     - Alternative dropdown/radio selections
     - Edge cases or validation scenarios
     - Multi-step form flows
@@ -1061,7 +1342,7 @@ Return JSON array with:
 Return ONLY a JSON array of step objects. Each step must have:
 - step_number: sequential number
 - action: one of (fill, select, click, verify, navigate, wait, scroll, switch_to_frame, switch_to_default, switch_to_shadow_root, hover, refresh, press_key)
-- selector: CSS selector
+- selector: CSS selector at first priority
 - value: value for the action (if applicable)
 - description: what this step does
 
@@ -1210,27 +1491,77 @@ A JavaScript alert/dialog appeared after step {step_where_alert_appeared}. Your 
 
 ## Your Tasks:
 
-### 1. Analyze the Alert:
-- Based on the type ({alert_type}) and text, determine what action is needed
-- For "alert": just accept it
-- For "confirm": decide to accept or dismiss based on context (usually accept to continue)
-- For "prompt": provide appropriate input value and accept
+### 1. FIRST STEP - Accept/Dismiss the Alert:
+**YOUR VERY FIRST STEP MUST ALWAYS BE TO ACCEPT OR DISMISS THE ALERT!**
+- For "alert": Generate `accept_alert` action as FIRST step
+- For "confirm": Generate `accept_alert` or `dismiss_alert` as FIRST step
+- For "prompt": Generate `fill_alert` then `accept_alert` as first steps
 
-### 2. Generate Alert Handling Steps:
+### 2. Analyze the Alert Text:
+Read the alert text carefully to understand what it's telling you:
 
-**For type "alert" (just OK button):**
-- Generate: `accept_alert` action
+**If the alert is a VALIDATION ERROR** (contains phrases like "required", "Please fill in", "missing fields", "must complete"):
+- The alert is telling you which fields are missing or incomplete
+- You need to go back and fill those specific fields BEFORE retrying
+- Parse the alert text to identify WHICH fields need to be filled
 
-**For type "confirm" (OK/Cancel buttons):**
-- Decide based on context whether to accept or dismiss
-- Generate: `accept_alert` or `dismiss_alert` action
+**Example alert text:**
+"Please fill in all required fields:
+1. Street Address is required
+2. City is required  
+3. Emergency Contact Name is required"
 
-**For type "prompt" (text input + OK/Cancel):**
-- Generate: `fill_alert` action with appropriate value
-- Then: `accept_alert` action
+**What this means:**
+- You skipped or didn't complete these fields
+- You need to navigate to the tabs/sections where these fields are located
+- Fill ALL the missing fields mentioned in the alert
+- THEN retry the action that triggered the alert
 
-### 3. Continue with Remaining Steps:
-After handling the alert, generate all remaining steps to complete the form submission.
+### 3. Generate Recovery Steps (After Accepting Alert):
+
+**A. If validation error - Fix the missing fields:**
+
+1. Identify which tabs/sections contain the missing fields:
+   - Address fields (Street, City, State, ZIP) → Usually in "Address" tab or iframe
+   - Emergency Contact fields → Usually in Address tab's nested iframe
+   - Preferences fields (Rating, Options) → Usually in "Preferences" tab
+   - Comments/Notes → Usually in main Details tab
+
+2. Navigate to those tabs/sections:
+   - Click the appropriate tab button
+   - Switch to iframe if needed (switch_to_frame)
+   - Handle any confirmation dialogs
+
+3. Fill ALL the missing fields mentioned in the alert
+
+4. Navigate through ALL remaining required tabs/sections that weren't completed
+
+5. Retry the action that caused the alert (e.g., click "Next" or "Submit" button again)
+
+**B. If not a validation error (success message, confirmation, etc.):**
+- Just continue with remaining steps to complete the form
+
+### 4. Example Response for Validation Error:
+
+```json
+[
+  {{"step_number": 1, "action": "accept_alert", "selector": "", "value": "", "description": "Accept validation error alert"}},
+  {{"step_number": 2, "action": "fill", "selector": "textarea#comments", "value": "Additional comments", "description": "Fill Additional Comments field"}},
+  {{"step_number": 3, "action": "click", "selector": "button.tab-button[onclick='showTab(\\'address\\')']", "description": "Click Address tab"}},
+  {{"step_number": 4, "action": "switch_to_frame", "selector": "iframe#addressIframe", "description": "Switch to address iframe"}},
+  {{"step_number": 5, "action": "fill", "selector": "input#street", "value": "123 Main St", "description": "Fill Street Address"}},
+  {{"step_number": 6, "action": "fill", "selector": "input#city", "value": "New York", "description": "Fill City"}},
+  {{"step_number": 7, "action": "select", "selector": "select#state", "value": "NY", "description": "Select State"}},
+  {{"step_number": 8, "action": "fill", "selector": "input#zipCode", "value": "10001", "description": "Fill ZIP Code"}},
+  {{"step_number": 9, "action": "switch_to_frame", "selector": "iframe#contactIframe", "description": "Switch to nested contact iframe"}},
+  {{"step_number": 10, "action": "fill", "selector": "input#emergencyName", "value": "Jane Doe", "description": "Fill Emergency Contact Name"}},
+  {{"step_number": 11, "action": "switch_to_default", "description": "Switch back to main content"}},
+  {{"step_number": 12, "action": "click", "selector": "button.tab-button[onclick='showTab(\\'preferences\\')']", "description": "Click Preferences tab"}},
+  {{"step_number": 13, "action": "fill", "selector": "textarea#ratingComment", "value": "Great service", "description": "Fill Rating Comment"}},
+  {{"step_number": 14, "action": "click", "selector": "input#terms", "description": "Check terms and conditions"}},
+  {{"step_number": 15, "action": "click", "selector": "button[onclick='validateAndGoToPartTwo()']", "description": "Retry clicking Next: Part 2 button"}}
+]
+```
 
 ## Available Alert Actions:
 - `accept_alert`: Click OK button (no selector needed)
@@ -1241,24 +1572,7 @@ After handling the alert, generate all remaining steps to complete the form subm
 {json.dumps(test_cases, indent=2)}
 
 ## Response Format:
-Return ONLY a JSON array of step objects:
-
-```json
-[
-  {{"step_number": 1, "action": "accept_alert", "selector": "", "value": "", "description": "Accept confirmation dialog"}},
-  {{"step_number": 2, "action": "switch_to_frame", "selector": "iframe#addressIframe", "description": "Switch to address iframe"}},
-  {{"step_number": 3, "action": "fill", "selector": "input#street", "value": "123 Main St", "description": "Fill street"}}
-]
-```
-
-Or for prompt:
-```json
-[
-  {{"step_number": 1, "action": "fill_alert", "selector": "", "value": "John Doe", "description": "Fill name in prompt"}},
-  {{"step_number": 2, "action": "accept_alert", "selector": "", "value": "", "description": "Accept prompt"}},
-  {{"step_number": 3, "action": "fill", "selector": "input#nextField", "value": "data", "description": "Continue filling form"}}
-]
-```
+Return ONLY a JSON array of step objects. Your FIRST step must ALWAYS be accept_alert or dismiss_alert!
 
 Return ONLY the JSON array, no other text.
 """

@@ -34,9 +34,48 @@ class AgentSelenium:
     Handles all browser automation, DOM extraction, and step execution
     """
     
-    def __init__(self):
+    def __init__(self, screenshot_folder: Optional[str] = None):
         self.driver = None
         self.shadow_root_context = None
+        
+        # Screenshot folder configuration
+        if screenshot_folder:
+            # User provided a path (absolute or relative)
+            if os.path.isabs(screenshot_folder):
+                self.screenshot_folder = screenshot_folder
+            else:
+                # Relative path - make it relative to current working directory
+                self.screenshot_folder = os.path.abspath(screenshot_folder)
+        else:
+            # Default to Desktop
+            self.screenshot_folder = self._get_desktop_path()
+        
+        # Create folder if it doesn't exist
+        os.makedirs(self.screenshot_folder, exist_ok=True)
+        print(f"[Agent] Screenshot folder: {self.screenshot_folder}")
+    
+    def _get_desktop_path(self) -> str:
+        """
+        Get Desktop path for Windows, Linux, and Mac
+        
+        Returns:
+            Desktop path as string
+        """
+        import platform
+        
+        system = platform.system()
+        
+        if system == "Windows":
+            # Windows: C:\Users\{username}\Desktop
+            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        elif system == "Darwin":
+            # macOS: /Users/{username}/Desktop
+            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        else:
+            # Linux: /home/{username}/Desktop
+            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        
+        return desktop
         
     def initialize_browser(
         self,
@@ -319,32 +358,75 @@ class AgentSelenium:
         except Exception as e:
             return {"success": False, "error": str(e)}
     
-    def capture_screenshot(self, encode_base64: bool = True) -> Dict:
+    def capture_screenshot(self, scenario_description: str = "screenshot", encode_base64: bool = True, save_to_folder: bool = True) -> Dict:
         """
-        Capture screenshot
+        Capture screenshot and optionally save to configured folder with timestamp
         
         Args:
-            encode_base64: If True, return base64 encoded string
+            scenario_description: Description of what was happening (e.g., "filling first name field")
+            encode_base64: If True, also return base64 encoded string (for backward compatibility)
+            save_to_folder: If True, save to disk folder. If False, only return base64 (for AI analysis)
             
         Returns:
-            Dict with screenshot data
+            Dict with screenshot data and file path (if saved)
         """
         try:
+            from datetime import datetime
+            import re
+            
+            # Get screenshot as PNG bytes
             screenshot_png = self.driver.get_screenshot_as_png()
             
+            # Prepare response
+            result = {
+                "success": True
+            }
+            
+            # Save to folder if requested
+            if save_to_folder:
+                # Sanitize scenario description for filename
+                # Remove special chars, replace spaces with underscores, limit length
+                sanitized = re.sub(r'[^\w\s-]', '', scenario_description)
+                sanitized = re.sub(r'[-\s]+', '_', sanitized)
+                sanitized = sanitized.strip('_').lower()[:50]  # Limit to 50 chars
+                
+                # Generate timestamp: YYYY-MM-DD_HH-MM-SS
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                
+                # Build filename
+                filename = f"{sanitized}_{timestamp}.png"
+                filepath = os.path.join(self.screenshot_folder, filename)
+                
+                # Save screenshot to file
+                with open(filepath, 'wb') as f:
+                    f.write(screenshot_png)
+                
+                print(f"[Agent] Screenshot saved: {filepath}")
+                
+                result["filepath"] = filepath
+                result["filename"] = filename
+                result["format"] = "file"
+            else:
+                # Not saving to folder - just for AI analysis
+                result["format"] = "memory"
+            
+            # Include base64 or binary
             if encode_base64:
                 screenshot_b64 = base64.b64encode(screenshot_png).decode('utf-8')
-                return {
-                    "success": True,
-                    "screenshot": screenshot_b64,
-                    "format": "base64"
-                }
+                result["screenshot"] = screenshot_b64
+                if save_to_folder:
+                    result["format"] = "file+base64"
+                else:
+                    result["format"] = "base64"
             else:
-                return {
-                    "success": True,
-                    "screenshot": screenshot_png,
-                    "format": "binary"
-                }
+                result["screenshot"] = screenshot_png
+                if save_to_folder:
+                    result["format"] = "file+binary"
+                else:
+                    result["format"] = "binary"
+            
+            return result
+            
         except Exception as e:
             return {"success": False, "error": str(e)}
     

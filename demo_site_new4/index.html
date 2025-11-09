@@ -73,6 +73,93 @@
             border-bottom: 2px solid #667eea;
         }
 
+        /* Table styling for form list */
+        .forms-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .forms-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .forms-table th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .forms-table tbody tr {
+            background: #f8f9fa;
+            border-bottom: 2px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .forms-table tbody tr:hover {
+            background: #e9ecef;
+            transform: scale(1.01);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .forms-table td {
+            padding: 15px;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .forms-table .name-col {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .forms-table .email-col {
+            color: #666;
+        }
+
+        .forms-table .phone-col {
+            color: #666;
+        }
+
+        .forms-table .type-col {
+            text-transform: capitalize;
+        }
+
+        .type-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .type-badge.personal {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .type-badge.business {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .type-badge.enterprise {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .forms-table .date-col {
+            color: #999;
+            font-size: 13px;
+        }
+
+        .forms-table .actions-col {
+            text-align: right;
+            white-space: nowrap;
+        }
+
         .form-item {
             background: #f8f9fa;
             padding: 15px 20px;
@@ -166,12 +253,12 @@
         <div class="header">
             <h1>📋 Form Manager</h1>
             <button class="create-btn" onclick="createNewForm()">
-                ➕ Create New Form
+                ➕ Create New Person
             </button>
         </div>
 
         <div class="forms-list">
-            <h2>📚 Saved Forms</h2>
+            <h2>👥 Saved People</h2>
             <div id="formsList">
                 <!-- Forms will be listed here -->
             </div>
@@ -188,25 +275,51 @@
                 formsList.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-state-icon">📭</div>
-                        <p>No forms yet. Click "Create New Form" to get started!</p>
+                        <p>No people yet. Click "Create New Person" to get started!</p>
                     </div>
                 `;
                 return;
             }
 
-            formsList.innerHTML = forms.map((form, index) => `
-                <div class="form-item">
-                    <div>
-                        <span class="form-name">${form.fullName || 'Unnamed Form'}</span>
-                        <span class="form-date">${new Date(form.savedDate).toLocaleString()}</span>
-                    </div>
-                    <div class="form-actions">
-                        <button class="view-btn" onclick="viewForm(${index})">👁️ View</button>
-                        <button class="update-btn" onclick="updateForm(${index})">✏️ Update</button>
-                        <button class="delete-btn" onclick="deleteForm(${index})">🗑️ Delete</button>
-                    </div>
-                </div>
-            `).join('');
+            // Create table with columns
+            formsList.innerHTML = `
+                <table class="forms-table">
+                    <thead>
+                        <tr>
+                            <th>👤 Person Name</th>
+                            <th>📧 Email</th>
+                            <th>📱 Phone</th>
+                            <th>🏢 Type</th>
+                            <th>📅 Saved Date</th>
+                            <th>⚙️ Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${forms.map((form, index) => {
+                            // Get application type with badge
+                            const appType = form.applicationType || 'personal';
+                            const typeBadge = `<span class="type-badge ${appType}">${appType}</span>`;
+                            
+                            return `
+                                <tr>
+                                    <td class="name-col">${form.fullName || 'Unnamed Person'}</td>
+                                    <td class="email-col">${form.email || '-'}</td>
+                                    <td class="phone-col">${form.phone || '-'}</td>
+                                    <td class="type-col">${typeBadge}</td>
+                                    <td class="date-col">${new Date(form.savedDate).toLocaleDateString()}<br>
+                                        <small>${new Date(form.savedDate).toLocaleTimeString()}</small>
+                                    </td>
+                                    <td class="actions-col">
+                                        <button class="view-btn" onclick="viewForm(${index})">👁️ View</button>
+                                        <button class="update-btn" onclick="updateForm(${index})">✏️ Update</button>
+                                        <button class="delete-btn" onclick="deleteForm(${index})">🗑️ Delete</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
         }
 
         function createNewForm() {
