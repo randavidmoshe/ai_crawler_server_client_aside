@@ -31,7 +31,8 @@ class LocalTestOrchestrator:
         test_cases_file: str,
         browser: str = "chrome",
         headless: bool = False,
-        screenshot_folder: Optional[str] = None
+        screenshot_folder: Optional[str] = None,
+        enable_ui_verification: bool = False
     ):
         # Initialize Selenium (from agent code) with screenshot folder
         self.selenium = AgentSelenium(screenshot_folder=screenshot_folder)
@@ -42,6 +43,7 @@ class LocalTestOrchestrator:
         # Configuration
         self.browser = browser
         self.headless = headless
+        self.enable_ui_verification = enable_ui_verification
         
         # Load test cases
         import os
@@ -60,10 +62,12 @@ class LocalTestOrchestrator:
         # Tracking
         self.test_context = TestContext()
         self.current_dom_hash = None
+        self.base_url = None  # Will be set when test starts
         
         print(f"✅ Local orchestrator initialized")
         print(f"   Browser: {browser}")
         print(f"   Headless: {headless}")
+        print(f"   UI Verification: {'ENABLED' if enable_ui_verification else 'DISABLED'}")
         print(f"   Test cases: {len(self.test_cases)}")
     
     def run_test(self, url: str):
@@ -101,6 +105,9 @@ class LocalTestOrchestrator:
             
             print(f"✅ Navigated to: {result['url']}")
             
+            # Store base URL for potential alert recovery
+            self.base_url = result['url']
+            
             # Test from current page
             return self.run_test_from_current_page()
             
@@ -137,30 +144,37 @@ class LocalTestOrchestrator:
         
         print(f"✅ DOM extracted: {len(dom_html)} chars, hash: {self.current_dom_hash[:16]}...")
         
-        # Generate initial steps with AI (with screenshot for UI verification)
+        # Generate initial steps with AI (with screenshot ONLY if enabled)
         print("\n🤖 Generating test steps with AI...")
-        print("📸 Capturing screenshot for UI verification...")
         
-        # Capture screenshot (base64, not saved to folder)
-        screenshot_result = self.selenium.capture_screenshot(
-            scenario_description="initial_ui_check",
-            encode_base64=True,
-            save_to_folder=False
-        )
-        
-        if not screenshot_result["success"]:
-            print(f"⚠️  Failed to capture screenshot: {screenshot_result.get('error')}")
-            screenshot_base64 = None
+        # Conditionally capture screenshot based on enable_ui_verification
+        screenshot_base64 = None
+        if self.enable_ui_verification:
+            print("📸 Capturing screenshot for UI verification...")
+            
+            # Capture screenshot (base64, not saved to folder)
+            screenshot_result = self.selenium.capture_screenshot(
+                scenario_description="initial_ui_check",
+                encode_base64=True,
+                save_to_folder=False
+            )
+            
+            if not screenshot_result["success"]:
+                print(f"⚠️  Failed to capture screenshot: {screenshot_result.get('error')}")
+                screenshot_base64 = None
+            else:
+                screenshot_base64 = screenshot_result["screenshot"]
+                print("✅ Screenshot captured for AI analysis")
         else:
-            screenshot_base64 = screenshot_result["screenshot"]
-            print("✅ Screenshot captured for AI analysis")
+            print("ℹ️  UI verification disabled - skipping screenshot")
         
-        # Generate steps with UI verification
+        # Generate steps with or without UI verification
         result = self.ai.generate_test_steps(
             dom_html=dom_html,
             test_cases=self.test_cases,
             test_context=self.test_context,
-            screenshot_base64=screenshot_base64
+            screenshot_base64=screenshot_base64,
+            enable_ui_verification=self.enable_ui_verification
         )
         
         steps = result.get("steps", [])
@@ -172,8 +186,8 @@ class LocalTestOrchestrator:
         
         print(f"✅ Generated {len(steps)} steps")
         
-        # Handle UI issue if detected
-        if ui_issue:
+        # Handle UI issue if detected (only if UI verification is enabled)
+        if self.enable_ui_verification and ui_issue:
             print(f"\n⚠️  UI ISSUE DETECTED: {ui_issue}")
             
             # Add to reported issues list (split by comma to handle multiple issues)
@@ -220,8 +234,11 @@ class LocalTestOrchestrator:
             
             print(f"\n[Step {step_num}/{len(steps)}] {step.get('action').upper()}: {step.get('description')}")
             
-            # Execute step
+            # Execute step - NOW RETURNS EVERYTHING IN ONE CALL
             result = self.selenium.execute_step(step)
+            
+            # Get old DOM hash from result
+            old_dom_hash = result.get("old_dom_hash", self.current_dom_hash)
             
             if not result["success"]:
                 print(f"❌ Step failed: {result.get('error')}")
@@ -295,57 +312,130 @@ class LocalTestOrchestrator:
             # Small delay between steps
             time.sleep(0.5)
             
-            # Check for alerts
-            alert_info = self.selenium.check_for_alert()
-            
-            if alert_info["success"] and alert_info.get("alert_present"):
-                print(f"\n⚠️ Alert detected: {alert_info['alert_type']}")
-                print(f"   Text: {alert_info['alert_text']}")
+            # Check for alerts - NOW FROM RESULT
+            if result.get("alert_present"):
+                alert_type = result.get("alert_type", "alert")
+                alert_text = result.get("alert_text", "")
+                
+                print(f"\n⚠️ Alert detected: {alert_type}")
+                print(f"   Text: {alert_text}")
+                
+                # Create alert_info dict for compatibility with existing code
+                alert_info = {
+                    "success": True,
+                    "alert_present": True,
+                    "alert_type": alert_type,
+                    "alert_text": alert_text
+                }
+                
+                # Alert already accepted by agent
+                print("ℹ️  Alert was already accepted by agent")
+                
+                # Small delay for page to stabilize after alert
+                time.sleep(0.5)
+                
+                # ADD ACCEPT_ALERT STEP TO EXECUTED_STEPS (as documentation)
+                accept_alert_step = {
+                    "step_number": len(executed_steps) + 1,
+                    "action": "accept_alert",
+                    "selector": "",
+                    "value": "",
+                    "description": f"Accept {alert_type} alert: {alert_text[:50]}..."
+                }
+                executed_steps.append(accept_alert_step)
+                print(f"📝 Added accept_alert step to executed_steps (step {len(executed_steps)})")
+                
+                # EXTRACT FRESH DOM (now that alert is gone)
+                print("📄 Extracting DOM after alert...")
+                fresh_dom_result = self.selenium.extract_form_dom_with_js()
+                
+                if not fresh_dom_result["success"]:
+                    print(f"❌ Failed to extract DOM after alert: {fresh_dom_result.get('error')}")
+                    return False
+                
+                fresh_dom_html = fresh_dom_result["dom_html"]
+                print(f"✅ DOM extracted: {len(fresh_dom_html)} chars")
                 
                 # Generate alert handling steps with AI
-                print("\n🤖 Generating alert handling steps with AI...")
+                print("\n🤖 Generating alert recovery steps with AI...")
                 
-                alert_steps = self.ai.generate_alert_handling_steps(
+                alert_response = self.ai.generate_alert_handling_steps(
                     alert_info=alert_info,
                     executed_steps=executed_steps,
+                    dom_html=fresh_dom_html,
                     screenshot_path=None,  # No screenshot for JS alerts
                     test_cases=self.test_cases,
                     test_context=self.test_context,
-                    step_where_alert_appeared=len(executed_steps)
+                    step_where_alert_appeared=len(executed_steps),
+                    include_accept_step=False  # NEW: Don't tell AI to include accept_alert
                 )
                 
-                if not alert_steps:
+                if not alert_response or not alert_response.get("steps"):
                     print("❌ Failed to generate alert handling steps")
                     return False
                 
+                # Extract scenario and steps from response
+                scenario = alert_response.get("scenario", "B")
+                alert_steps = alert_response.get("steps", [])
+                
                 print(f"✅ Generated {len(alert_steps)} alert handling steps")
+                print(f"📋 Detected Scenario: {scenario}")
                 self._print_steps(alert_steps)
                 
-                # Insert alert handling steps into main steps list (like original)
-                # Update steps: executed + alert_steps
-                steps = executed_steps + alert_steps
+                # Determine where to start executing based on scenario
+                # Case A: Simple alert (append steps and continue normally)
+                # Case B: Validation error (navigate back and start fresh)
                 
-                # Continue from current position (will execute alert steps in main loop)
-                i = len(executed_steps)
+                if scenario == "A":
+                    # Case A: Append new steps after executed steps (including accept_alert)
+                    print(f"📋 Case A: Appending steps after step {len(executed_steps)}")
+                    steps = executed_steps + alert_steps
+                    # No need for +1, just continue normally like DOM regeneration
+                    i = len(executed_steps)  # Continue from next position
+                else:
+                    # Case B: Complete new list (smart recovery from earliest failure)
+                    print(f"📋 Case B: Using complete new step list (smart recovery)")
+                    print(f"🔄 Navigating back to base URL for fresh start...")
+                    
+                    # Navigate back to base URL
+                    if self.base_url:
+                        navigate_result = self.selenium.navigate_to_url(self.base_url)
+                        if not navigate_result["success"]:
+                            print(f"❌ Failed to navigate back to base URL: {navigate_result.get('error')}")
+                            return False
+                        print(f"✅ Navigated back to: {self.base_url}")
+                        
+                        # Wait for page to load
+                        time.sleep(2)
+                    else:
+                        print("⚠️  No base URL stored, continuing from current page")
+                    
+                    # Use complete new step list
+                    steps = alert_steps
+                    executed_steps = []  # Reset executed steps since we're starting fresh
+                    
+                    # Start from the very beginning (step 1)
+                    i = 0
+                    print(f"▶️  Starting fresh from step 1 (executing all {len(steps)} steps)")
+                
                 continue
             
-            # Check for DOM changes
-            new_dom_result = self.selenium.extract_form_dom_with_js()
+            # Check for DOM changes - NOW FROM RESULT
+            new_dom_hash = result.get("new_dom_hash")
             
-            if new_dom_result["success"]:
-                new_dom_hash = new_dom_result["dom_hash"]
+            if new_dom_hash and new_dom_hash != self.current_dom_hash:
+                print(f"\n🔄 DOM changed (hash: {new_dom_hash[:16]}...)")
+                print("   Regenerating remaining steps...")
                 
-                if new_dom_hash != self.current_dom_hash:
-                    print(f"\n🔄 DOM changed (hash: {new_dom_hash[:16]}...)")
-                    print("   Regenerating remaining steps...")
-                    
-                    # Wait for page to stabilize
-                    time.sleep(1.5)
-                    
-                    # Re-extract DOM
-                    stable_dom = self.selenium.extract_form_dom_with_js()
-                    
-                    # Capture screenshot for UI verification (base64, not saved)
+                # Wait for page to stabilize
+                time.sleep(1.5)
+                
+                # Re-extract DOM
+                stable_dom = self.selenium.extract_form_dom_with_js()
+                
+                # Capture screenshot for UI verification (base64, not saved) ONLY if enabled
+                screenshot_base64 = None
+                if self.enable_ui_verification:
                     print("📸 Capturing screenshot for UI verification...")
                     screenshot_result = self.selenium.capture_screenshot(
                         scenario_description="dom_change_ui_check",
@@ -359,55 +449,58 @@ class LocalTestOrchestrator:
                     else:
                         screenshot_base64 = screenshot_result["screenshot"]
                         print("✅ Screenshot captured for AI analysis")
+                else:
+                    print("ℹ️  UI verification disabled - skipping screenshot")
+                
+                # Regenerate steps with or without UI verification
+                result = self.ai.regenerate_steps(
+                    dom_html=stable_dom["dom_html"],
+                    executed_steps=executed_steps,
+                    test_cases=self.test_cases,
+                    test_context=self.test_context,
+                    screenshot_base64=screenshot_base64,
+                    enable_ui_verification=self.enable_ui_verification
+                )
+                
+                new_steps = result.get("steps", [])
+                ui_issue = result.get("ui_issue", "")
+                
+                if new_steps:
+                    steps = executed_steps + new_steps
+                    self.current_dom_hash = stable_dom["dom_hash"]
+                    print(f"✅ Regenerated {len(new_steps)} new steps")
                     
-                    # Regenerate steps with UI verification
-                    result = self.ai.regenerate_steps(
-                        dom_html=stable_dom["dom_html"],
-                        executed_steps=executed_steps,
-                        test_cases=self.test_cases,
-                        test_context=self.test_context,
-                        screenshot_base64=screenshot_base64
-                    )
-                    
-                    new_steps = result.get("steps", [])
-                    ui_issue = result.get("ui_issue", "")
-                    
-                    if new_steps:
-                        steps = executed_steps + new_steps
-                        self.current_dom_hash = stable_dom["dom_hash"]
-                        print(f"✅ Regenerated {len(new_steps)} new steps")
+                    # Handle UI issue if detected (only if UI verification is enabled)
+                    if self.enable_ui_verification and ui_issue:
+                        print(f"\n⚠️  UI ISSUE DETECTED: {ui_issue}")
                         
-                        # Handle UI issue if detected
-                        if ui_issue:
-                            print(f"\n⚠️  UI ISSUE DETECTED: {ui_issue}")
-                            
-                            # Add to reported issues list (split by comma to handle multiple issues)
-                            for issue in ui_issue.split(','):
-                                issue = issue.strip()
-                                if issue and issue not in self.test_context.reported_ui_issues:
-                                    self.test_context.reported_ui_issues.append(issue)
-                            
-                            # Log to both loggers
-                            import logging
-                            logger = logging.getLogger('init_logger.form_page_test')
-                            result_logger_gui = logging.getLogger('init_result_logger_gui.form_page_test')
-                            
-                            logger.warning(f"UI Issue detected after DOM change: {ui_issue}")
-                            result_logger_gui.warning(f"UI Issue detected after DOM change: {ui_issue}")
-                            
-                            # Capture and save screenshot to folder
-                            ui_screenshot_result = self.selenium.capture_screenshot(
-                                scenario_description="ui_issue",
-                                encode_base64=False,
-                                save_to_folder=True
-                            )
-                            
-                            if ui_screenshot_result["success"]:
-                                print(f"📸 UI issue screenshot saved: {ui_screenshot_result['filename']}")
-                            
-                            print("⚠️  Continuing test despite UI issue...\n")
+                        # Add to reported issues list (split by comma to handle multiple issues)
+                        for issue in ui_issue.split(','):
+                            issue = issue.strip()
+                            if issue and issue not in self.test_context.reported_ui_issues:
+                                self.test_context.reported_ui_issues.append(issue)
                         
-                        self._print_steps(new_steps)
+                        # Log to both loggers
+                        import logging
+                        logger = logging.getLogger('init_logger.form_page_test')
+                        result_logger_gui = logging.getLogger('init_result_logger_gui.form_page_test')
+                        
+                        logger.warning(f"UI Issue detected after DOM change: {ui_issue}")
+                        result_logger_gui.warning(f"UI Issue detected after DOM change: {ui_issue}")
+                        
+                        # Capture and save screenshot to folder
+                        ui_screenshot_result = self.selenium.capture_screenshot(
+                            scenario_description="ui_issue",
+                            encode_base64=False,
+                            save_to_folder=True
+                        )
+                        
+                        if ui_screenshot_result["success"]:
+                            print(f"📸 UI issue screenshot saved: {ui_screenshot_result['filename']}")
+                        
+                        print("⚠️  Continuing test despite UI issue...\n")
+                    
+                    self._print_steps(new_steps)
             
             i += 1
         
@@ -495,11 +588,12 @@ def main():
     # Configuration
     config = {
         "anthropic_api_key": API_KEY,  # ← From environment variable
-        "test_url": "http://localhost:8000/index.html",
+        "test_url": "http://localhost:8000/test-form.html",
         "test_cases_file": "generic_form_page_crawler_test_cases.json",
         "browser": "chrome",  # chrome, firefox, edge
         "headless": False,
-        "screenshot_folder": None  # None = default to Desktop, or specify path like "screenshots" or "/path/to/folder"
+        "screenshot_folder": None,  # None = default to Desktop, or specify path like "screenshots" or "/path/to/folder"
+        "enable_ui_verification": False  # ← Set to False to disable screenshot-based UI verification
     }
     
     print("="*70)
@@ -509,6 +603,7 @@ def main():
     print(f"Browser: {config['browser']}")
     print(f"Headless: {config['headless']}")
     print(f"Screenshot folder: {config['screenshot_folder'] or 'Desktop (default)'}")
+    print(f"UI Verification: {'ENABLED' if config['enable_ui_verification'] else 'DISABLED'}")
     print("="*70)
     
     # Create orchestrator
@@ -517,7 +612,8 @@ def main():
         test_cases_file=config["test_cases_file"],
         browser=config["browser"],
         headless=config["headless"],
-        screenshot_folder=config["screenshot_folder"]
+        screenshot_folder=config["screenshot_folder"],
+        enable_ui_verification=config["enable_ui_verification"]
     )
     
     # Run test

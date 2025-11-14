@@ -168,7 +168,8 @@ class AIHelper:
             step_where_dom_changed: Optional[int] = None,
             test_context=None,
             is_first_iteration: bool = False,
-            screenshot_base64: Optional[str] = None
+            screenshot_base64: Optional[str] = None,
+            enable_ui_verification: bool = False
     ) -> Dict[str, Any]:
         """
         Generate Selenium test steps based on DOM and test cases.
@@ -243,7 +244,9 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
 
 """
 
-        prompt = f"""You are a test automation expert. You have TWO SEPARATE TASKS to complete:
+        # Build UI verification section conditionally
+        if enable_ui_verification and screenshot_base64:
+            ui_task_section = f"""You are a test automation expert. You have TWO SEPARATE TASKS to complete:
 
         ================================================================================
         TASK 1: UI VERIFICATION (DO THIS FIRST - ISOLATED FROM TASK 2)
@@ -294,6 +297,11 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
         ================================================================================
         
         Now generate Selenium WebDriver test steps for the form page.
+"""
+        else:
+            ui_task_section = "You are a test automation expert. Your task is to generate Selenium WebDriver test steps for the form page.\n\n"
+
+        prompt = f"""{ui_task_section}
 
         === SELECTOR GUIDELINES ===
 
@@ -379,40 +387,153 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
         - Tabs or sections that organize the form
         - Navigation buttons (Next, Previous, Save, Submit)
         - List items (sections with "Add" / "Add New" / "+" buttons to add multiple entries)
+        - File upload fields (input type="file")
+        
+        **MANDATORY: FILL ALL FIELDS**
+        ================================================================================
+        **CRITICAL: You MUST fill EVERY field you encounter, regardless of whether it has a * (required) marker or not.**
+        
+        - Fill ALL text inputs
+        - Fill ALL textareas
+        - Select options in ALL dropdowns
+        - Check ALL checkboxes (if applicable)
+        - Fill ALL date/time fields
+        - Upload files to ALL file upload fields
+        - Fill ALL fields in ALL tabs/sections
+        - Fill ALL fields in modals/popups
+        - Fill ALL fields in iframes
+        
+        **DO NOT skip fields just because they don't have a * (required) marker!**
+        Real users fill all visible fields, not just required ones.
+        ================================================================================
         
         **MANDATORY: LIST ITEMS HANDLING**
         ================================================================================
-        If the form has a section for adding list items (e.g., "Add Item", "Add New", "+ Add", "Create Entry"):
+        If the form has sections for adding list items (e.g., "Add Finding", "Add Engagement", "+ Add Document"):
         
-        **YOU MUST ADD EXACTLY 2 ITEMS** by following this pattern:
+        **YOU MUST ADD EXACTLY 1 ITEM OF EACH TYPE** by following this pattern:
         
-        **First Item:**
+        **For Each List Item Type:**
         1. Click the "Add" / "Add New" / "+" button to open the item form/modal
         2. Fill ALL fields that appear in the modal/form
         3. Click the save/submit button ("Save", "Submit", "OK", "Add", "Accept", etc.)
         4. Wait for the modal to close or item to be added
         
-        **Second Item (CRITICAL - DON'T FORGET THIS):**
-        5. Click the "Add" / "Add New" / "+" button AGAIN to add a second item
-        6. Fill ALL fields with DIFFERENT values from the first item
-        7. Click the save/submit button again
-        8. Wait for the modal to close or item to be added
+        **If there are multiple different types of list items, add ONE of each type:**
+        - If you see "Add Finding" → add 1 finding
+        - If you see "Add Engagement" → add 1 engagement
+        - If you see "Add Document" → add 1 document
+        - etc.
         
-        **Example Step Sequence:**
+        **Example Step Sequence (multiple types):**
         ```
-        Step X: Click "Add Item" button
-        Step X+1: Fill "Name" field with "Item 1"
-        Step X+2: Fill "Description" field with "First item description"
+        Step X: Click "Add Finding" button
+        Step X+1: Fill "Finding Title" field
+        Step X+2: Fill "Finding Description" field
         Step X+3: Click "Save" button
         Step X+4: Wait for modal to close (1 second)
-        Step X+5: Click "Add Item" button AGAIN (for second item)
-        Step X+6: Fill "Name" field with "Item 2"
-        Step X+7: Fill "Description" field with "Second item description"
+        Step X+5: Click "Add Engagement" button
+        Step X+6: Fill "Engagement Name" field
+        Step X+7: Fill "Engagement Details" field
         Step X+8: Click "Save" button
         Step X+9: Wait for modal to close (1 second)
         ```
         
-        **IMPORTANT:** Do not skip list items! If you see an "Add" button for a list, you MUST add 2 items before moving to the next section.
+        **IMPORTANT:** Do not skip list items! If you see an "Add" button for a list, you MUST add 1 item of that type before moving to the next section.
+        ================================================================================
+        
+        **MANDATORY: FILE UPLOAD HANDLING**
+        ================================================================================
+        **CRITICAL: If you see ANY file upload fields (`<input type="file">`), you MUST create and upload a file.**
+        
+        **File upload fields look like:**
+        - `<input type="file" name="profileImage">`
+        - `<input type="file" accept="image/*">`
+        - `<input type="file" accept=".pdf,.doc">`
+        - Label text like: "Upload Document", "Choose File", "Attach Resume", "Profile Picture"
+        
+        **For EVERY file upload field found, generate TWO sequential steps:**
+        
+        **Step 1: create_file** - Create appropriate test file based on the field's purpose
+        **Step 2: upload_file** - Upload the created file
+        
+        **File Type Selection Guide:**
+        - Resume/CV fields → create PDF with resume content
+        - Profile/Photo/Image fields → create PNG or JPG image
+        - Document/Report fields → create PDF or DOCX
+        - Invoice/Receipt fields → create PDF with invoice data
+        - Data/Spreadsheet fields → create CSV or XLSX
+        - Generic "file" upload → create PDF
+        
+        **Example 1: Resume Upload**
+        ```json
+        {{
+          "step_number": 15,
+          "action": "create_file",
+          "file_type": "pdf",
+          "filename": "test_resume.pdf",
+          "content": "John Doe\\nSoftware Engineer\\n5 years experience\\nPython, Selenium, Testing",
+          "selector": "",
+          "value": "",
+          "description": "Create test resume PDF"
+        }},
+        {{
+          "step_number": 16,
+          "action": "upload_file",
+          "selector": "input[name='resumeUpload']",
+          "value": "test_resume.pdf",
+          "description": "Upload resume file"
+        }}
+        ```
+        
+        **Example 2: Profile Image Upload**
+        ```json
+        {{
+          "step_number": 8,
+          "action": "create_file",
+          "file_type": "png",
+          "filename": "profile_photo.png",
+          "content": "Test Profile Photo\\nJohn Doe\\nID: 12345",
+          "selector": "",
+          "value": "",
+          "description": "Create test profile image"
+        }},
+        {{
+          "step_number": 9,
+          "action": "upload_file",
+          "selector": "input[type='file'][name='profileImage']",
+          "value": "profile_photo.png",
+          "description": "Upload profile photo"
+        }}
+        ```
+        
+        **Example 3: Document Upload**
+        ```json
+        {{
+          "step_number": 22,
+          "action": "create_file",
+          "file_type": "pdf",
+          "filename": "test_document.pdf",
+          "content": "Test Document\\nDate: 2024\\nReference: TEST-001\\nApproved by QA Team",
+          "selector": "",
+          "value": "",
+          "description": "Create test document PDF"
+        }},
+        {{
+          "step_number": 23,
+          "action": "upload_file",
+          "selector": "input#documentUpload",
+          "value": "test_document.pdf",
+          "description": "Upload test document"
+        }}
+        ```
+        
+        **IMPORTANT Rules:**
+        - ALWAYS create files with simple, relevant content (3-5 lines)
+        - Use descriptive filenames that match the field purpose
+        - The filename in create_file MUST match the value in upload_file
+        - File content should be contextual (resume for resume field, invoice for invoice field, etc.)
+        - Never skip file upload fields - treat them as MANDATORY
         ================================================================================
         
         **CRITICAL: Tab/Section Handling:**
@@ -583,6 +704,36 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
            Step 4: Look for specific classes with context (.form .submit-btn) → USE THESE FOURTH
            Step 5: Use structural selectors (form > button:last-child) → LAST RESORT
 
+        **CRITICAL: Modal Button Selectors (Save/Submit/OK/Cancel):**
+           Modal buttons require EXTRA PRECISION to avoid ambiguity. ALWAYS use XPath for modal buttons:
+           
+           **PREFERRED XPATH STRATEGIES (in order):**
+           1. **XPath with onclick attribute** (BEST):
+              `//button[@onclick='saveEngagement()']`
+              `//div[@id='engagementModal']//button[@onclick='saveEngagement()']`
+           
+           2. **XPath scoped to specific modal + text content**:
+              `//div[@id='engagementModal']//button[contains(text(), 'Save')]`
+              `//div[contains(@class, 'modal') and contains(@style, 'display')]//button[contains(text(), 'Save')]`
+           
+           3. **XPath with modal scope + button attributes**:
+              `//div[@id='findingModal']//button[@type='submit']`
+              `//div[contains(@class, 'modal-dialog')]//button[contains(@class, 'btn-primary')]`
+           
+           **WHY XPath for modals:**
+           - Multiple modals may exist in DOM with similar button classes
+           - XPath can scope to the visible/active modal container
+           - XPath can use text content for precision
+           - CSS selectors like `.modal button.btn-save` may match multiple elements
+           
+           **EXAMPLES:**
+           - ❌ BAD: `button.btn-save-engagement` (ambiguous, may match hidden modal)
+           - ❌ BAD: `button.btn-primary` (too generic)
+           - ✅ GOOD: `//button[@onclick='saveEngagement()']` (unique function name)
+           - ✅ GOOD: `//div[@id='engagementModal']//button[contains(text(), 'Save')]` (scoped to modal)
+           
+           **For non-modal buttons, continue using CSS selectors as normal.**
+
         4. **Verification Steps:**
            After important actions, verify success:
            - After submit → verify success message exists
@@ -600,7 +751,7 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
            - "Complete form" → Generate steps for all sections/tabs
            - "Navigate to next section" → Click next button and verify new section
            - "Make random selection" → For dropdowns/radios, choose randomly from available options
-           - **"Add list items" → Generate steps to add EXACTLY 2 items: Click Add → Fill fields → Save → Click Add AGAIN → Fill different values → Save**
+           - **"Add list items" → Generate steps to add EXACTLY 1 ITEM OF EACH TYPE: If you see "Add Finding" → add 1 finding, if you see "Add Engagement" → add 1 engagement, etc.**
            - Real users fill ALL visible fields, not just required ones!
 
 
@@ -754,7 +905,10 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
 
         {context}
 
-        === RESPONSE FORMAT ===
+        === RESPONSE FORMAT ==="""
+        
+        if enable_ui_verification:
+            prompt += """
         Return ONLY a JSON object with this structure:
 
         ```json
@@ -771,6 +925,19 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
         - **ui_issue**: Empty string if UI is fine, or description of issue if detected (e.g., "Cookie banner overlapping submit button")
 
         Return ONLY the JSON object, no other text.
+        """
+        else:
+            prompt += """
+        Return ONLY a JSON array of step objects:
+
+        ```json
+        [
+          {{"step_number": 1, "action": "fill", "selector": "input#field", "value": "value", "description": "Fill field"}},
+          {{"step_number": 2, "action": "click", "selector": "button.submit", "description": "Submit form"}}
+        ]
+        ```
+
+        Return ONLY the JSON array, no other text.
         """
         
         try:
@@ -859,7 +1026,8 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
         executed_steps: list,
         test_cases: list,
         test_context,
-        screenshot_base64: Optional[str] = None
+        screenshot_base64: Optional[str] = None,
+        enable_ui_verification: bool = False
     ) -> Dict[str, Any]:
         """
         Regenerate remaining steps after DOM change
@@ -910,8 +1078,9 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
 
 """
             
-            # Build full prompt with UI verification as separate task
-            prompt = f"""You are a web automation expert. You have TWO SEPARATE TASKS to complete:
+            # Build full prompt conditionally with UI verification
+            if enable_ui_verification and screenshot_base64:
+                prompt = f"""You are a web automation expert. You have TWO SEPARATE TASKS to complete:
 
 ================================================================================
 TASK 1: UI VERIFICATION (DO THIS FIRST - ISOLATED FROM TASK 2)
@@ -971,28 +1140,42 @@ The DOM changed, and here is the NEW current state:
 {dom_html}
 
 {test_cases_context}
+"""
+            else:
+                prompt = f"""You are a web automation expert. Your task is to generate remaining Selenium WebDriver test steps after a DOM change.
 
+The DOM has changed after executing some steps.
+
+{executed_context}
+
+The DOM changed, and here is the NEW current state:
+
+## Current Page DOM:
+{dom_html}
+
+{test_cases_context}
+"""
+            
+            prompt += """
 ## Your Task:
 Based on the steps already completed and the NEW DOM state, generate the REMAINING steps needed to complete the form test.
 
-**CRITICAL: LIST ITEMS REQUIREMENT - CHECK THIS FIRST BEFORE ANYTHING ELSE:**
-Each list section requires EXACTLY 2 items total. **IMMEDIATELY look at the LAST executed step above:**
-- **Did the LAST step just save a list item?** (Look for "Save Finding", "Save Engagement", "Save [Something]" in the last step)
-- **If YES:** YOU MUST ADD A SECOND ITEM OF THAT SAME TYPE RIGHT NOW AS YOUR FIRST GENERATED STEP!
-- **Do NOT move to other list types or fields until you complete the current list type!**
-- Use the SAME "Add" button you just used → Fill fields with different values → Save
-
-**Example:** If last step was "Save Finding" → Your first step MUST be "Click Add Finding button again"
+**LIST ITEMS HANDLING:**
+- If you see different types of "Add" buttons (e.g., "Add Finding", "Add Engagement"), add 1 item of each type
+- Do not add multiple items of the same type
+- Example: If you already added 1 Finding, move on to the next list type (e.g., Add Engagement) or continue with other form fields
 
 Generate steps to:
-1. **FIRST AND MOST IMPORTANT: If the last executed step saved a list item, add the second item of that same type NOW (Click the same Add button → Fill → Save)**
-2. Check for OTHER list sections that also need 2 items each
-3. Fill all remaining form fields
-4. Handle any dropdowns, checkboxes, or special inputs
-5. Submit the form
-6. Verify success
+1. Check if there are other list item types that need to be added (1 item per type)
+2. Fill all remaining form fields
+3. Handle any dropdowns, checkboxes, or special inputs
+4. Submit the form
+5. Verify success
 
-## Response Format:
+## Response Format:"""
+            
+            if enable_ui_verification:
+                prompt += """
 Return ONLY a JSON object with this structure:
 
 ```json
@@ -1007,10 +1190,113 @@ Return ONLY a JSON object with this structure:
 
 - **steps**: Array of step objects to execute
 - **ui_issue**: Empty string if UI is fine, or description of ALL issues found (comma-separated)
+"""
+            else:
+                prompt += """
+Return ONLY a JSON array of step objects:
 
-Available actions: fill, select, click, verify, wait, wait_for_ready, scroll, hover, switch_to_frame, switch_to_default, switch_to_shadow_root
+```json
+{{
+  "steps": [
+    {{"step_number": 1, "action": "fill", "selector": "input#field", "value": "value", "description": "Fill field"}},
+    {{"step_number": 2, "action": "click", "selector": "button.submit", "description": "Submit form"}}
+  ]  
+}}
+```
+"""
+            
+            prompt += """
+Available actions: fill, select, click, verify, wait, wait_for_ready, scroll, hover, switch_to_frame, switch_to_default, switch_to_shadow_root, create_file, upload_file
 
 **CRITICAL:** Never use wait with value > 10 seconds! For AJAX, use wait_for_ready instead.
+
+**CRITICAL: Modal Button Selectors (Save/Submit/OK/Cancel):**
+Modal buttons require EXTRA PRECISION. ALWAYS use XPath for modal buttons:
+
+**PREFERRED XPATH STRATEGIES:**
+1. **XPath with onclick attribute** (BEST):
+   `//button[@onclick='saveEngagement()']`
+   `//div[@id='engagementModal']//button[@onclick='saveEngagement()']`
+
+2. **XPath scoped to specific modal + text content**:
+   `//div[@id='engagementModal']//button[contains(text(), 'Save')]`
+   `//div[contains(@class, 'modal')]//button[contains(text(), 'Save')]`
+
+3. **XPath with modal scope + button attributes**:
+   `//div[@id='findingModal']//button[@type='submit']`
+
+**WHY:** Multiple modals may exist with similar CSS classes. XPath ensures precision.
+
+**EXAMPLES:**
+- ❌ BAD: `button.btn-save-engagement` (ambiguous)
+- ✅ GOOD: `//button[@onclick='saveEngagement()']` (unique)
+- ✅ GOOD: `//div[@id='engagementModal']//button[contains(text(), 'Save')]` (scoped)
+
+**FILE UPLOAD ACTIONS:**
+
+When you encounter a file upload field (`<input type="file">`), use TWO sequential steps:
+
+**Step 1: create_file** - Create the test file
+```json
+{
+  "step_number": N,
+  "action": "create_file",
+  "file_type": "pdf|txt|csv|xlsx|docx|json|png|jpg",
+  "filename": "test_file.pdf",
+  "content": "File content here...",
+  "selector": "",
+  "value": "",
+  "description": "Create test file for upload"
+}
+```
+
+**Step 2: upload_file** - Upload the created file
+```json
+{
+  "step_number": N+1,
+  "action": "upload_file",
+  "selector": "input[type='file']",
+  "value": "test_file.pdf",
+  "description": "Upload the test file"
+}
+```
+
+**Supported file types:**
+- `pdf` - Simple PDF with text content
+- `txt` - Plain text file
+- `csv` - CSV data (use comma-separated content)
+- `xlsx` - Excel spreadsheet (use CSV-like content)
+- `docx` - Word document
+- `json` - JSON data
+- `png`, `jpg` - Images with text overlay
+
+**File content guidelines:**
+- Keep content simple and relevant to the form context
+- For resumes: name, experience, skills
+- For invoices: invoice number, amount, date
+- For images: descriptive test content
+- Content should be 2-5 lines for most files
+
+**Example for resume upload:**
+```json
+{
+  "step_number": 10,
+  "action": "create_file",
+  "file_type": "pdf",
+  "filename": "john_doe_resume.pdf",
+  "content": "John Doe\nSoftware Engineer\n5 years experience\nPython, Selenium, Testing",
+  "selector": "",
+  "value": "",
+  "description": "Create test resume"
+},
+{
+  "step_number": 11,
+  "action": "upload_file",
+  "selector": "input#resumeUpload",
+  "value": "john_doe_resume.pdf",
+  "description": "Upload resume file"
+}
+```
 
 Return ONLY the JSON object, no other text.
 """
@@ -1048,7 +1334,8 @@ Return ONLY the JSON object, no other text.
             # Parse JSON response
             import re
             json_match = re.search(r'\{[\s\S]*\}', response_text)
-            
+
+            #print(f"extracted json: {json_match.group()}")
             if json_match:
                 response_data = json.loads(json_match.group())
                 steps = response_data.get("steps", [])
@@ -1342,9 +1629,27 @@ Return JSON array with:
 Return ONLY a JSON array of step objects. Each step must have:
 - step_number: sequential number
 - action: one of (fill, select, click, verify, navigate, wait, scroll, switch_to_frame, switch_to_default, switch_to_shadow_root, hover, refresh, press_key)
-- selector: CSS selector at first priority
+- selector: CSS selector or XPath (use XPath for modal buttons - see below)
 - value: value for the action (if applicable)
 - description: what this step does
+
+**CRITICAL: Modal Button Selectors (Save/Submit/OK/Cancel):**
+If the failed step was trying to click a modal button, ALWAYS use XPath for precision:
+
+**PREFERRED XPATH STRATEGIES:**
+1. **XPath with onclick attribute** (BEST):
+   `//button[@onclick='saveEngagement()']`
+
+2. **XPath scoped to modal + text content**:
+   `//div[@id='engagementModal']//button[contains(text(), 'Save')]`
+
+3. **XPath with modal scope + attributes**:
+   `//div[@id='findingModal']//button[@type='submit']`
+
+**EXAMPLES:**
+- ❌ BAD: `button.btn-save-engagement` (ambiguous)
+- ✅ GOOD: `//button[@onclick='saveEngagement()']`
+- ✅ GOOD: `//div[@id='engagementModal']//button[contains(text(), 'Save')]`
 
 Example response:
 ```json
@@ -1365,10 +1670,12 @@ Return ONLY the JSON array, no other text.
         self,
         alert_info: Dict,
         executed_steps: List[Dict],
+        dom_html: str,
         screenshot_path: str,
         test_cases: List[Dict],
         test_context,
-        step_where_alert_appeared: int
+        step_where_alert_appeared: int,
+        include_accept_step: bool = True  # NEW: Control whether to include accept_alert step
     ) -> List[Dict]:
         """
         Generate steps to handle a JavaScript alert/confirm/prompt with AI vision
@@ -1376,10 +1683,12 @@ Return ONLY the JSON array, no other text.
         Args:
             alert_info: Dict with 'type' and 'text' of the alert
             executed_steps: Steps completed before alert appeared
+            dom_html: Current DOM HTML after alert was accepted
             screenshot_path: Path to screenshot showing the alert
             test_cases: Active test cases
             test_context: Test context
             step_where_alert_appeared: Step number that triggered the alert
+            include_accept_step: Whether AI should include accept_alert step in response
             
         Returns:
             List of steps to handle alert + continue with remaining steps
@@ -1394,9 +1703,11 @@ Return ONLY the JSON array, no other text.
             prompt = self._build_alert_handling_prompt(
                 alert_info=alert_info,
                 executed_steps=executed_steps,
+                dom_html=dom_html,
                 test_cases=test_cases,
                 test_context=test_context,
-                step_where_alert_appeared=step_where_alert_appeared
+                step_where_alert_appeared=step_where_alert_appeared,
+                include_accept_step=include_accept_step  # NEW: Pass to prompt builder
             )
             
             # Call Claude (with or without screenshot) using retry logic
@@ -1438,17 +1749,29 @@ Return ONLY the JSON array, no other text.
             print(f"[AIHelper] Received alert handling response ({len(response_text)} chars)")
             logger.info(f"[AIHelper] Received alert handling response ({len(response_text)} chars)")
             
-            # Extract JSON from response
-            json_match = re.search(r'\[[\s\S]*\]', response_text)
+            # Extract JSON from response - now expecting object with "scenario" and "steps"
+            json_match = re.search(r'\{[\s\S]*\}', response_text)
             if json_match:
-                alert_steps = json.loads(json_match.group())
+                alert_response = json.loads(json_match.group())
+                
+                # Extract scenario and steps
+                scenario = alert_response.get("scenario", "B")  # Default to B if not specified
+                alert_steps = alert_response.get("steps", [])
+                
+                if not alert_steps:
+                    print("[AIHelper] No steps found in alert response")
+                    logger.warning("[AIHelper] No steps found in alert response")
+                    return {"scenario": scenario, "steps": []}
+                
                 print(f"[AIHelper] Successfully parsed {len(alert_steps)} alert handling steps")
-                logger.info(f"[AIHelper] Successfully parsed {len(alert_steps)} alert handling steps")
-                return alert_steps
+                print(f"[AIHelper] Scenario: {scenario}")
+                logger.info(f"[AIHelper] Successfully parsed {len(alert_steps)} alert handling steps (Scenario {scenario})")
+                
+                return {"scenario": scenario, "steps": alert_steps}
             else:
-                print("[AIHelper] No JSON array found in alert handling response")
-                logger.warning("[AIHelper] No JSON array found in alert handling response")
-                return []
+                print("[AIHelper] No JSON object found in alert handling response")
+                logger.warning("[AIHelper] No JSON object found in alert handling response")
+                return {"scenario": "B", "steps": []}
                 
         except Exception as e:
             print(f"[AIHelper] Error generating alert handling steps: {e}")
@@ -1459,9 +1782,11 @@ Return ONLY the JSON array, no other text.
         self,
         alert_info: Dict,
         executed_steps: List[Dict],
+        dom_html: str,
         test_cases: List[Dict],
         test_context,
-        step_where_alert_appeared: int
+        step_where_alert_appeared: int,
+        include_accept_step: bool = True  # NEW: Control whether to include accept_alert step
     ) -> str:
         """Build the prompt for alert handling"""
         
@@ -1477,104 +1802,206 @@ Steps completed before alert appeared:
 """
         
         prompt = f"""
-# JAVASCRIPT ALERT HANDLING
+# JAVASCRIPT ALERT HANDLING WITH SMART RECOVERY
 
-A JavaScript alert/dialog appeared after step {step_where_alert_appeared}. Your job is to generate steps to handle it and continue the test.
+## Context:
+Step {step_where_alert_appeared} was executed successfully, but it triggered a JavaScript alert.
+**IMPORTANT**: The system has ALREADY accepted/dismissed the alert automatically before calling you.
 
 ## Alert Information:
-- **Type**: {alert_type} (detected programmatically)
+- **Type**: {alert_type}
 - **Text**: "{alert_text}"
-
-**Note**: JavaScript alerts block all page interactions, so no screenshot is available. You must determine the appropriate action based on the alert type and text.
 
 {executed_context}
 
-## Your Tasks:
+## Current DOM (After Alert Was Accepted):
+```html
+{dom_html}
+```
 
-### 1. FIRST STEP - Accept/Dismiss the Alert:
-**YOUR VERY FIRST STEP MUST ALWAYS BE TO ACCEPT OR DISMISS THE ALERT!**
-- For "alert": Generate `accept_alert` action as FIRST step
-- For "confirm": Generate `accept_alert` or `dismiss_alert` as FIRST step
-- For "prompt": Generate `fill_alert` then `accept_alert` as first steps
+## Your Task - TWO SCENARIOS:
 
-### 2. Analyze the Alert Text:
-Read the alert text carefully to understand what it's telling you:
+**CRITICAL: How to Determine Which Scenario Applies**
 
-**If the alert is a VALIDATION ERROR** (contains phrases like "required", "Please fill in", "missing fields", "must complete"):
-- The alert is telling you which fields are missing or incomplete
-- You need to go back and fill those specific fields BEFORE retrying
-- Parse the alert text to identify WHICH fields need to be filled
+You are an AI - use your intelligence to understand the MEANING and INTENT of the alert text:
 
-**Example alert text:**
-"Please fill in all required fields:
-1. Street Address is required
-2. City is required  
-3. Emergency Contact Name is required"
+**Ask yourself: "Is this alert telling me that I need to FIX or FILL fields because they are MISSING or INVALID?"**
 
-**What this means:**
-- You skipped or didn't complete these fields
-- You need to navigate to the tabs/sections where these fields are located
-- Fill ALL the missing fields mentioned in the alert
-- THEN retry the action that triggered the alert
+- **If YES → Use SCENARIO B** (Validation Error)
+- **If NO → Use SCENARIO A** (Simple Alert)
 
-### 3. Generate Recovery Steps (After Accepting Alert):
+**SCENARIO B - Validation Errors (Field Problems):**
+The alert is complaining about form fields that need to be corrected. These alerts say things like:
+- "Field X is required" / "Field X is missing"
+- "Field Y is invalid" / "Field Y has wrong format"
+- "Please fill in: Field1, Field2, Field3"
+- "Error: Field Z must be..."
 
-**A. If validation error - Fix the missing fields:**
+Examples that are SCENARIO B:
+- ❌ "Please fill in: Street Address is required, City is required" → Fields need to be filled
+- ❌ "Email is invalid" → Field has bad data
+- ❌ "Phone Number must be 10 digits" → Field validation failed
+- ❌ "The following fields are required: Name, Address, Phone" → Missing fields
+- ❌ "City has invalid format" → Field data is wrong
 
-1. Identify which tabs/sections contain the missing fields:
-   - Address fields (Street, City, State, ZIP) → Usually in "Address" tab or iframe
-   - Emergency Contact fields → Usually in Address tab's nested iframe
-   - Preferences fields (Rating, Options) → Usually in "Preferences" tab
-   - Comments/Notes → Usually in main Details tab
+**SCENARIO A - Simple Alerts (Everything Else):**
+The alert is NOT about field validation errors. It's a confirmation, navigation warning, success message, or general notification.
 
-2. Navigate to those tabs/sections:
-   - Click the appropriate tab button
-   - Switch to iframe if needed (switch_to_frame)
-   - Handle any confirmation dialogs
+Examples that are SCENARIO A:
+- ✅ "Are you sure you want to continue?" → Just asking for confirmation
+- ✅ "Do you want to proceed?" → Navigation confirmation
+- ✅ "Form submitted successfully!" → Success message
+- ✅ "Action completed" → Generic notification
+- ✅ "You are about to leave this section" → Navigation warning
+- ✅ "⚠️ You are about to enter the Address section. Are you sure?" → Navigation confirmation (NOT about Address field validation!)
+- ✅ "Changes will be saved" → Information message
+- ✅ "Processing..." → Status message
 
-3. Fill ALL the missing fields mentioned in the alert
+**Key Insight:** 
+- "You are about to enter the Address section" is talking about NAVIGATION to a section, NOT validation of an Address field → SCENARIO A
+- "Street Address is required" is talking about a MISSING FIELD that needs to be filled → SCENARIO B
 
-4. Navigate through ALL remaining required tabs/sections that weren't completed
+Read the alert carefully and understand its intent!
 
-5. Retry the action that caused the alert (e.g., click "Next" or "Submit" button again)
+---
 
-**B. If not a validation error (success message, confirmation, etc.):**
-- Just continue with remaining steps to complete the form
+### SCENARIO A: Simple Alert (No Validation Errors)
 
-### 4. Example Response for Validation Error:
+**Use this when:** The alert is NOT complaining about missing or invalid fields. It's just a confirmation, success message, navigation warning, or generic notification.
 
+**Your response should:**
+1. Keep all executed steps 1-{step_where_alert_appeared} (they were successful)
+2. {'Start generating steps from ' + str(step_where_alert_appeared + 1) + ' (system already added accept_alert to executed_steps)' if not include_accept_step else 'Add step ' + str(step_where_alert_appeared + 1) + ' as `accept_alert` (documenting what the system already did)'}
+3. Add continuation steps to complete the form based on the current DOM
+
+{f'**CRITICAL:** The system has already accepted the alert AND added it to executed_steps as step {step_where_alert_appeared + 1}. Your first generated step should be numbered {step_where_alert_appeared + 1} and should be the NEXT action after alert (e.g., switch_to_frame, fill, etc.). Do NOT include accept_alert in your response!' if not include_accept_step else f'**CRITICAL FOR STEP NUMBERING:** Steps must start from {step_where_alert_appeared + 1}, NOT from step 1! First step must be accept_alert.'}
+
+**Example response for simple alert (if alert appeared at step 26):**
 ```json
-[
-  {{"step_number": 1, "action": "accept_alert", "selector": "", "value": "", "description": "Accept validation error alert"}},
-  {{"step_number": 2, "action": "fill", "selector": "textarea#comments", "value": "Additional comments", "description": "Fill Additional Comments field"}},
-  {{"step_number": 3, "action": "click", "selector": "button.tab-button[onclick='showTab(\\'address\\')']", "description": "Click Address tab"}},
-  {{"step_number": 4, "action": "switch_to_frame", "selector": "iframe#addressIframe", "description": "Switch to address iframe"}},
-  {{"step_number": 5, "action": "fill", "selector": "input#street", "value": "123 Main St", "description": "Fill Street Address"}},
-  {{"step_number": 6, "action": "fill", "selector": "input#city", "value": "New York", "description": "Fill City"}},
-  {{"step_number": 7, "action": "select", "selector": "select#state", "value": "NY", "description": "Select State"}},
-  {{"step_number": 8, "action": "fill", "selector": "input#zipCode", "value": "10001", "description": "Fill ZIP Code"}},
-  {{"step_number": 9, "action": "switch_to_frame", "selector": "iframe#contactIframe", "description": "Switch to nested contact iframe"}},
-  {{"step_number": 10, "action": "fill", "selector": "input#emergencyName", "value": "Jane Doe", "description": "Fill Emergency Contact Name"}},
-  {{"step_number": 11, "action": "switch_to_default", "description": "Switch back to main content"}},
-  {{"step_number": 12, "action": "click", "selector": "button.tab-button[onclick='showTab(\\'preferences\\')']", "description": "Click Preferences tab"}},
-  {{"step_number": 13, "action": "fill", "selector": "textarea#ratingComment", "value": "Great service", "description": "Fill Rating Comment"}},
-  {{"step_number": 14, "action": "click", "selector": "input#terms", "description": "Check terms and conditions"}},
-  {{"step_number": 15, "action": "click", "selector": "button[onclick='validateAndGoToPartTwo()']", "description": "Retry clicking Next: Part 2 button"}}
+{'[' if True else ''}
+  {{{f'"step_number": {step_where_alert_appeared + 1}, "action": "switch_to_frame", "selector": "iframe#addressIframe", "value": "", "description": "Switch to address iframe"' if not include_accept_step else f'"step_number": {step_where_alert_appeared + 1}, "action": "accept_alert", "selector": "", "value": "", "description": "Alert accepted (already done by system)"'}}},
+  {{{f'"step_number": {step_where_alert_appeared + 2}, "action": "fill", "selector": "input#street", "value": "123 Main St", "description": "Fill street address"' if not include_accept_step else f'"step_number": {step_where_alert_appeared + 2}, "action": "switch_to_frame", "selector": "iframe#addressIframe", "value": "", "description": "Switch to address iframe"'}}},
+  {{{f'"step_number": {step_where_alert_appeared + 3}, "action": "fill", "selector": "input#city", "value": "New York", "description": "Fill city"' if not include_accept_step else f'"step_number": {step_where_alert_appeared + 3}, "action": "fill", "selector": "input#street", "value": "123 Main St", "description": "Fill street address"'}}}
 ]
 ```
 
-## Available Alert Actions:
-- `accept_alert`: Click OK button (no selector needed)
-- `dismiss_alert`: Click Cancel button (no selector needed)  
-- `fill_alert`: Fill prompt input field (provide value)
+---
 
-## Test Cases:
+### SCENARIO B: Validation Alert (Field Problems - Missing or Invalid)
+
+**Use this ONLY when:** The alert is specifically complaining that fields are MISSING, REQUIRED, INVALID, or have ERRORS.
+
+**Step 1: Parse Alert Text**
+Extract ALL problematic field names/descriptions mentioned in the alert.
+
+Example: "Please fill in: Street Address is required, City has invalid format, Emergency Contact Name is required"
+→ Problematic fields: ["Street Address", "City", "Emergency Contact Name"]
+
+**Step 2: Analyze Executed Steps**
+For EACH problematic field, check the executed steps (1-{step_where_alert_appeared}):
+- Was this field attempted? If yes, at which step number?
+- Was this field skipped (never attempted)?
+
+**Step 3: Analyze DOM Structure**
+For fields that were skipped OR to understand form flow:
+- Locate where these fields exist in the DOM
+- Identify which tabs/sections/iframes contain them
+- Understand their position in the natural form flow
+
+**Step 4: Determine Earliest Failure Point**
+Find the ABSOLUTE EARLIEST point where something went wrong:
+
+- If problematic fields WERE attempted: Find the earliest step number among all problematic fields
+- If some fields were SKIPPED: Check DOM to see if skipped fields come BEFORE the earliest attempted problematic field in the form structure
+- The restart point is the earliest of these
+
+Example:
+- Executed steps 1-{step_where_alert_appeared}
+- Alert mentions: Street (attempted step 7), City (attempted step 9), Emergency Contact (skipped, but should be in same section around step 8)
+- **Earliest failure**: Step 7
+- **Keep**: Steps 1-6 (successful)
+- **Discard**: Steps 7-{step_where_alert_appeared} (from earliest failure onwards)
+
+**Step 5: Generate Clean Recovery Plan**
+
+Return a COMPLETE NEW step list starting from step 1:
+
+```json
+[
+  {{"step_number": 1, "action": "...", "description": "..."}},
+  ...
+  {{"step_number": 6, "action": "...", "description": "..."}},
+  {{"step_number": 7, "action": "fill", "selector": "...", "value": "...", "description": "Fill Street Address correctly"}},
+  {{"step_number": 8, "action": "fill", "selector": "...", "value": "...", "description": "Fill City correctly"}},
+  {{"step_number": 9, "action": "fill", "selector": "...", "value": "...", "description": "Fill Emergency Contact Name"}},
+  ...
+  {{"step_number": N, "action": "...", "description": "Complete remaining form fields"}}
+]
+```
+
+**CRITICAL for Scenario B:**
+- Return the COMPLETE step list (steps 1 through N)
+- Keep successful steps (1 to last_good_step) exactly as they were
+- Generate NEW corrected steps from the failure point onwards
+- Fill ALL problematic fields with correct values from test_cases
+- Navigate through tabs/iframes as needed
+- Complete the form properly
+- DO NOT include `accept_alert` step (alert is already handled)
+- DO NOT retry the submit button (just complete the form properly)
+
+---
+
+## Available Actions:
+- `accept_alert`: Click OK button (no selector needed) - **USE ONLY IN SCENARIO A**
+- `dismiss_alert`: Click Cancel button (no selector needed) - **USE ONLY IN SCENARIO A**
+- `fill`: Fill input/textarea field
+- `select`: Select dropdown option
+- `click`: Click button/link/checkbox
+- `switch_to_frame`: Switch to iframe
+- `switch_to_default`: Switch back to main content
+- `create_file`: Create test file (pdf, txt, csv, xlsx, docx, json, png, jpg)
+- `upload_file`: Upload file to input[type='file']
+
+## Test Cases (for field values):
 {json.dumps(test_cases, indent=2)}
 
 ## Response Format:
-Return ONLY a JSON array of step objects. Your FIRST step must ALWAYS be accept_alert or dismiss_alert!
 
-Return ONLY the JSON array, no other text.
+**CRITICAL: You MUST return a JSON object with two fields:**
+
+```json
+{{
+  "scenario": "A",  // or "B" - which scenario you chose
+  "steps": [...]     // array of step objects
+}}
+```
+
+**For SCENARIO A** (simple alert - no field validation problems):
+```json
+{{
+  "scenario": "A",
+  "steps": [
+    {{"step_number": {step_where_alert_appeared + 1}, "action": "accept_alert", "selector": "", "value": "", "description": "Alert accepted (already done by system)"}},
+    {{"step_number": {step_where_alert_appeared + 2}, "action": "...", "selector": "...", "value": "...", "description": "Continue with next action"}},
+    ...
+  ]
+}}
+```
+
+**For SCENARIO B** (validation error - field problems):
+```json
+{{
+  "scenario": "B",
+  "steps": [
+    {{"step_number": 1, "action": "...", "selector": "...", "value": "...", "description": "..."}},
+    {{"step_number": 2, "action": "...", "selector": "...", "value": "...", "description": "..."}},
+    ...
+    {{"step_number": N, "action": "...", "selector": "...", "value": "...", "description": "..."}}
+  ]
+}}
+```
+
+Return ONLY this JSON object, no other text.
 """
         
         return prompt

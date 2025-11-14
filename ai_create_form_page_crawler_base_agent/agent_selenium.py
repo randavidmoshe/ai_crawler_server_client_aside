@@ -27,6 +27,27 @@ from selenium.common.exceptions import (
 )
 from webdriver_manager.chrome import ChromeDriverManager
 
+try:
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+except ImportError:
+    canvas = None
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    Image = None
+
+try:
+    from openpyxl import Workbook
+except ImportError:
+    Workbook = None
+
+try:
+    from docx import Document
+except ImportError:
+    Document = None
+
 
 class AgentSelenium:
     """
@@ -42,17 +63,28 @@ class AgentSelenium:
         if screenshot_folder:
             # User provided a path (absolute or relative)
             if os.path.isabs(screenshot_folder):
-                self.screenshot_folder = screenshot_folder
+                base_path = screenshot_folder
             else:
                 # Relative path - make it relative to current working directory
-                self.screenshot_folder = os.path.abspath(screenshot_folder)
+                base_path = os.path.abspath(screenshot_folder)
         else:
             # Default to Desktop
-            self.screenshot_folder = self._get_desktop_path()
+            base_path = self._get_desktop_path()
         
-        # Create folder if it doesn't exist
-        os.makedirs(self.screenshot_folder, exist_ok=True)
-        print(f"[Agent] Screenshot folder: {self.screenshot_folder}")
+        # Create automation_files folder structure
+        automation_files_path = os.path.join(base_path, "automation_files")
+        self.screenshots_path = os.path.join(automation_files_path, "screenshots")
+        self.logs_path = os.path.join(automation_files_path, "logs")
+        self.files_path = os.path.join(automation_files_path, "files")
+        
+        # Create folders if they don't exist
+        os.makedirs(self.screenshots_path, exist_ok=True)
+        os.makedirs(self.logs_path, exist_ok=True)
+        os.makedirs(self.files_path, exist_ok=True)
+        
+        print(f"[Agent] Screenshots: {self.screenshots_path}")
+        print(f"[Agent] Logs: {self.logs_path}")
+        print(f"[Agent] Files: {self.files_path}")
     
     def _get_desktop_path(self) -> str:
         """
@@ -169,11 +201,11 @@ class AgentSelenium:
                 options.add_experimental_option('useAutomationExtension', False)
 
                 try:
-                    service = Service()
-                    driver = webdriver.Chrome(service=service, options=options)
-                    driver.set_page_load_timeout(40)
+                    downloaded_binary_path = ChromeDriverManager().install()
+                    service = Service(executable_path=downloaded_binary_path)
+                    self.driver = webdriver.Chrome(service=service, options=options)
+                    self.driver.set_page_load_timeout(40)
                     print("[WebDriver] ✅ Initialized successfully")
-                    return driver
                 except Exception:
                     print("[WebDriver] Default initialization failed, downloading ChromeDriver...")
                     downloaded_binary_path = ChromeDriverManager().install()
@@ -395,7 +427,7 @@ class AgentSelenium:
                 
                 # Build filename
                 filename = f"{sanitized}_{timestamp}.png"
-                filepath = os.path.join(self.screenshot_folder, filename)
+                filepath = os.path.join(self.screenshots_path, filename)
                 
                 # Save screenshot to file
                 with open(filepath, 'wb') as f:
@@ -464,6 +496,127 @@ class AgentSelenium:
         except Exception as e:
             return {"success": False, "error": str(e)}
     
+    def create_file(
+        self,
+        file_type: str,
+        filename: str,
+        content: str = ""
+    ) -> Dict:
+        try:
+            filepath = os.path.join(self.files_path, filename)
+            
+            if file_type.lower() == "txt":
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    f.write(content)
+            
+            elif file_type.lower() == "csv":
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    f.write(content)
+            
+            elif file_type.lower() == "json":
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    f.write(content)
+            
+            elif file_type.lower() == "pdf":
+                if canvas is None:
+                    return {"success": False, "error": "reportlab not installed"}
+                
+                c = canvas.Canvas(filepath, pagesize=letter)
+                width, height = letter
+                
+                lines = content.split('\n')
+                y_position = height - 50
+                
+                for line in lines:
+                    if y_position < 50:
+                        c.showPage()
+                        y_position = height - 50
+                    c.drawString(50, y_position, line)
+                    y_position -= 15
+                
+                c.save()
+            
+            elif file_type.lower() in ["xlsx", "excel"]:
+                if Workbook is None:
+                    return {"success": False, "error": "openpyxl not installed"}
+                
+                wb = Workbook()
+                ws = wb.active
+                
+                lines = content.split('\n')
+                for i, line in enumerate(lines, 1):
+                    cells = line.split(',')
+                    for j, cell in enumerate(cells, 1):
+                        ws.cell(row=i, column=j, value=cell.strip())
+                
+                wb.save(filepath)
+            
+            elif file_type.lower() in ["docx", "word"]:
+                if Document is None:
+                    return {"success": False, "error": "python-docx not installed"}
+                
+                doc = Document()
+                for line in content.split('\n'):
+                    doc.add_paragraph(line)
+                doc.save(filepath)
+            
+            elif file_type.lower() in ["png", "jpg", "jpeg"]:
+                if Image is None:
+                    return {"success": False, "error": "Pillow not installed"}
+                
+                img = Image.new('RGB', (800, 600), color='white')
+                draw = ImageDraw.Draw(img)
+                
+                try:
+                    font = ImageFont.truetype("arial.ttf", 20)
+                except:
+                    font = ImageFont.load_default()
+                
+                y = 50
+                for line in content.split('\n')[:20]:
+                    draw.text((50, y), line, fill='black', font=font)
+                    y += 30
+                
+                img.save(filepath)
+            
+            else:
+                return {"success": False, "error": f"Unsupported file type: {file_type}"}
+            
+            print(f"[FileCreation] ✅ Created: {filename}")
+            return {
+                "success": True,
+                "filepath": filepath,
+                "filename": filename,
+                "file_type": file_type
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    def upload_file(self, selector: str, filename: str) -> Dict:
+        try:
+            filepath = os.path.join(self.files_path, filename)
+            
+            if not os.path.exists(filepath):
+                return {"success": False, "error": f"File not found: {filepath}"}
+            
+            element = self._find_element(selector, timeout=10)
+            if not element:
+                return {"success": False, "error": f"File input not found: {selector}"}
+            
+            element.send_keys(filepath)
+            time.sleep(1)
+            
+            print(f"[FileUpload] ✅ Uploaded: {filename}")
+            return {
+                "success": True,
+                "filename": filename,
+                "filepath": filepath
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
     def execute_step(self, step: Dict) -> Dict:
         """
         Execute a single test step
@@ -474,6 +627,62 @@ class AgentSelenium:
         Returns:
             Dict with success status and any relevant data
         """
+        # STEP 1: Capture old DOM hash BEFORE action
+        dom_before = self.extract_form_dom_with_js()
+        old_dom_hash = dom_before.get("dom_hash", "") if dom_before.get("success") else ""
+        
+        def _finalize_success_result(base_result: Dict) -> Dict:
+            """
+            Helper to add alert check and DOM hash to successful action results
+            
+            Flow:
+            1. Check for alert
+            2. If alert present: accept it, get new DOM hash, return alert info
+            3. If no alert: get new DOM hash, return it
+            
+            Args:
+                base_result: The base success result from the action
+                
+            Returns:
+                Enhanced result with alert info or new DOM hash
+            """
+            # Check for alert
+            alert_info = self.check_for_alert()
+            
+            if alert_info.get("success") and alert_info.get("alert_present"):
+                # Alert detected - accept it immediately
+                try:
+                    alert = self.driver.switch_to.alert
+                    alert.accept()
+                except Exception as e:
+                    # If we can't accept, still continue
+                    print(f"[Agent] Warning: Could not accept alert: {e}")
+                
+                # Get new DOM hash after alert is accepted
+                dom_after = self.extract_form_dom_with_js()
+                new_dom_hash = dom_after.get("dom_hash", "") if dom_after.get("success") else ""
+                
+                # Return with alert info
+                return {
+                    **base_result,
+                    "old_dom_hash": old_dom_hash,
+                    "alert_present": True,
+                    "alert_type": alert_info.get("alert_type"),
+                    "alert_text": alert_info.get("alert_text"),
+                    "new_dom_hash": new_dom_hash
+                }
+            
+            # No alert - get new DOM hash
+            dom_after = self.extract_form_dom_with_js()
+            new_dom_hash = dom_after.get("dom_hash", "") if dom_after.get("success") else ""
+            
+            return {
+                **base_result,
+                "old_dom_hash": old_dom_hash,
+                "alert_present": False,
+                "new_dom_hash": new_dom_hash
+            }
+        
         try:
             action = step.get('action', '').lower()
             selector = step.get('selector', '')
@@ -488,12 +697,12 @@ class AgentSelenium:
                 
                 element.clear()
                 element.send_keys(value)
-                return {
+                return _finalize_success_result({
                     "success": True,
                     "action": "fill",
                     "selector": selector,
                     "value": value
-                }
+                })
             
             # CLICK ACTION
             elif action == "click":
@@ -507,11 +716,11 @@ class AgentSelenium:
                     # Try JavaScript click
                     self.driver.execute_script("arguments[0].click();", element)
                 
-                return {
+                return _finalize_success_result({
                     "success": True,
                     "action": "click",
                     "selector": selector
-                }
+                })
             
             # SELECT ACTION
             elif action == "select":
@@ -528,12 +737,12 @@ class AgentSelenium:
                     except:
                         select.select_by_index(int(value))
                 
-                return {
+                return _finalize_success_result({
                     "success": True,
                     "action": "select",
                     "selector": selector,
                     "value": value
-                }
+                })
             
             # HOVER ACTION
             elif action == "hover":
@@ -545,11 +754,11 @@ class AgentSelenium:
                 actions.move_to_element(element).perform()
                 time.sleep(1)  # Wait for hover effects
                 
-                return {
+                return _finalize_success_result({
                     "success": True,
                     "action": "hover",
                     "selector": selector
-                }
+                })
             
             # SCROLL ACTION
             elif action == "scroll":
@@ -560,7 +769,7 @@ class AgentSelenium:
                 else:
                     self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
                 
-                return {"success": True, "action": "scroll"}
+                return _finalize_success_result({"success": True, "action": "scroll"})
             
             # WAIT ACTION
             elif action == "wait":
@@ -573,28 +782,28 @@ class AgentSelenium:
                         element = WebDriverWait(self.driver, timeout).until(
                             EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
                         )
-                        return {
+                        return _finalize_success_result({
                             "success": True,
                             "action": "wait",
                             "selector": selector,
                             "message": "Element is ready"
-                        }
+                        })
                     except TimeoutException:
                         # Log and continue (Option B - don't stop test)
                         error_msg = f"Element not ready after {timeout}s: {selector}"
                         print(f"[Agent] ⚠️  Wait timeout: {error_msg}")
-                        return {
+                        return _finalize_success_result({
                             "success": True,  # ← Changed to True to continue
                             "action": "wait",
                             "selector": selector,
                             "message": f"Timeout but continuing: {error_msg}",
                             "warning": error_msg
-                        }
+                        })
                 else:
                     # Simple time-based wait (max 10 seconds)
                     wait_time = min(float(value) if value else 2.0, 10.0)
                     time.sleep(wait_time)
-                    return {"success": True, "action": "wait", "duration": wait_time}
+                    return _finalize_success_result({"success": True, "action": "wait", "duration": wait_time})
             
             # WAIT_FOR_READY ACTION (explicit AJAX waiting)
             elif action == "wait_for_ready":
@@ -620,24 +829,24 @@ class AgentSelenium:
                             lambda d: element.is_enabled()
                         )
                     
-                    return {
+                    return _finalize_success_result({
                         "success": True,
                         "action": "wait_for_ready",
                         "selector": selector,
                         "message": "Element is ready for interaction"
-                    }
+                    })
                     
                 except TimeoutException:
                     # Log and continue (Option B - don't stop test)
                     error_msg = f"Element not ready after timeout: {selector}"
                     print(f"[Agent] ⚠️  wait_for_ready timeout: {error_msg}")
-                    return {
+                    return _finalize_success_result({
                         "success": True,  # ← Changed to True to continue
                         "action": "wait_for_ready",
                         "selector": selector,
                         "message": f"Timeout but continuing: {error_msg}",
                         "warning": error_msg
-                    }
+                    })
             
             # SWITCH TO IFRAME
             elif action == "switch_to_frame":
@@ -646,13 +855,13 @@ class AgentSelenium:
                     return {"success": False, "error": f"Iframe not found: {selector}"}
                 
                 self.driver.switch_to.frame(iframe)
-                return {"success": True, "action": "switch_to_frame", "selector": selector}
+                return _finalize_success_result({"success": True, "action": "switch_to_frame", "selector": selector})
             
             # SWITCH TO DEFAULT (exit iframe)
             elif action == "switch_to_default":
                 self.driver.switch_to.default_content()
                 self.shadow_root_context = None  # Clear shadow root context too
-                return {"success": True, "action": "switch_to_default"}
+                return _finalize_success_result({"success": True, "action": "switch_to_default"})
             
             # SWITCH TO SHADOW ROOT
             elif action == "switch_to_shadow_root":
@@ -661,43 +870,136 @@ class AgentSelenium:
                     return {"success": False, "error": f"Shadow host not found: {selector}"}
                 
                 self.shadow_root_context = shadow_host.shadow_root
-                return {"success": True, "action": "switch_to_shadow_root", "selector": selector}
+                return _finalize_success_result({"success": True, "action": "switch_to_shadow_root", "selector": selector})
             
             # ALERT ACTIONS
             elif action == "accept_alert":
                 alert = self.driver.switch_to.alert
                 alert_text = alert.text
                 alert.accept()
-                return {"success": True, "action": "accept_alert", "alert_text": alert_text}
+                return _finalize_success_result({"success": True, "action": "accept_alert", "alert_text": alert_text})
             
             elif action == "dismiss_alert":
                 alert = self.driver.switch_to.alert
                 alert_text = alert.text
                 alert.dismiss()
-                return {"success": True, "action": "dismiss_alert", "alert_text": alert_text}
+                return _finalize_success_result({"success": True, "action": "dismiss_alert", "alert_text": alert_text})
             
             elif action == "fill_alert":
                 alert = self.driver.switch_to.alert
                 alert.send_keys(value)
-                return {"success": True, "action": "fill_alert", "value": value}
+                return _finalize_success_result({"success": True, "action": "fill_alert", "value": value})
             
             # NAVIGATE ACTION
             elif action == "navigate":
                 self.driver.get(value)
-                return {"success": True, "action": "navigate", "url": value}
+                return _finalize_success_result({"success": True, "action": "navigate", "url": value})
             
             # REFRESH ACTION
             elif action == "refresh":
                 self.driver.refresh()
-                return {"success": True, "action": "refresh"}
+                return _finalize_success_result({"success": True, "action": "refresh"})
             
             # VERIFY ACTION
             elif action == "verify":
+                # Enhanced verify: checks element existence, visibility, AND content (text or value)
+                expected_value = value  # The expected text or value from the step
+                description = step.get('description', 'Verify element')
+                
+                print(f"   🔍 Verifying: {description}")
+                if expected_value:
+                    print(f"      Expected value: '{expected_value}'")
+                
+                # Find the element
                 element = self._find_element(selector, timeout=5)
-                if element and element.is_displayed():
-                    return {"success": True, "action": "verify", "verified": True}
+                
+                if not element:
+                    print(f"   ❌ VERIFICATION FAILED: Element not found")
+                    print(f"      Selector: {selector}")
+                    return {
+                        "success": False, 
+                        "action": "verify", 
+                        "verified": False,
+                        "error": "Element not found",
+                        "expected": expected_value,
+                        "actual": "Element not found"
+                    }
+                
+                if not element.is_displayed():
+                    print(f"   ❌ VERIFICATION FAILED: Element exists but is not visible")
+                    print(f"      Selector: {selector}")
+                    return {
+                        "success": False, 
+                        "action": "verify", 
+                        "verified": False,
+                        "error": "Element not visible",
+                        "expected": expected_value,
+                        "actual": "Element hidden"
+                    }
+                
+                # If expected_value is provided, verify the content
+                if expected_value:
+                    # Get actual value from element
+                    tag_name = element.tag_name.lower()
+                    
+                    # For input/textarea, check the 'value' attribute
+                    if tag_name in ['input', 'textarea']:
+                        actual_value = element.get_attribute('value') or ''
+                    # For select, get selected option text
+                    elif tag_name == 'select':
+                        select_element = Select(element)
+                        actual_value = select_element.first_selected_option.text
+                    # For other elements, get text content
+                    else:
+                        actual_value = element.text or element.get_attribute('textContent') or ''
+                    
+                    actual_value = actual_value.strip()
+                    expected_value_normalized = expected_value.strip()
+                    
+                    # Check if actual contains expected (flexible matching)
+                    if expected_value_normalized.lower() in actual_value.lower():
+                        print(f"   ✅ VERIFICATION PASSED")
+                        print(f"      Actual value: '{actual_value}'")
+                        return _finalize_success_result({
+                            "success": True, 
+                            "action": "verify", 
+                            "verified": True,
+                            "expected": expected_value,
+                            "actual": actual_value
+                        })
+                    else:
+                        print(f"   ❌ VERIFICATION FAILED: Content mismatch")
+                        print(f"      Expected: '{expected_value}'")
+                        print(f"      Actual: '{actual_value}'")
+                        return {
+                            "success": False, 
+                            "action": "verify", 
+                            "verified": False,
+                            "error": "Content mismatch",
+                            "expected": expected_value,
+                            "actual": actual_value
+                        }
                 else:
-                    return {"success": False, "action": "verify", "verified": False}
+                    # No expected value provided - just verify existence and visibility
+                    print(f"   ✅ VERIFICATION PASSED (element exists and is visible)")
+                    return _finalize_success_result({
+                        "success": True, 
+                        "action": "verify", 
+                        "verified": True
+                    })
+            
+            # CREATE FILE ACTION
+            elif action == "create_file":
+                file_type = step.get('file_type', 'txt')
+                filename = step.get('filename', 'test_file.txt')
+                content = step.get('content', '')
+                
+                return self.create_file(file_type, filename, content)
+            
+            # UPLOAD FILE ACTION
+            elif action == "upload_file":
+                filename = value
+                return self.upload_file(selector, filename)
             
             else:
                 return {"success": False, "error": f"Unknown action: {action}"}
