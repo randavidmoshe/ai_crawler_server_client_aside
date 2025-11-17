@@ -6,6 +6,7 @@ import os
 import time
 import hashlib
 import base64
+import logging
 from typing import Dict, Optional, Any, List
 from bs4 import BeautifulSoup
 
@@ -82,6 +83,9 @@ class AgentSelenium:
         os.makedirs(self.logs_path, exist_ok=True)
         os.makedirs(self.files_path, exist_ok=True)
         
+        # Setup logging
+        self._setup_logging()
+        
         print(f"[Agent] Screenshots: {self.screenshots_path}")
         print(f"[Agent] Logs: {self.logs_path}")
         print(f"[Agent] Files: {self.files_path}")
@@ -108,6 +112,90 @@ class AgentSelenium:
             desktop = os.path.join(os.path.expanduser("~"), "Desktop")
         
         return desktop
+    
+    def _setup_logging(self):
+        """Setup info and results logging"""
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        
+        info_log_path = os.path.join(self.logs_path, f"info_log_{timestamp}.log")
+        results_log_path = os.path.join(self.logs_path, f"results_log_{timestamp}.log")
+        
+        self.info_logger = logging.getLogger('agent_info')
+        self.info_logger.setLevel(logging.DEBUG)
+        self.info_logger.handlers.clear()
+        
+        info_handler = logging.FileHandler(info_log_path)
+        info_handler.setLevel(logging.DEBUG)
+        info_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        info_handler.setFormatter(info_formatter)
+        self.info_logger.addHandler(info_handler)
+        
+        self.results_logger = logging.getLogger('agent_results')
+        self.results_logger.setLevel(logging.INFO)
+        self.results_logger.handlers.clear()
+        
+        results_handler = logging.FileHandler(results_log_path)
+        results_handler.setLevel(logging.INFO)
+        results_formatter = logging.Formatter('%(asctime)s - %(message)s')
+        results_handler.setFormatter(results_formatter)
+        self.results_logger.addHandler(results_handler)
+        
+        self.info_logger.info("Agent logging initialized")
+        self.results_logger.info("Agent results logging initialized")
+    
+    def log_test_start(self, config: Dict):
+        """Log test start configuration to both logs"""
+        self.info_logger.info("="*70)
+        self.info_logger.info("TEST STARTED")
+        self.info_logger.info(f"Test URL: {config.get('test_url', 'N/A')}")
+        self.info_logger.info(f"Form Page Name: {config.get('form_page_name', 'N/A')}")
+        self.info_logger.info(f"Browser: {config.get('browser', 'N/A')}")
+        self.info_logger.info(f"Headless: {config.get('headless', 'N/A')}")
+        self.info_logger.info(f"UI Verification: {config.get('enable_ui_verification', 'N/A')}")
+        self.info_logger.info(f"Screenshot Folder: {config.get('screenshot_folder', 'N/A')}")
+        self.info_logger.info(f"Test Cases File: {config.get('test_cases_file', 'N/A')}")
+        self.info_logger.info(f"Max Retries: {config.get('max_retries', 'N/A')}")
+        self.info_logger.info("="*70)
+        
+        self.results_logger.info("="*70)
+        self.results_logger.info("TEST STARTED")
+        self.results_logger.info(f"Test URL: {config.get('test_url', 'N/A')}")
+        self.results_logger.info(f"Form Page Name: {config.get('form_page_name', 'N/A')}")
+        self.results_logger.info(f"Browser: {config.get('browser', 'N/A')}")
+        self.results_logger.info(f"Headless: {config.get('headless', 'N/A')}")
+        self.results_logger.info(f"UI Verification: {config.get('enable_ui_verification', 'N/A')}")
+        self.results_logger.info(f"Screenshot Folder: {config.get('screenshot_folder', 'N/A')}")
+        self.results_logger.info(f"Test Cases File: {config.get('test_cases_file', 'N/A')}")
+        self.results_logger.info(f"Max Retries: {config.get('max_retries', 'N/A')}")
+        self.results_logger.info("="*70)
+        
+    def log_message(self, message: str, level: str = "info"):
+        """
+        Log a message to both agent loggers
+        
+        Args:
+            message: The message to log
+            level: Log level - "info", "warning", "error", "debug"
+        """
+        # Log to info logger
+        if level == "warning":
+            self.info_logger.warning(message)
+        elif level == "error":
+            self.info_logger.error(message)
+        elif level == "debug":
+            self.info_logger.debug(message)
+        else:
+            self.info_logger.info(message)
+        
+        # Log to results logger
+        if level == "warning":
+            self.results_logger.warning(message)
+        elif level == "error":
+            self.results_logger.error(message)
+        elif level == "debug":
+            self.results_logger.debug(message)
+        else:
+            self.results_logger.info(message)
         
     def initialize_browser(
         self,
@@ -288,6 +376,8 @@ class AgentSelenium:
             self.driver.maximize_window()
             self.driver.set_page_load_timeout(30)
             
+            self.info_logger.info(f"Browser initialized: {browser_type}, headless={headless}")
+            
             return {
                 "success": True,
                 "browser": browser_type,
@@ -296,18 +386,22 @@ class AgentSelenium:
             }
             
         except Exception as e:
+            self.info_logger.error(f"Browser initialization failed: {str(e)}")
             return {"success": False, "error": str(e)}
     
     def navigate_to_url(self, url: str) -> Dict:
         """Navigate to URL"""
         try:
+            self.info_logger.info(f"Navigating to URL: {url}")
             self.driver.get(url)
+            self.info_logger.info(f"Navigation successful: {self.driver.current_url}")
             return {
                 "success": True,
                 "url": self.driver.current_url,
                 "title": self.driver.title
             }
         except Exception as e:
+            self.info_logger.error(f"Navigation failed: {str(e)}")
             return {"success": False, "error": str(e)}
     
     def extract_dom(self) -> Dict:
@@ -617,6 +711,189 @@ class AgentSelenium:
         except Exception as e:
             return {"success": False, "error": str(e)}
     
+    def _compare_dom_fields(self, dom_before: Dict, dom_after: Dict) -> bool:
+        """
+        Compare fields between old DOM and new DOM to detect changes
+        
+        Checks for:
+        1. New fields added
+        2. Visible fields became hidden
+        3. Hidden fields became visible
+        
+        Args:
+            dom_before: DOM before action (from extract_form_dom_with_js)
+            dom_after: DOM after action (from extract_form_dom_with_js)
+            
+        Returns:
+            True if fields changed, False if no changes
+        """
+        from bs4 import BeautifulSoup
+        
+        def extract_fields(dom_html):
+            """Extract all form fields with their visibility status"""
+            soup = BeautifulSoup(dom_html, 'html.parser')
+            fields = {}
+            
+            # Find all input, select, textarea elements
+            for tag_name in ['input', 'select', 'textarea']:
+                elements = soup.find_all(tag_name)
+                for elem in elements:
+                    # Get unique identifier
+                    field_id = elem.get('id') or elem.get('name') or str(elem)
+                    
+                    # Check if field is hidden
+                    is_hidden = False
+                    
+                    # Check type="hidden"
+                    if tag_name == 'input' and elem.get('type') == 'hidden':
+                        is_hidden = True
+                    
+                    # Check style="display: none" or "visibility: hidden"
+                    style = elem.get('style', '')
+                    if 'display:none' in style.replace(' ', '') or 'display: none' in style:
+                        is_hidden = True
+                    if 'visibility:hidden' in style.replace(' ', '') or 'visibility: hidden' in style:
+                        is_hidden = True
+                    
+                    # Check class contains 'hidden'
+                    classes = elem.get('class', [])
+                    if isinstance(classes, list) and any('hidden' in c.lower() for c in classes):
+                        is_hidden = True
+                    elif isinstance(classes, str) and 'hidden' in classes.lower():
+                        is_hidden = True
+                    
+                    # Check hidden attribute
+                    if elem.has_attr('hidden'):
+                        is_hidden = True
+                    
+                    # Check aria-hidden="true"
+                    if elem.get('aria-hidden') == 'true':
+                        is_hidden = True
+                    
+                    # Check parent elements for hidden status
+                    if not is_hidden:
+                        parent = elem.parent
+                        while parent and parent.name != 'body':
+                            # Check parent style
+                            parent_style = parent.get('style', '')
+                            if 'display:none' in parent_style.replace(' ', '') or 'display: none' in parent_style:
+                                is_hidden = True
+                                break
+                            if 'visibility:hidden' in parent_style.replace(' ', '') or 'visibility: hidden' in parent_style:
+                                is_hidden = True
+                                break
+                            
+                            # Check parent class
+                            parent_classes = parent.get('class', [])
+                            if isinstance(parent_classes, list) and any('hidden' in c.lower() for c in parent_classes):
+                                is_hidden = True
+                                break
+                            elif isinstance(parent_classes, str) and 'hidden' in parent_classes.lower():
+                                is_hidden = True
+                                break
+                            
+                            # Check parent hidden attribute
+                            if parent.has_attr('hidden'):
+                                is_hidden = True
+                                break
+                            
+                            # Check parent aria-hidden
+                            if parent.get('aria-hidden') == 'true':
+                                is_hidden = True
+                                break
+                            
+                            parent = parent.parent
+                    
+                    fields[field_id] = {
+                        'tag': tag_name,
+                        'type': elem.get('type', 'text') if tag_name == 'input' else tag_name,
+                        'is_hidden': is_hidden
+                    }
+            
+            return fields
+        
+        # Extract fields from both DOMs
+        if not dom_before.get("success") or not dom_after.get("success"):
+            print("[Agent] ⚠️  Field comparison: DOM extraction failed")
+            return True  # Default to True if we can't compare
+        
+        old_fields = extract_fields(dom_before.get("dom_html", ""))
+        new_fields = extract_fields(dom_after.get("dom_html", ""))
+        
+        # Track changes
+        new_fields_added = []
+        visible_to_hidden = []
+        hidden_to_visible = []
+        
+        # Check for new fields
+        for field_id in new_fields:
+            if field_id not in old_fields:
+                new_fields_added.append(field_id)
+        
+        # Check for visibility changes
+        for field_id in old_fields:
+            if field_id in new_fields:
+                old_hidden = old_fields[field_id]['is_hidden']
+                new_hidden = new_fields[field_id]['is_hidden']
+                
+                if not old_hidden and new_hidden:
+                    # Was visible, now hidden
+                    visible_to_hidden.append(field_id)
+                elif old_hidden and not new_hidden:
+                    # Was hidden, now visible
+                    hidden_to_visible.append(field_id)
+        
+        # Print findings
+        has_changes = bool(new_fields_added or visible_to_hidden or hidden_to_visible)
+        
+        if has_changes:
+            print("\n[Agent] 🔍 Field Changes Detected:")
+            if new_fields_added:
+                print(f"   ➕ New fields added: {len(new_fields_added)}")
+                for field in new_fields_added[:5]:  # Show first 5
+                    field_info = new_fields[field]
+                    print(f"      - {field_info['type']}: {field[:80]}")
+                if len(new_fields_added) > 5:
+                    print(f"      ... and {len(new_fields_added) - 5} more")
+            
+            if visible_to_hidden:
+                print(f"   🙈 Visible → Hidden: {len(visible_to_hidden)}")
+                for field in visible_to_hidden[:5]:
+                    field_info = old_fields[field]
+                    print(f"      - {field_info['type']}: {field[:80]}")
+                if len(visible_to_hidden) > 5:
+                    print(f"      ... and {len(visible_to_hidden) - 5} more")
+            
+            if hidden_to_visible:
+                print(f"   👁️  Hidden → Visible: {len(hidden_to_visible)}")
+                for field in hidden_to_visible[:5]:
+                    field_info = new_fields[field]
+                    print(f"      - {field_info['type']}: {field[:80]}")
+                if len(hidden_to_visible) > 5:
+                    print(f"      ... and {len(hidden_to_visible) - 5} more")
+        
+        # Check 2: DOM structure change (element count)
+        if not has_changes:
+            from bs4 import BeautifulSoup
+            old_soup = BeautifulSoup(dom_before.get("dom_html", ""), 'html.parser')
+            new_soup = BeautifulSoup(dom_after.get("dom_html", ""), 'html.parser')
+            
+            old_element_count = len(old_soup.find_all())
+            new_element_count = len(new_soup.find_all())
+            
+            if old_element_count > 0:
+                change_percent = abs(new_element_count - old_element_count) / old_element_count * 100
+                
+                if change_percent > 30:  # 30% threshold
+                    print(f"\n[Agent] 🔍 DOM Structure Change Detected:")
+                    print(f"   📊 Element count: {old_element_count} → {new_element_count} ({change_percent:.1f}% change)")
+                    has_changes = True
+        
+        if not has_changes:
+            print("[Agent] ℹ️  No field changes detected")
+        
+        return has_changes
+    
     def execute_step(self, step: Dict) -> Dict:
         """
         Execute a single test step
@@ -627,6 +904,20 @@ class AgentSelenium:
         Returns:
             Dict with success status and any relevant data
         """
+        action = step.get('action', 'unknown')
+        description = step.get('description', 'No description')
+        step_number = step.get('step_number', '?')
+        value = step.get('value', '')
+        
+        # Build log message with value if present
+        if value:
+            log_msg = f"Step {step_number}: ⚠️ {action.upper()} - {description} with value: {value}"
+        else:
+            log_msg = f"Step {step_number}: ⚠️ {action.upper()} - {description}"
+        
+        self.results_logger.info(log_msg)
+        self.info_logger.info(f"Executing step {step_number}: {action} | Selector: {step.get('selector', 'N/A')} | Value: {step.get('value', 'N/A')}")
+        
         # STEP 1: Capture old DOM hash BEFORE action
         dom_before = self.extract_form_dom_with_js()
         old_dom_hash = dom_before.get("dom_hash", "") if dom_before.get("success") else ""
@@ -659,8 +950,13 @@ class AgentSelenium:
                     print(f"[Agent] Warning: Could not accept alert: {e}")
                 
                 # Get new DOM hash after alert is accepted
+                # Wait briefly for JavaScript to finish
+                time.sleep(0.5)
                 dom_after = self.extract_form_dom_with_js()
                 new_dom_hash = dom_after.get("dom_hash", "") if dom_after.get("success") else ""
+                
+                # Check if fields changed
+                fields_changed = self._compare_dom_fields(dom_before, dom_after)
                 
                 # Return with alert info
                 return {
@@ -669,18 +965,29 @@ class AgentSelenium:
                     "alert_present": True,
                     "alert_type": alert_info.get("alert_type"),
                     "alert_text": alert_info.get("alert_text"),
-                    "new_dom_hash": new_dom_hash
+                    "new_dom_hash": new_dom_hash,
+                    "fields_changed": fields_changed
                 }
             
             # No alert - get new DOM hash
+            # Wait briefly for JavaScript to finish (especially for conditional field visibility changes)
+            time.sleep(0.5)
             dom_after = self.extract_form_dom_with_js()
             new_dom_hash = dom_after.get("dom_hash", "") if dom_after.get("success") else ""
+            
+            # Check if fields changed
+            fields_changed = self._compare_dom_fields(dom_before, dom_after)
+            
+            self.results_logger.info(f"  ✅ Success")
+            self.results_logger.info("-" * 70)
+            self.info_logger.info(f"Step completed successfully: {action}")
             
             return {
                 **base_result,
                 "old_dom_hash": old_dom_hash,
                 "alert_present": False,
-                "new_dom_hash": new_dom_hash
+                "new_dom_hash": new_dom_hash,
+                "fields_changed": fields_changed
             }
         
         try:
@@ -770,6 +1077,259 @@ class AgentSelenium:
                     self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
                 
                 return _finalize_success_result({"success": True, "action": "scroll"})
+            
+            # SLIDER ACTION
+            elif action == "slider":
+                element = self._find_element(selector)
+                if not element:
+                    return {"success": False, "error": f"Slider not found: {selector}"}
+                
+                # Value should be percentage (0-100)
+                try:
+                    percentage = float(value)
+                    if percentage < 0 or percentage > 100:
+                        return {"success": False, "error": f"Slider percentage must be 0-100, got: {percentage}"}
+                    
+                    # Get slider dimensions
+                    slider_width = element.size['width']
+                    
+                    # Calculate offset from left (percentage of width)
+                    # Subtract half width to start from center of slider
+                    offset_x = int((slider_width * percentage / 100) - (slider_width / 2))
+                    
+                    # Use ActionChains to drag slider to position
+                    actions = ActionChains(self.driver)
+                    actions.click_and_hold(element).move_by_offset(offset_x, 0).release().perform()
+                    
+                    return _finalize_success_result({
+                        "success": True,
+                        "action": "slider",
+                        "selector": selector,
+                        "value": value
+                    })
+                except ValueError:
+                    return {"success": False, "error": f"Invalid slider value (must be 0-100): {value}"}
+            
+            # DRAG AND DROP ACTION
+            elif action == "drag_and_drop":
+                # Selector is the source element to drag
+                # Value is the target selector to drop onto
+                source_element = self._find_element(selector)
+                if not source_element:
+                    return {"success": False, "error": f"Source element not found: {selector}"}
+                
+                target_element = self._find_element(value)
+                if not target_element:
+                    return {"success": False, "error": f"Target element not found: {value}"}
+                
+                # Perform drag and drop
+                actions = ActionChains(self.driver)
+                actions.drag_and_drop(source_element, target_element).perform()
+                
+                return _finalize_success_result({
+                    "success": True,
+                    "action": "drag_and_drop",
+                    "selector": selector,
+                    "value": value
+                })
+            
+            # PRESS KEY ACTION
+            elif action == "press_key":
+                # Value should be key name: "ENTER", "TAB", "ESCAPE", "ARROW_DOWN", etc.
+                from selenium.webdriver.common.keys import Keys
+                
+                key_mapping = {
+                    "ENTER": Keys.ENTER,
+                    "TAB": Keys.TAB,
+                    "ESCAPE": Keys.ESCAPE,
+                    "ESC": Keys.ESCAPE,
+                    "SPACE": Keys.SPACE,
+                    "BACKSPACE": Keys.BACKSPACE,
+                    "DELETE": Keys.DELETE,
+                    "ARROW_UP": Keys.ARROW_UP,
+                    "ARROW_DOWN": Keys.ARROW_DOWN,
+                    "ARROW_LEFT": Keys.ARROW_LEFT,
+                    "ARROW_RIGHT": Keys.ARROW_RIGHT,
+                    "HOME": Keys.HOME,
+                    "END": Keys.END,
+                    "PAGE_UP": Keys.PAGE_UP,
+                    "PAGE_DOWN": Keys.PAGE_DOWN,
+                }
+                
+                key_value = value.upper() if value else "ENTER"
+                key = key_mapping.get(key_value)
+                
+                if not key:
+                    return {"success": False, "error": f"Unknown key: {value}"}
+                
+                # If selector provided, send key to specific element
+                if selector:
+                    element = self._find_element(selector)
+                    if not element:
+                        return {"success": False, "error": f"Element not found: {selector}"}
+                    element.send_keys(key)
+                else:
+                    # Send key to active element
+                    ActionChains(self.driver).send_keys(key).perform()
+                
+                return _finalize_success_result({
+                    "success": True,
+                    "action": "press_key",
+                    "value": value
+                })
+            
+            # CLEAR ACTION
+            elif action == "clear":
+                element = self._find_element(selector)
+                if not element:
+                    return {"success": False, "error": f"Element not found: {selector}"}
+                
+                element.clear()
+                
+                return _finalize_success_result({
+                    "success": True,
+                    "action": "clear",
+                    "selector": selector
+                })
+            
+            # WAIT FOR VISIBLE ACTION
+            elif action == "wait_for_visible":
+                if not selector:
+                    return {"success": False, "error": "wait_for_visible requires a selector"}
+                
+                try:
+                    # Determine selector type
+                    if selector.startswith('/') or selector.startswith('//'):
+                        by_type = By.XPATH
+                    else:
+                        by_type = By.CSS_SELECTOR
+                    
+                    # Wait for element to be visible (max 10 seconds)
+                    element = WebDriverWait(self.driver, 10).until(
+                        EC.visibility_of_element_located((by_type, selector))
+                    )
+                    
+                    return _finalize_success_result({
+                        "success": True,
+                        "action": "wait_for_visible",
+                        "selector": selector
+                    })
+                except TimeoutException:
+                    return {"success": False, "error": f"Element not visible after 10s: {selector}"}
+            
+            # DOUBLE CLICK ACTION
+            elif action == "double_click":
+                element = self._find_element(selector)
+                if not element:
+                    return {"success": False, "error": f"Element not found: {selector}"}
+                
+                actions = ActionChains(self.driver)
+                actions.double_click(element).perform()
+                
+                return _finalize_success_result({
+                    "success": True,
+                    "action": "double_click",
+                    "selector": selector
+                })
+            
+            # WAIT FOR HIDDEN ACTION
+            elif action == "wait_for_hidden":
+                if not selector:
+                    return {"success": False, "error": "wait_for_hidden requires a selector"}
+                
+                try:
+                    # Determine selector type
+                    if selector.startswith('/') or selector.startswith('//'):
+                        by_type = By.XPATH
+                    else:
+                        by_type = By.CSS_SELECTOR
+                    
+                    # Wait for element to be invisible (max 10 seconds)
+                    WebDriverWait(self.driver, 10).until(
+                        EC.invisibility_of_element_located((by_type, selector))
+                    )
+                    
+                    return _finalize_success_result({
+                        "success": True,
+                        "action": "wait_for_hidden",
+                        "selector": selector
+                    })
+                except TimeoutException:
+                    return {"success": False, "error": f"Element still visible after 10s: {selector}"}
+            
+            # SWITCH TO WINDOW ACTION
+            elif action == "switch_to_window":
+                # Value should be window index (0, 1, 2, etc.)
+                try:
+                    window_index = int(value) if value else 1
+                    window_handles = self.driver.window_handles
+                    
+                    if window_index >= len(window_handles):
+                        return {"success": False, "error": f"Window index {window_index} out of range (only {len(window_handles)} windows)"}
+                    
+                    self.driver.switch_to.window(window_handles[window_index])
+                    
+                    return _finalize_success_result({
+                        "success": True,
+                        "action": "switch_to_window",
+                        "value": value
+                    })
+                except ValueError:
+                    return {"success": False, "error": f"Invalid window index: {value}"}
+            
+            # SWITCH TO PARENT WINDOW ACTION
+            elif action == "switch_to_parent_window":
+                # Switch back to first window (index 0)
+                window_handles = self.driver.window_handles
+                if len(window_handles) > 0:
+                    self.driver.switch_to.window(window_handles[0])
+                
+                return _finalize_success_result({
+                    "success": True,
+                    "action": "switch_to_parent_window"
+                })
+            
+            # REFRESH ACTION
+            elif action == "refresh":
+                self.driver.refresh()
+                time.sleep(1)  # Wait for page to start reloading
+                
+                return _finalize_success_result({
+                    "success": True,
+                    "action": "refresh"
+                })
+            
+            # CHECK ACTION (checkbox - ensure checked)
+            elif action == "check":
+                element = self._find_element(selector)
+                if not element:
+                    return {"success": False, "error": f"Element not found: {selector}"}
+                
+                # Only click if not already checked
+                if not element.is_selected():
+                    element.click()
+                
+                return _finalize_success_result({
+                    "success": True,
+                    "action": "check",
+                    "selector": selector
+                })
+            
+            # UNCHECK ACTION (checkbox - ensure unchecked)
+            elif action == "uncheck":
+                element = self._find_element(selector)
+                if not element:
+                    return {"success": False, "error": f"Element not found: {selector}"}
+                
+                # Only click if currently checked
+                if element.is_selected():
+                    element.click()
+                
+                return _finalize_success_result({
+                    "success": True,
+                    "action": "uncheck",
+                    "selector": selector
+                })
             
             # WAIT ACTION
             elif action == "wait":
@@ -916,6 +1476,18 @@ class AgentSelenium:
                 if not element:
                     print(f"   ❌ VERIFICATION FAILED: Element not found")
                     print(f"      Selector: {selector}")
+                    
+                    self.results_logger.error(f"  Selector: {selector}")
+                    self.results_logger.error(f"  -------------------")
+                    self.results_logger.error(f"  VERIFICATION FAILED")
+                    self.info_logger.error(f"Verification failed: Element not found - {selector}")
+                    
+                    self.capture_screenshot(
+                        scenario_description=f"{description}_{time.strftime('%Y%m%d_%H%M%S')}",
+                        encode_base64=False,
+                        save_to_folder=True
+                    )
+                    
                     return {
                         "success": False, 
                         "action": "verify", 
@@ -928,6 +1500,18 @@ class AgentSelenium:
                 if not element.is_displayed():
                     print(f"   ❌ VERIFICATION FAILED: Element exists but is not visible")
                     print(f"      Selector: {selector}")
+                    
+                    self.results_logger.error(f"  Selector: {selector}")
+                    self.results_logger.error(f"  -------------------")
+                    self.results_logger.error(f"  VERIFICATION FAILED")
+                    self.info_logger.error(f"Verification failed: Element not visible - {selector}")
+                    
+                    self.capture_screenshot(
+                        scenario_description=f"{description}_{time.strftime('%Y%m%d_%H%M%S')}",
+                        encode_base64=False,
+                        save_to_folder=True
+                    )
+                    
                     return {
                         "success": False, 
                         "action": "verify", 
@@ -971,6 +1555,20 @@ class AgentSelenium:
                         print(f"   ❌ VERIFICATION FAILED: Content mismatch")
                         print(f"      Expected: '{expected_value}'")
                         print(f"      Actual: '{actual_value}'")
+
+                        self.results_logger.error(f"❌ VERIFICATION FAILED - content mismatch")
+                        self.results_logger.error(f"Expected: '{expected_value}'")
+                        self.results_logger.error(f"Actual: '{actual_value}'")
+                        self.results_logger.error(f"  Selector: {selector}")
+                        self.results_logger.error(f"----------------------------------------------------------------------")
+                        self.info_logger.error(f"Verification failed: Content mismatch - Expected '{expected_value}', Got '{actual_value}'")
+                        
+                        self.capture_screenshot(
+                            scenario_description=f"{description}_{time.strftime('%Y%m%d_%H%M%S')}",
+                            encode_base64=False,
+                            save_to_folder=True
+                        )
+                        
                         return {
                             "success": False, 
                             "action": "verify", 
@@ -1002,9 +1600,21 @@ class AgentSelenium:
                 return self.upload_file(selector, filename)
             
             else:
+                self.info_logger.error(f"Unknown action: {action}")
                 return {"success": False, "error": f"Unknown action: {action}"}
                 
         except Exception as e:
+            error_msg = f"Step execution failed: {str(e)}"
+            self.info_logger.error(error_msg)
+            self.results_logger.error(f"ERROR - {description}: {str(e)}")
+            
+            self.capture_screenshot(
+                scenario_description=f"{description}_ERROR_{time.strftime('%Y%m%d_%H%M%S')}",
+                encode_base64=False,
+                save_to_folder=True
+            )
+            
+            self.results_logger.info("-" * 70)
             return {"success": False, "error": str(e), "action": action}
     
     def _find_element(self, selector: str, timeout: int = 10):

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Form (Nested iframe)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 15px;
+            margin: 0;
+            background: #fff3e0;
+        }
+
+        .nested-header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+            font-size: 12px;
+        }
+
+        input[type="text"],
+        input[type="tel"],
+        input[type="email"] {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #f5576c;
+        }
+
+        .badge {
+            background: #f5576c;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="nested-header">
+        📞 Emergency Contact
+    </div>
+
+    <form id="contactForm">
+        <div class="form-group">
+            <label for="emergencyName">Emergency Contact Name *</label>
+            <input type="text" id="emergencyName" name="emergencyName" required placeholder="Jane Doe">
+        </div>
+
+        <div class="form-group">
+            <label for="emergencyPhone">Emergency Phone *</label>
+            <input type="tel" id="emergencyPhone" name="emergencyPhone" required placeholder="+1 (555) 987-6543">
+        </div>
+
+        <div class="form-group">
+            <label for="emergencyEmail">Emergency Email *</label>
+            <input type="email" id="emergencyEmail" name="emergencyEmail" required placeholder="jane@example.com">
+        </div>
+    </form>
+</body>
+</html>

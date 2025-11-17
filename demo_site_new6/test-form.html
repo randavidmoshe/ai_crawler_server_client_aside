@@ -928,7 +928,7 @@
         <div class="header">
             <button class="back-btn" onclick="goHome()">← Back</button>
             <h1>🎯 Complex Form Test</h1>
-            <p>Testing ALL form features: tabs, iframes, dynamic content, shadow DOM, and more!</p>
+            <p>Complete the form below with all required information</p>
         </div>
 
         <!-- Main Tabs: Part 1 and Part 2 (Part 2 tab hidden - only accessible via Next button) -->
@@ -1076,9 +1076,8 @@
                     <div id="address-tab" class="tab-content">
                         <h3 style="color: #667eea; margin-bottom: 20px;">🏠 Address Information (All fields required)</h3>
                         
-                        <!-- iframe with nested forms -->
                         <div class="iframe-container">
-                            <h3>📦 Embedded Address Form (iframe Level 1)</h3>
+                            <h3>📦 Address Information</h3>
                             <iframe id="addressIframe" src="address-form.html"></iframe>
                         </div>
                     </div>
@@ -1087,9 +1086,8 @@
                     <div id="preferences-tab" class="tab-content">
                         <h3 style="color: #667eea; margin-bottom: 20px;">⚙️ Preferences & Settings</h3>
                         
-                        <!-- Hover Menu -->
                         <div class="form-group">
-                            <label>Special Options (Hover to reveal) *</label>
+                            <label>Special Options *</label>
                             <div class="hover-container">
                                 <button type="button" class="btn btn-secondary">🔽 Hover Here</button>
                                 <div class="hover-menu">
@@ -1105,9 +1103,8 @@
                             </div>
                         </div>
 
-                        <!-- Shadow DOM Component -->
                         <div class="form-group">
-                            <label>Rating (Shadow DOM Component) *</label>
+                            <label>Rating *</label>
                             <rating-widget></rating-widget>
                         </div>
 
@@ -1176,13 +1173,11 @@
                                 <option value="Flask">Flask</option>
                                 <option value="Spring">Spring</option>
                             </select>
-                            <small style="color: #666; display: block; margin-top: 5px;">Hold Ctrl (Windows) or Cmd (Mac) to select multiple</small>
                         </div>
 
                         <!-- Project Priority Drag and Drop -->
                         <div class="form-group">
                             <label>Project Priority Assignment *</label>
-                            <p style="color: #666; font-size: 14px; margin-bottom: 15px;">Drag the project into one of the priority boxes below:</p>
                             
                             <!-- Draggable Item -->
                             <div style="margin-bottom: 20px;">
@@ -1226,7 +1221,7 @@
                             <input type="hidden" id="projectPriority" name="projectPriority" required>
                             <div id="priorityStatus" style="margin-top: 15px; padding: 10px; background: #f8f9fa; 
                                                            border-radius: 6px; text-align: center; font-weight: 600; color: #666;">
-                                ⚠️ Please drag the project to a priority box
+                                ⚠️ Priority not assigned
                             </div>
                         </div>
                     </div>
@@ -1734,7 +1729,7 @@
             }
             
             if (!document.getElementById('projectPriority').value) {
-                errors.push('Project Priority must be assigned (drag the project to a priority box)');
+                errors.push('Project Priority must be assigned');
             }
             
             return errors;
@@ -2299,10 +2294,10 @@
                     <div class="finding-header">
                         <div class="finding-name">${escapeHtml(finding.name)}</div>
                         <div class="finding-actions">
-                            <button class="btn-edit-finding" onclick="openFindingModal(${index})">
+                            <button type="button" class="btn-edit-finding" onclick="openFindingModal(${index})">
                                 ✏️ Edit
                             </button>
-                            <button class="btn-delete-finding" onclick="deleteFinding(${index})">
+                            <button type="button" class="btn-delete-finding" onclick="deleteFinding(${index})">
                                 🗑️ Delete
                             </button>
                         </div>
@@ -2406,10 +2401,10 @@
                     <div class="engagement-header">
                         <div class="engagement-name">${escapeHtml(engagement.name)}</div>
                         <div class="engagement-actions">
-                            <button class="btn-edit-engagement" onclick="openEngagementModal(${index})">
+                            <button type="button" class="btn-edit-engagement" onclick="openEngagementModal(${index})">
                                 ✏️ Edit
                             </button>
-                            <button class="btn-delete-engagement" onclick="deleteEngagement(${index})">
+                            <button type="button" class="btn-delete-engagement" onclick="deleteEngagement(${index})">
                                 🗑️ Delete
                             </button>
                         </div>

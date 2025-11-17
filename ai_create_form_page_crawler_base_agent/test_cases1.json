@@ -1,0 +1,17 @@
+[
+  {
+    "test_id": "TEST_1_create_form",
+    "description": "TEST 1: Fill and submit a generic form with all field types",
+    "expected_outcome": "Form submission successful"
+  },
+  {
+    "test_id": "TEST_2_verify_list",
+    "description": "TEST 2: Verify the created form appears in the list/table with correct column data",
+    "expected_outcome": "Form entry visible in list with correct values in columns"
+  },
+  {
+    "test_id": "TEST_3_view_details",
+    "description": "TEST 3: Click to view the created form and verify all fields are displayed correctly in view page",
+    "expected_outcome": "All form fields display the correct submitted values in detail view"
+  }
+]

@@ -169,7 +169,8 @@ class AIHelper:
             test_context=None,
             is_first_iteration: bool = False,
             screenshot_base64: Optional[str] = None,
-            enable_ui_verification: bool = False
+            enable_ui_verification: bool = False,
+            critical_fields_checklist: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """
         Generate Selenium test steps based on DOM and test cases.
@@ -300,9 +301,35 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
 """
         else:
             ui_task_section = "You are a test automation expert. Your task is to generate Selenium WebDriver test steps for the form page.\n\n"
+        
+        # Build critical fields checklist section (for Scenario B recovery)
+        critical_fields_section = ""
+        if critical_fields_checklist:
+            fields_list = "\n".join([f"- **{field_name}**: {issue_type}" for field_name, issue_type in critical_fields_checklist.items()])
+            critical_fields_section = f"""
+⚠️⚠️⚠️ CRITICAL FIELDS CHECKLIST ⚠️⚠️⚠️
+================================================================================
+**ALERT RECOVERY MODE ACTIVE**
+
+A validation alert was detected. The following fields MUST be filled correctly:
+
+{fields_list}
+
+**MANDATORY INSTRUCTIONS:**
+1. Pay SPECIAL ATTENTION to these critical fields
+2. For fields marked "MUST FILL" - ensure they are filled with correct values from test_cases
+3. For fields marked "INVALID FORMAT" - use the correct format/value from test_cases
+4. These fields caused the previous test failure - DO NOT skip them!
+5. Verify the selectors for these fields are correct
+6. Double-check the values match test_cases exactly
+
+This checklist will remain active until the test completes successfully.
+================================================================================
+
+"""
 
         prompt = f"""{ui_task_section}
-
+{critical_fields_section}
         === SELECTOR GUIDELINES ===
 
         **Use CSS selectors (RECOMMENDED):**
@@ -576,7 +603,7 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
         - Click entry button
         - Wait for form to load
         - Fill ALL fields (that will appear after button click)
-        - Make random selections at junctions
+        - Make selections at junctions (use test_data values if specified, otherwise random)
         - Submit the form
         
         Don't generate just the click and stop! Generate the complete flow!
@@ -588,7 +615,7 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
            - Click Tab 3 → Fill ALL fields in Tab 3
            - etc.
         3. Fill ALL visible fields in the order they appear (not just required ones)
-        4. At each junction (dropdown, radio button, checkbox), make a RANDOM selection
+        4. At each junction (dropdown, radio button, checkbox), check test_data for specified values first, otherwise make a RANDOM selection
         5. After selecting, fill ANY new fields that appear
         6. Continue filling all visible fields in order
         7. Handle special elements:
@@ -599,6 +626,7 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
         8. After ALL sections/tabs are complete → click Next or Submit
         9. Continue through multi-step forms
         10. Eventually reach and click the final Save/Submit button
+        11. After submission/save, if there are more test cases (TEST_2, TEST_3, etc.), continue generating steps for them - do NOT stop at TEST_1
 
         **CRITICAL: Access ALL Fields:**
         Your goal is to fill EVERY visible field, regardless of where it is.
@@ -612,7 +640,7 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
         - Do NOT guess or hallucinate field names - read them from the DOM attributes (name, id, class)
         - Fill ALL visible fields (required AND optional) - users often fill everything
         - Process EVERY tab/section before clicking Next
-        - Make RANDOM selections at junctions (don't always pick the first option)
+        - Check test_data for field values first, make RANDOM selections only when not specified in test_data (don't always pick the first option)
         - After each junction choice, check for newly visible fields and fill them ALL
         - Handle iframes, star ratings, and special UI elements
         - Continue until you find Next/Continue button or Save/Submit button
@@ -640,23 +668,76 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
 
         **Standard Actions:**
         - click: Click element (buttons, links, tabs)
+        - double_click: Double-click element (some elements require it)
         - fill: Enter text in input field
+        - clear: Clear input field before filling
         - select: Choose from dropdown OR select radio button
+        - check: Check checkbox (only if not already checked)
+        - uncheck: Uncheck checkbox (only if currently checked)
+        - slider: Set range slider to percentage (value: 0-100)
+        - drag_and_drop: Drag element to target (selector: source, value: target selector)
+        - press_key: Send keyboard key (value: ENTER, TAB, ESCAPE, ARROW_DOWN, etc.)
         - verify: Check if element is visible
         - wait: Wait for duration (MAX 10 seconds!) OR wait for element to be ready if selector provided
         - wait_for_ready: Wait for AJAX-loaded element to become interactable (use for dynamic fields)
+        - wait_for_visible: Wait for element to become visible (max 10s)
+        - wait_for_hidden: Wait for element to disappear (max 10s, useful for loading spinners)
         - scroll: Scroll to element
+        - refresh: Refresh the page
 
         **Special Access Tools (use when needed to reach fields):**
         - switch_to_frame: Access fields inside iframe
         - switch_to_parent_frame: Navigate back one iframe level
         - switch_to_default: Return to main page context
         - switch_to_shadow_root: Access fields inside shadow DOM
+        - switch_to_window: Switch to window/tab by index (value: 0, 1, 2, etc.)
+        - switch_to_parent_window: Return to original/main window
+        
+        **SLIDER ACTION:**
+        For range sliders (like employment status slider):
+        ```json
+        {{"action": "slider", "selector": "input[type='range']#employmentStatus", "value": "50", "description": "Set employment status to 50% (Partially Employed)"}}
+        ```
+        Value must be 0-100 (percentage). Examples:
+        - "0" = leftmost (Unemployed)
+        - "50" = middle (Partially Employed) 
+        - "100" = rightmost (Employed)
+        
+        **DRAG AND DROP ACTION:**
+        For drag-and-drop elements (like project priority assignment):
+        ```json
+        {{"action": "drag_and_drop", "selector": ".project-item#projectAlpha", "value": ".priority-box.high-priority", "description": "Drag Project Alpha to High Priority box"}}
+        ```
+        Selector = element to drag, value = target drop zone selector.
+        
+        **PRESS KEY ACTION:**
+        Send keyboard keys to elements or active element:
+        ```json
+        {{"action": "press_key", "selector": "input#search", "value": "ENTER", "description": "Press Enter in search field"}}
+        ```
+        Available keys: ENTER, TAB, ESCAPE, SPACE, BACKSPACE, DELETE, ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT, HOME, END, PAGE_UP, PAGE_DOWN
+        
+        **CHECKBOX ACTIONS:**
+        Use `check` and `uncheck` for explicit checkbox control (better than click):
+        ```json
+        {{"action": "check", "selector": "input#agreeToTerms", "description": "Check terms agreement checkbox"}}
+        {{"action": "uncheck", "selector": "input#newsletter", "description": "Uncheck newsletter subscription"}}
+        ```
+        
+        **WINDOW/TAB SWITCHING:**
+        When a new window/tab opens:
+        ```json
+        {{"action": "switch_to_window", "value": "1", "description": "Switch to newly opened window"}}
+        ... do actions in new window ...
+        {{"action": "switch_to_parent_window", "description": "Return to original window"}}
+        ```
 
         **CRITICAL WAIT RULES:**
         - **NEVER use wait with value > 10 seconds!** (will cause timeout)
         - For time-based wait: {{"action": "wait", "value": "2"}} (max 10 seconds)
         - For AJAX/dynamic fields: {{"action": "wait_for_ready", "selector": "#dependentField"}}
+        - For visibility: {{"action": "wait_for_visible", "selector": "#loadedContent"}}
+        - For disappearing elements: {{"action": "wait_for_hidden", "selector": ".loading-spinner"}}
         - wait_for_ready waits up to 10s for element to be clickable/enabled
         - **For wait actions, keep selectors simple** - use IDs, classes, or basic attributes. Avoid complex CSS like :not(), :has(), or pseudo-selectors that may not work reliably with Selenium's wait conditions.
 
@@ -680,8 +761,65 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
 
         === TEST CASES TO IMPLEMENT ===
 
+        **CRITICAL: You must execute ALL test cases listed below, one after another, in a single continuous flow.**
+        
+        - Complete TEST 1, then immediately continue to TEST 2, then TEST 3, etc.
+        - Do NOT stop after completing one test - generate steps for ALL tests
+        - All steps must be in ONE JSON array covering the complete flow
+        
+        **EXAMPLE FLOW:**
+        - TEST_1 steps (fill and submit form) → form saves → page navigates to list
+        - TEST_2 steps (verify form appears in list table) → verify the data in list
+        - TEST_3 steps (click to view details) → verify all fields show correct values
+        
+        **After form submission in TEST_1, the page will navigate automatically. Continue generating steps for TEST_2 and TEST_3 on the new page!**
+
         {json.dumps(test_cases, indent=2)}
 
+        **CRITICAL: Generate steps for ALL test cases above in ONE continuous JSON array. Do NOT stop after TEST_1!**
+        
+        **For edit/update tests - COMPLETE WORKFLOW PER FIELD:**
+        For each field that needs to be verified and updated, generate this complete sequence:
+        
+        1. **Navigate to the field** (if needed):
+           - Switch to iframe: use switch_to_frame if field is in iframe
+           - Switch to shadow DOM: use switch_to_shadow_root if field is in shadow root
+           - Click tab: if field is in a different tab/section
+           - Hover: if field is hidden and needs hover to reveal
+           - Wait: use wait_for_visible if field loads dynamically
+        
+        2. **Verify the field** contains original value:
+           - Action: "verify"
+           - Selector: the field selector
+           - Value: the EXPECTED ORIGINAL value from TEST_1 (the value that was filled in create test)
+        
+        3. **Clear the field** (for text inputs only):
+           - Action: "clear"
+           - Selector: the field selector
+           - Skip this step for: select dropdowns, checkboxes, radio buttons, sliders
+        
+        4. **Update the field** with new value:
+           - Action: "fill" or "select" or "check" (depending on field type)
+           - Selector: the field selector
+           - Value: the new updated value
+        
+        5. **Navigate back** (if needed):
+           - Switch back from iframe: use switch_to_default
+           - Switch back from shadow DOM: use switch_to_default
+        
+        **Example for field in iframe:**
+        - switch_to_frame (navigate to iframe)
+        - verify (check original value)
+        - clear (clear the field)
+        - fill (update with new value)
+        - switch_to_default (exit iframe)
+        
+        **Example for field requiring hover:**
+        - hover (reveal hidden field)
+        - wait_for_visible (wait for field to appear)
+        - verify (check original value)
+        - clear (clear the field)
+        - fill (update with new value)
 
         === OUTPUT REQUIREMENTS ===
 
@@ -750,7 +888,7 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
            - "Fill form fields" → Generate fill steps for EACH VISIBLE field (required AND optional)
            - "Complete form" → Generate steps for all sections/tabs
            - "Navigate to next section" → Click next button and verify new section
-           - "Make random selection" → For dropdowns/radios, choose randomly from available options
+           - "Make random selection" → For dropdowns/radios, FIRST check if test_data specifies a value for this field (match by field name). If test_data has a value, use it exactly. If not specified in test_data, choose randomly from available options
            - **"Add list items" → Generate steps to add EXACTLY 1 ITEM OF EACH TYPE: If you see "Add Finding" → add 1 finding, if you see "Add Engagement" → add 1 engagement, etc.**
            - Real users fill ALL visible fields, not just required ones!
 
@@ -1027,7 +1165,8 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
         test_cases: list,
         test_context,
         screenshot_base64: Optional[str] = None,
-        enable_ui_verification: bool = False
+        enable_ui_verification: bool = False,
+        critical_fields_checklist: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """
         Regenerate remaining steps after DOM change
@@ -1078,10 +1217,37 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
 
 """
             
+            # Build critical fields checklist section (for Scenario B recovery)
+            critical_fields_section = ""
+            if critical_fields_checklist:
+                fields_list = "\n".join([f"- **{field_name}**: {issue_type}" for field_name, issue_type in critical_fields_checklist.items()])
+                critical_fields_section = f"""
+⚠️⚠️⚠️ CRITICAL FIELDS CHECKLIST ⚠️⚠️⚠️
+================================================================================
+**ALERT RECOVERY MODE ACTIVE**
+
+A validation alert was detected. The following fields MUST be filled correctly:
+
+{fields_list}
+
+**MANDATORY INSTRUCTIONS:**
+1. Pay SPECIAL ATTENTION to these critical fields
+2. For fields marked "MUST FILL" - ensure they are filled with correct values from test_cases
+3. For fields marked "INVALID FORMAT" - use the correct format/value from test_cases
+4. These fields caused the previous test failure - DO NOT skip them!
+5. Verify the selectors for these fields are correct
+6. Double-check the values match test_cases exactly
+
+This checklist will remain active until the test completes successfully.
+================================================================================
+
+"""
+            
             # Build full prompt conditionally with UI verification
             if enable_ui_verification and screenshot_base64:
                 prompt = f"""You are a web automation expert. You have TWO SEPARATE TASKS to complete:
 
+{critical_fields_section}
 ================================================================================
 TASK 1: UI VERIFICATION (DO THIS FIRST - ISOLATED FROM TASK 2)
 ================================================================================
@@ -1139,11 +1305,24 @@ The DOM changed, and here is the NEW current state:
 ## Current Page DOM:
 {dom_html}
 
+**If a screenshot is provided, you can also use it to get additional understanding of the current page state (which tab is visible, if any overlays/menus are blocking elements, etc.)**
+
 {test_cases_context}
+
+**CRITICAL: Generate steps for ALL test cases above in ONE continuous JSON array. Do NOT stop after TEST_1!**
+
+**For edit/update tests - COMPLETE WORKFLOW PER FIELD:**
+For each field that needs to be verified and updated, generate this complete sequence:
+1. Navigate to field (switch_to_frame/shadow_root, click tab, hover, wait_for_visible as needed)
+2. Verify original value (action: "verify", value: expected original value from TEST_1)
+3. Clear field (action: "clear" - only for text inputs, skip for select/checkbox/radio/slider)
+4. Update field (action: "fill"/"select"/"check" with new value)
+5. Navigate back (switch_to_default if you entered iframe/shadow_root)
 """
             else:
                 prompt = f"""You are a web automation expert. Your task is to generate remaining Selenium WebDriver test steps after a DOM change.
 
+{critical_fields_section}
 The DOM has changed after executing some steps.
 
 {executed_context}
@@ -1154,6 +1333,16 @@ The DOM changed, and here is the NEW current state:
 {dom_html}
 
 {test_cases_context}
+
+**CRITICAL: Generate steps for ALL test cases above in ONE continuous JSON array. Do NOT stop after TEST_1!**
+
+**For edit/update tests - COMPLETE WORKFLOW PER FIELD:**
+For each field that needs to be verified and updated, generate this complete sequence:
+1. Navigate to field (switch_to_frame/shadow_root, click tab, hover, wait_for_visible as needed)
+2. Verify original value (action: "verify", value: expected original value from TEST_1)
+3. Clear field (action: "clear" - only for text inputs, skip for select/checkbox/radio/slider)
+4. Update field (action: "fill"/"select"/"check" with new value)
+5. Navigate back (switch_to_default if you entered iframe/shadow_root)
 """
             
             prompt += """
@@ -1165,12 +1354,17 @@ Based on the steps already completed and the NEW DOM state, generate the REMAINI
 - Do not add multiple items of the same type
 - Example: If you already added 1 Finding, move on to the next list type (e.g., Add Engagement) or continue with other form fields
 
+**TAB/SECTION PRIORITY:**
+- Before navigating to a new tab or section, fill ALL remaining unfilled fields in the currently visible/active tab first
+- Only after completing all fields in the current tab should you navigate to the next tab
+
 Generate steps to:
 1. Check if there are other list item types that need to be added (1 item per type)
-2. Fill all remaining form fields
-3. Handle any dropdowns, checkboxes, or special inputs
-4. Submit the form
-5. Verify success
+2. Fill all remaining form fields in the currently visible tab
+3. Navigate to next tab only after current tab is complete
+4. Handle any dropdowns, checkboxes, or special inputs
+5. Submit the form
+6. Verify success
 
 ## Response Format:"""
             
@@ -1206,7 +1400,36 @@ Return ONLY a JSON array of step objects:
 """
             
             prompt += """
-Available actions: fill, select, click, verify, wait, wait_for_ready, scroll, hover, switch_to_frame, switch_to_default, switch_to_shadow_root, create_file, upload_file
+Available actions: fill, clear, select, click, double_click, check, uncheck, slider, drag_and_drop, press_key, verify, wait, wait_for_ready, wait_for_visible, wait_for_hidden, scroll, hover, refresh, switch_to_frame, switch_to_default, switch_to_shadow_root, switch_to_window, switch_to_parent_window, create_file, upload_file
+
+**SLIDER ACTION:**
+For range sliders (like employment status slider), use the `slider` action:
+```json
+{
+  "step_number": N,
+  "action": "slider",
+  "selector": "input[type='range']#employmentStatus",
+  "value": "50",
+  "description": "Set employment status to 50% (Partially Employed)"
+}
+```
+Value must be 0-100 (percentage). Example values:
+- "0" = leftmost position (Unemployed)
+- "50" = middle position (Partially Employed)
+- "100" = rightmost position (Employed)
+
+**DRAG AND DROP ACTION:**
+For drag-and-drop elements (like project priority assignment), use the `drag_and_drop` action:
+```json
+{
+  "step_number": N,
+  "action": "drag_and_drop",
+  "selector": ".project-item#projectAlpha",
+  "value": ".priority-box.high-priority",
+  "description": "Drag Project Alpha to High Priority box"
+}
+```
+Selector is the element to drag, value is the target drop zone selector.
 
 **CRITICAL:** Never use wait with value > 10 seconds! For AJAX, use wait_for_ready instead.
 
@@ -1249,6 +1472,82 @@ When you encounter a file upload field (`<input type="file">`), use TWO sequenti
   "description": "Create test file for upload"
 }
 ```
+
+**Step 2: upload_file** - Upload the created file
+```json
+{
+  "step_number": N+1,
+  "action": "upload_file",
+  "selector": "input[type='file']",
+  "value": "test_file.pdf",
+  "description": "Upload the test file"
+}
+```
+
+**CRITICAL: VERIFY ACTION RULES:**
+
+When verifying content on a page (especially view/detail pages after form submission):
+
+**MANDATORY RULES:**
+1. **ALWAYS populate the `value` field** with the expected content
+2. **Use XPath for text content verification** - CSS `:contains()` does NOT work in Selenium
+3. **Use simple, robust selectors** - avoid complex chaining
+
+**Correct Verify Step Format:**
+```json
+{
+  "step_number": N,
+  "action": "verify",
+  "selector": "//div[contains(@class, 'field-value') and contains(text(), 'expected text')]",
+  "value": "expected text",
+  "description": "Verify expected text is displayed"
+}
+```
+
+**XPATH PATTERNS FOR VERIFICATION:**
+
+For text content verification:
+- ✅ GOOD: `//div[contains(text(), 'John Doe')]`
+- ✅ GOOD: `//span[@class='field-value' and contains(text(), 'test@example.com')]`
+- ✅ GOOD: `//td[contains(text(), '1234567890')]`
+- ❌ BAD: `.field-label:contains('Email')` (jQuery syntax - doesn't work!)
+- ❌ BAD: `div:contains('text')` (CSS pseudo-selector - doesn't work!)
+
+For checking element existence:
+- ✅ GOOD: `//div[@class='success-message']`
+- ✅ GOOD: `div.success-message` (CSS is fine when not checking text)
+
+**Example Verification Steps:**
+```json
+{
+  "step_number": 50,
+  "action": "verify",
+  "selector": "//div[@class='success-message']",
+  "value": "Form created successfully",
+  "description": "Verify form submission success"
+},
+{
+  "step_number": 51,
+  "action": "verify",
+  "selector": "//div[contains(@class, 'person-name') and contains(text(), 'TestUser123')]",
+  "value": "TestUser123",
+  "description": "Verify person name is displayed"
+},
+{
+  "step_number": 52,
+  "action": "verify",
+  "selector": "//span[@class='email-field' and contains(text(), 'test@example.com')]",
+  "value": "test@example.com",
+  "description": "Verify email is displayed"
+}
+```
+
+**CRITICAL REMINDERS:**
+- Never leave `value` empty in verify steps
+- Always use XPath `contains(text(), '...')` for text verification
+- Never use CSS `:contains()` or `:has()` - they don't work in Selenium
+
+Return ONLY the JSON object, no other text.
 
 **Step 2: upload_file** - Upload the created file
 ```json
@@ -1587,11 +1886,23 @@ A test step has FAILED. Your job is to analyze the failure and provide recovery 
 
 ## Your Tasks:
 
-### 1. Analyze the Screenshot:
-- Is the page blank/white/error page? → Recovery: refresh page
-- Is element blocked by overlay/modal/hover menu? → Recovery: close it (ESC, click outside, move mouse away)
-- Is element not visible on screen? → Recovery: scroll to element
-- Is element in a different tab/section? → Recovery: click correct tab
+### 1. MANDATORY - Analyze the Screenshot:
+Look at the screenshot and identify WHY the step failed - what is preventing interaction with this element?
+
+Possible causes:
+- Hover menu blocking it
+- Modal/overlay blocking it
+- Element not visible (need to scroll)
+- Element in wrong tab/section
+- Element doesn't exist (wrong selector)
+- Page error/blank page
+- Loading spinner active
+- Cookie banner/chat widget blocking
+
+**You MUST:**
+1. Visually analyze the screenshot to see what's blocking/preventing the interaction
+2. Generate appropriate recovery action(s) based on what you see
+3. Then retry the failed step
 
 ### 2. Check the DOM:
 - Does the selector exist in the DOM?
@@ -1619,6 +1930,16 @@ Return JSON array with:
 
 ## Test Cases:
 {json.dumps(test_cases, indent=2)}
+
+**CRITICAL: Generate steps for ALL test cases above in ONE continuous JSON array. Do NOT stop after TEST_1!**
+
+**For edit/update tests - COMPLETE WORKFLOW PER FIELD:**
+For each field that needs to be verified and updated, generate this complete sequence:
+1. Navigate to field (switch_to_frame/shadow_root, click tab, hover, wait_for_visible as needed)
+2. Verify original value (action: "verify", value: expected original value from TEST_1)
+3. Clear field (action: "clear" - only for text inputs, skip for select/checkbox/radio/slider)
+4. Update field (action: "fill"/"select"/"check" with new value)
+5. Navigate back (switch_to_default if you entered iframe/shadow_root)
 
 ## Current DOM:
 ```html
@@ -1666,342 +1987,3 @@ Return ONLY the JSON array, no other text.
         return prompt
 
 
-    def generate_alert_handling_steps(
-        self,
-        alert_info: Dict,
-        executed_steps: List[Dict],
-        dom_html: str,
-        screenshot_path: str,
-        test_cases: List[Dict],
-        test_context,
-        step_where_alert_appeared: int,
-        include_accept_step: bool = True  # NEW: Control whether to include accept_alert step
-    ) -> List[Dict]:
-        """
-        Generate steps to handle a JavaScript alert/confirm/prompt with AI vision
-        
-        Args:
-            alert_info: Dict with 'type' and 'text' of the alert
-            executed_steps: Steps completed before alert appeared
-            dom_html: Current DOM HTML after alert was accepted
-            screenshot_path: Path to screenshot showing the alert
-            test_cases: Active test cases
-            test_context: Test context
-            step_where_alert_appeared: Step number that triggered the alert
-            include_accept_step: Whether AI should include accept_alert step in response
-            
-        Returns:
-            List of steps to handle alert + continue with remaining steps
-        """
-        import base64
-        import re
-        
-        try:
-            print(f"[AIHelper] Generating alert handling steps...")
-            
-            # Build the prompt (screenshot is optional for alerts)
-            prompt = self._build_alert_handling_prompt(
-                alert_info=alert_info,
-                executed_steps=executed_steps,
-                dom_html=dom_html,
-                test_cases=test_cases,
-                test_context=test_context,
-                step_where_alert_appeared=step_where_alert_appeared,
-                include_accept_step=include_accept_step  # NEW: Pass to prompt builder
-            )
-            
-            # Call Claude (with or without screenshot) using retry logic
-            result_logger_gui.info("[AIHelper] Sending alert handling request to Claude API...")
-            
-            # Build message content
-            message_content = []
-            
-            # Add screenshot if available (not for JS alerts)
-            if screenshot_path:
-                with open(screenshot_path, 'rb') as f:
-                    screenshot_data = base64.standard_b64encode(f.read()).decode('utf-8')
-                message_content.append({
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/png",
-                        "data": screenshot_data
-                    }
-                })
-            
-            # Add text prompt
-            message_content.append({
-                "type": "text",
-                "text": prompt
-            })
-            
-            # Use multimodal retry if we have image, otherwise use regular retry
-            if screenshot_path:
-                response_text = self._call_api_with_retry_multimodal(message_content, max_tokens=16000, max_retries=3)
-            else:
-                response_text = self._call_api_with_retry(prompt, max_tokens=16000, max_retries=3)
-            
-            if response_text is None:
-                print("[AIHelper] ❌ Failed to get alert handling response after retries")
-                logger.error("[AIHelper] Failed to get alert handling response after retries")
-                return []
-            
-            print(f"[AIHelper] Received alert handling response ({len(response_text)} chars)")
-            logger.info(f"[AIHelper] Received alert handling response ({len(response_text)} chars)")
-            
-            # Extract JSON from response - now expecting object with "scenario" and "steps"
-            json_match = re.search(r'\{[\s\S]*\}', response_text)
-            if json_match:
-                alert_response = json.loads(json_match.group())
-                
-                # Extract scenario and steps
-                scenario = alert_response.get("scenario", "B")  # Default to B if not specified
-                alert_steps = alert_response.get("steps", [])
-                
-                if not alert_steps:
-                    print("[AIHelper] No steps found in alert response")
-                    logger.warning("[AIHelper] No steps found in alert response")
-                    return {"scenario": scenario, "steps": []}
-                
-                print(f"[AIHelper] Successfully parsed {len(alert_steps)} alert handling steps")
-                print(f"[AIHelper] Scenario: {scenario}")
-                logger.info(f"[AIHelper] Successfully parsed {len(alert_steps)} alert handling steps (Scenario {scenario})")
-                
-                return {"scenario": scenario, "steps": alert_steps}
-            else:
-                print("[AIHelper] No JSON object found in alert handling response")
-                logger.warning("[AIHelper] No JSON object found in alert handling response")
-                return {"scenario": "B", "steps": []}
-                
-        except Exception as e:
-            print(f"[AIHelper] Error generating alert handling steps: {e}")
-            logger.error(f"[AIHelper] Error generating alert handling steps: {e}")
-            return []
-    
-    def _build_alert_handling_prompt(
-        self,
-        alert_info: Dict,
-        executed_steps: List[Dict],
-        dom_html: str,
-        test_cases: List[Dict],
-        test_context,
-        step_where_alert_appeared: int,
-        include_accept_step: bool = True  # NEW: Control whether to include accept_alert step
-    ) -> str:
-        """Build the prompt for alert handling"""
-        
-        alert_type = alert_info.get('type', 'alert')
-        alert_text = alert_info.get('text', '')
-        
-        # Build executed steps context
-        executed_context = ""
-        if executed_steps:
-            executed_context = f"""
-Steps completed before alert appeared:
-{json.dumps([{"step": i+1, "action": s.get("action"), "description": s.get("description")} for i, s in enumerate(executed_steps)], indent=2)}
-"""
-        
-        prompt = f"""
-# JAVASCRIPT ALERT HANDLING WITH SMART RECOVERY
-
-## Context:
-Step {step_where_alert_appeared} was executed successfully, but it triggered a JavaScript alert.
-**IMPORTANT**: The system has ALREADY accepted/dismissed the alert automatically before calling you.
-
-## Alert Information:
-- **Type**: {alert_type}
-- **Text**: "{alert_text}"
-
-{executed_context}
-
-## Current DOM (After Alert Was Accepted):
-```html
-{dom_html}
-```
-
-## Your Task - TWO SCENARIOS:
-
-**CRITICAL: How to Determine Which Scenario Applies**
-
-You are an AI - use your intelligence to understand the MEANING and INTENT of the alert text:
-
-**Ask yourself: "Is this alert telling me that I need to FIX or FILL fields because they are MISSING or INVALID?"**
-
-- **If YES → Use SCENARIO B** (Validation Error)
-- **If NO → Use SCENARIO A** (Simple Alert)
-
-**SCENARIO B - Validation Errors (Field Problems):**
-The alert is complaining about form fields that need to be corrected. These alerts say things like:
-- "Field X is required" / "Field X is missing"
-- "Field Y is invalid" / "Field Y has wrong format"
-- "Please fill in: Field1, Field2, Field3"
-- "Error: Field Z must be..."
-
-Examples that are SCENARIO B:
-- ❌ "Please fill in: Street Address is required, City is required" → Fields need to be filled
-- ❌ "Email is invalid" → Field has bad data
-- ❌ "Phone Number must be 10 digits" → Field validation failed
-- ❌ "The following fields are required: Name, Address, Phone" → Missing fields
-- ❌ "City has invalid format" → Field data is wrong
-
-**SCENARIO A - Simple Alerts (Everything Else):**
-The alert is NOT about field validation errors. It's a confirmation, navigation warning, success message, or general notification.
-
-Examples that are SCENARIO A:
-- ✅ "Are you sure you want to continue?" → Just asking for confirmation
-- ✅ "Do you want to proceed?" → Navigation confirmation
-- ✅ "Form submitted successfully!" → Success message
-- ✅ "Action completed" → Generic notification
-- ✅ "You are about to leave this section" → Navigation warning
-- ✅ "⚠️ You are about to enter the Address section. Are you sure?" → Navigation confirmation (NOT about Address field validation!)
-- ✅ "Changes will be saved" → Information message
-- ✅ "Processing..." → Status message
-
-**Key Insight:** 
-- "You are about to enter the Address section" is talking about NAVIGATION to a section, NOT validation of an Address field → SCENARIO A
-- "Street Address is required" is talking about a MISSING FIELD that needs to be filled → SCENARIO B
-
-Read the alert carefully and understand its intent!
-
----
-
-### SCENARIO A: Simple Alert (No Validation Errors)
-
-**Use this when:** The alert is NOT complaining about missing or invalid fields. It's just a confirmation, success message, navigation warning, or generic notification.
-
-**Your response should:**
-1. Keep all executed steps 1-{step_where_alert_appeared} (they were successful)
-2. {'Start generating steps from ' + str(step_where_alert_appeared + 1) + ' (system already added accept_alert to executed_steps)' if not include_accept_step else 'Add step ' + str(step_where_alert_appeared + 1) + ' as `accept_alert` (documenting what the system already did)'}
-3. Add continuation steps to complete the form based on the current DOM
-
-{f'**CRITICAL:** The system has already accepted the alert AND added it to executed_steps as step {step_where_alert_appeared + 1}. Your first generated step should be numbered {step_where_alert_appeared + 1} and should be the NEXT action after alert (e.g., switch_to_frame, fill, etc.). Do NOT include accept_alert in your response!' if not include_accept_step else f'**CRITICAL FOR STEP NUMBERING:** Steps must start from {step_where_alert_appeared + 1}, NOT from step 1! First step must be accept_alert.'}
-
-**Example response for simple alert (if alert appeared at step 26):**
-```json
-{'[' if True else ''}
-  {{{f'"step_number": {step_where_alert_appeared + 1}, "action": "switch_to_frame", "selector": "iframe#addressIframe", "value": "", "description": "Switch to address iframe"' if not include_accept_step else f'"step_number": {step_where_alert_appeared + 1}, "action": "accept_alert", "selector": "", "value": "", "description": "Alert accepted (already done by system)"'}}},
-  {{{f'"step_number": {step_where_alert_appeared + 2}, "action": "fill", "selector": "input#street", "value": "123 Main St", "description": "Fill street address"' if not include_accept_step else f'"step_number": {step_where_alert_appeared + 2}, "action": "switch_to_frame", "selector": "iframe#addressIframe", "value": "", "description": "Switch to address iframe"'}}},
-  {{{f'"step_number": {step_where_alert_appeared + 3}, "action": "fill", "selector": "input#city", "value": "New York", "description": "Fill city"' if not include_accept_step else f'"step_number": {step_where_alert_appeared + 3}, "action": "fill", "selector": "input#street", "value": "123 Main St", "description": "Fill street address"'}}}
-]
-```
-
----
-
-### SCENARIO B: Validation Alert (Field Problems - Missing or Invalid)
-
-**Use this ONLY when:** The alert is specifically complaining that fields are MISSING, REQUIRED, INVALID, or have ERRORS.
-
-**Step 1: Parse Alert Text**
-Extract ALL problematic field names/descriptions mentioned in the alert.
-
-Example: "Please fill in: Street Address is required, City has invalid format, Emergency Contact Name is required"
-→ Problematic fields: ["Street Address", "City", "Emergency Contact Name"]
-
-**Step 2: Analyze Executed Steps**
-For EACH problematic field, check the executed steps (1-{step_where_alert_appeared}):
-- Was this field attempted? If yes, at which step number?
-- Was this field skipped (never attempted)?
-
-**Step 3: Analyze DOM Structure**
-For fields that were skipped OR to understand form flow:
-- Locate where these fields exist in the DOM
-- Identify which tabs/sections/iframes contain them
-- Understand their position in the natural form flow
-
-**Step 4: Determine Earliest Failure Point**
-Find the ABSOLUTE EARLIEST point where something went wrong:
-
-- If problematic fields WERE attempted: Find the earliest step number among all problematic fields
-- If some fields were SKIPPED: Check DOM to see if skipped fields come BEFORE the earliest attempted problematic field in the form structure
-- The restart point is the earliest of these
-
-Example:
-- Executed steps 1-{step_where_alert_appeared}
-- Alert mentions: Street (attempted step 7), City (attempted step 9), Emergency Contact (skipped, but should be in same section around step 8)
-- **Earliest failure**: Step 7
-- **Keep**: Steps 1-6 (successful)
-- **Discard**: Steps 7-{step_where_alert_appeared} (from earliest failure onwards)
-
-**Step 5: Generate Clean Recovery Plan**
-
-Return a COMPLETE NEW step list starting from step 1:
-
-```json
-[
-  {{"step_number": 1, "action": "...", "description": "..."}},
-  ...
-  {{"step_number": 6, "action": "...", "description": "..."}},
-  {{"step_number": 7, "action": "fill", "selector": "...", "value": "...", "description": "Fill Street Address correctly"}},
-  {{"step_number": 8, "action": "fill", "selector": "...", "value": "...", "description": "Fill City correctly"}},
-  {{"step_number": 9, "action": "fill", "selector": "...", "value": "...", "description": "Fill Emergency Contact Name"}},
-  ...
-  {{"step_number": N, "action": "...", "description": "Complete remaining form fields"}}
-]
-```
-
-**CRITICAL for Scenario B:**
-- Return the COMPLETE step list (steps 1 through N)
-- Keep successful steps (1 to last_good_step) exactly as they were
-- Generate NEW corrected steps from the failure point onwards
-- Fill ALL problematic fields with correct values from test_cases
-- Navigate through tabs/iframes as needed
-- Complete the form properly
-- DO NOT include `accept_alert` step (alert is already handled)
-- DO NOT retry the submit button (just complete the form properly)
-
----
-
-## Available Actions:
-- `accept_alert`: Click OK button (no selector needed) - **USE ONLY IN SCENARIO A**
-- `dismiss_alert`: Click Cancel button (no selector needed) - **USE ONLY IN SCENARIO A**
-- `fill`: Fill input/textarea field
-- `select`: Select dropdown option
-- `click`: Click button/link/checkbox
-- `switch_to_frame`: Switch to iframe
-- `switch_to_default`: Switch back to main content
-- `create_file`: Create test file (pdf, txt, csv, xlsx, docx, json, png, jpg)
-- `upload_file`: Upload file to input[type='file']
-
-## Test Cases (for field values):
-{json.dumps(test_cases, indent=2)}
-
-## Response Format:
-
-**CRITICAL: You MUST return a JSON object with two fields:**
-
-```json
-{{
-  "scenario": "A",  // or "B" - which scenario you chose
-  "steps": [...]     // array of step objects
-}}
-```
-
-**For SCENARIO A** (simple alert - no field validation problems):
-```json
-{{
-  "scenario": "A",
-  "steps": [
-    {{"step_number": {step_where_alert_appeared + 1}, "action": "accept_alert", "selector": "", "value": "", "description": "Alert accepted (already done by system)"}},
-    {{"step_number": {step_where_alert_appeared + 2}, "action": "...", "selector": "...", "value": "...", "description": "Continue with next action"}},
-    ...
-  ]
-}}
-```
-
-**For SCENARIO B** (validation error - field problems):
-```json
-{{
-  "scenario": "B",
-  "steps": [
-    {{"step_number": 1, "action": "...", "selector": "...", "value": "...", "description": "..."}},
-    {{"step_number": 2, "action": "...", "selector": "...", "value": "...", "description": "..."}},
-    ...
-    {{"step_number": N, "action": "...", "selector": "...", "value": "...", "description": "..."}}
-  ]
-}}
-```
-
-Return ONLY this JSON object, no other text.
-"""
-        
-        return prompt

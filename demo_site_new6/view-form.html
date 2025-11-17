@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Form</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .back-btn {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+
+        .back-btn:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            color: #667eea;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .field-group {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .field-label {
+            font-weight: 600;
+            color: #555;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .field-value {
+            color: #333;
+            font-size: 16px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .badge.personal {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .badge.business {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge.enterprise {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .findings-list, .engagements-list {
+            margin-top: 10px;
+        }
+
+        .finding-item, .engagement-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .finding-name, .engagement-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .finding-description, .engagement-description {
+            color: #555;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+            font-style: italic;
+        }
+
+        .actions {
+            margin-top: 30px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="index.html" class="back-btn">← Back to List</a>
+            <h1>📋 View Form</h1>
+            <p>Form Details</p>
+        </div>
+
+        <div class="content">
+            <div id="formContent">
+                <!-- Content will be loaded by JavaScript -->
+            </div>
+
+            <div class="actions">
+                <a href="index.html" class="btn btn-secondary">← Back to List</a>
+                <button class="btn btn-primary" onclick="editForm()">✏️ Edit Form</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get form ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const formId = urlParams.get('id');
+
+        // Load and display form data
+        function loadFormData() {
+            const forms = JSON.parse(localStorage.getItem('savedForms') || '[]');
+            const formData = forms[formId];
+
+            if (!formData) {
+                document.getElementById('formContent').innerHTML = `
+                    <div class="empty-state">
+                        <h2>Form not found</h2>
+                        <p>The requested form does not exist.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+
+            // Part 1 - Personal Information
+            html += `
+                <div class="section">
+                    <h2 class="section-title">👤 Personal Information</h2>
+                    
+                    <div class="field-group">
+                        <div class="field-label">Person Name</div>
+                        <div class="field-value">${formData.fullName || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Email Address</div>
+                        <div class="field-value">${formData.email || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Phone Number</div>
+                        <div class="field-value">${formData.phone || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Date of Birth</div>
+                        <div class="field-value">${formData.birthdate || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Profile Image Upload</div>
+                        <div class="field-value">${formData.profileImage || 'No file uploaded'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Document Upload (PDF)</div>
+                        <div class="field-value">${formData.pdfDocument || 'No file uploaded'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Application Type</div>
+                        <div class="field-value">
+                            ${formData.applicationType || '-'}
+                            <span class="badge ${formData.applicationType}">${formData.applicationType || ''}</span>
+                        </div>
+                    </div>
+            `;
+
+            // Business/Enterprise fields
+            if (formData.applicationType === 'business' || formData.applicationType === 'enterprise') {
+                html += `
+                    <div class="field-group">
+                        <div class="field-label">Company Name</div>
+                        <div class="field-value">${formData.companyName || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Tax ID</div>
+                        <div class="field-value">${formData.taxId || '-'}</div>
+                    </div>
+                `;
+            }
+
+            // Enterprise fields
+            if (formData.applicationType === 'enterprise') {
+                html += `
+                    <div class="field-group">
+                        <div class="field-label">Manager Phone</div>
+                        <div class="field-value">${formData.managerPhone || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Manager Notes</div>
+                        <div class="field-value">${formData.managerNotes || '-'}</div>
+                    </div>
+                `;
+
+                // Findings
+                if (formData.findings && formData.findings.length > 0) {
+                    html += `
+                        <div class="field-group">
+                            <div class="field-label">🔍 Findings</div>
+                            <div class="findings-list">
+                    `;
+                    formData.findings.forEach(finding => {
+                        html += `
+                            <div class="finding-item">
+                                <div class="finding-name">${escapeHtml(finding.name)}</div>
+                                <div class="finding-description">${escapeHtml(finding.description)}</div>
+                            </div>
+                        `;
+                    });
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Engagements
+                if (formData.engagements && formData.engagements.length > 0) {
+                    html += `
+                        <div class="field-group">
+                            <div class="field-label">🤝 Engagements</div>
+                            <div class="engagements-list">
+                    `;
+                    formData.engagements.forEach(engagement => {
+                        html += `
+                            <div class="engagement-item">
+                                <div class="engagement-name">${escapeHtml(engagement.name)}</div>
+                                <div class="engagement-description">${escapeHtml(engagement.description)}</div>
+                            </div>
+                        `;
+                    });
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            html += `
+                    <div class="field-group">
+                        <div class="field-label">Additional Comments</div>
+                        <div class="field-value">${formData.comments || '-'}</div>
+                    </div>
+                </div>
+            `;
+
+            // Address Information
+            html += `
+                <div class="section">
+                    <h2 class="section-title">🏠 Address Information</h2>
+                    
+                    <div class="field-group">
+                        <div class="field-label">Street Address</div>
+                        <div class="field-value">${formData.street || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">City</div>
+                        <div class="field-value">${formData.city || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">State</div>
+                        <div class="field-value">${formData.state || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">ZIP Code</div>
+                        <div class="field-value">${formData.zipCode || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Emergency Contact Name</div>
+                        <div class="field-value">${formData.emergencyName || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Emergency Phone</div>
+                        <div class="field-value">${formData.emergencyPhone || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Emergency Email</div>
+                        <div class="field-value">${formData.emergencyEmail || '-'}</div>
+                    </div>
+                </div>
+            `;
+
+            // Preferences
+            html += `
+                <div class="section">
+                    <h2 class="section-title">⚙️ Preferences</h2>
+                    
+                    <div class="field-group">
+                        <div class="field-label">Special Option A</div>
+                        <div class="field-value">${formData.specialOption1 || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Special Option B</div>
+                        <div class="field-value">${formData.specialOption2 || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Rating</div>
+                        <div class="field-value">${formData.rating || '0'} / 5</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Rating Comment</div>
+                        <div class="field-value">${formData.ratingComment || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Newsletter Subscription</div>
+                        <div class="field-value">${formData.newsletter ? '✅ Yes' : '❌ No'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Terms Accepted</div>
+                        <div class="field-value">${formData.terms ? '✅ Yes' : '❌ No'}</div>
+                    </div>
+                </div>
+            `;
+
+            // Advanced Features
+            html += `
+                <div class="section">
+                    <h2 class="section-title">🎯 Advanced Features</h2>
+                    
+                    <div class="field-group">
+                        <div class="field-label">Employment Status</div>
+                        <div class="field-value">${formData.employmentStatus || '50'}% ${formData.employmentStatus <= 33 ? '(Employed)' : formData.employmentStatus <= 66 ? '(Partially Employed)' : '(Unemployed)'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Technical Skills</div>
+                        <div class="field-value">${formData.skills && formData.skills.length > 0 ? formData.skills.join(', ') : '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Project Priority</div>
+                        <div class="field-value">
+                            ${formData.projectPriority === 'high' ? '🔴 High Priority' : 
+                              formData.projectPriority === 'medium' ? '🟡 Medium Priority' : 
+                              formData.projectPriority === 'low' ? '🟢 Low Priority' : '-'}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Part 2 - Additional Information
+            html += `
+                <div class="section">
+                    <h2 class="section-title">📋 Additional Information</h2>
+                    
+                    <div class="field-group">
+                        <div class="field-label">Additional Field 1</div>
+                        <div class="field-value">${formData.field1 || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Additional Field 2</div>
+                        <div class="field-value">${formData.field2 || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Additional Field 3</div>
+                        <div class="field-value">${formData.field3 || '-'}</div>
+                    </div>
+            `;
+
+            // Job Description
+            if (formData.jobTitle || formData.jobDescription) {
+                html += `
+                    <div class="field-group">
+                        <div class="field-label">💼 Job Title</div>
+                        <div class="field-value">${formData.jobTitle || '-'}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">💼 Job Description</div>
+                        <div class="field-value">${formData.jobDescription || '-'}</div>
+                    </div>
+                `;
+            }
+
+            // Income Calculation
+            html += `
+                    <div class="field-group">
+                        <div class="field-label">Income Bruto (Gross)</div>
+                        <div class="field-value">$${parseFloat(formData.incomeBruto || 0).toFixed(2)}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Tax Percentage</div>
+                        <div class="field-value">${formData.taxPercentage || 0}%</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Income Neto (Net)</div>
+                        <div class="field-value">$${parseFloat(formData.incomeNeto || 0).toFixed(2)}</div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-label">Stock Market</div>
+                        <div class="field-value">${formData.stockMarket || '-'}</div>
+                    </div>
+                </div>
+            `;
+
+            // Metadata
+            html += `
+                <div class="section">
+                    <h2 class="section-title">📅 Metadata</h2>
+                    
+                    <div class="field-group">
+                        <div class="field-label">Saved Date</div>
+                        <div class="field-value">${new Date(formData.savedDate).toLocaleString()}</div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('formContent').innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function editForm() {
+            window.location.href = `test-form.html?edit=${formId}`;
+        }
+
+        // Load form on page load
+        loadFormData();
+    </script>
+</body>
+</html>

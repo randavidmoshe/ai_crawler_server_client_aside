@@ -202,6 +202,58 @@
             display: none !important;
         }
 
+        /* Application Type Selection Boxes */
+        .application-type-container {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .application-type-box {
+            flex: 1;
+            padding: 20px;
+            border: 3px solid #e0e0e0;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .application-type-box:hover {
+            border-color: #667eea;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .application-type-box.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .application-type-box .icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .application-type-box .type-name {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .application-type-box .type-description {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .application-type-box.selected .type-description {
+            opacity: 0.9;
+        }
+
         /* Checkboxes */
         .checkbox-group {
             display: flex;
@@ -928,7 +980,7 @@
         <div class="header">
             <button class="back-btn" onclick="goHome()">← Back</button>
             <h1>🎯 Complex Form Test</h1>
-            <p>Testing ALL form features: tabs, iframes, dynamic content, shadow DOM, and more!</p>
+            <p>Complete the form below with all required information</p>
         </div>
 
         <!-- Main Tabs: Part 1 and Part 2 (Part 2 tab hidden - only accessible via Next button) -->
@@ -992,12 +1044,27 @@
 
                         <div class="form-group">
                             <label for="applicationType">Application Type *</label>
-                            <select id="applicationType" name="applicationType" required>
-                                <option value="">-- Select Type --</option>
-                                <option value="personal">Personal</option>
-                                <option value="business">Business</option>
-                                <option value="enterprise">Enterprise</option>
-                            </select>
+                            <input type="hidden" id="applicationType" name="applicationType" required>
+                            
+                            <div class="application-type-container">
+                                <div class="application-type-box" data-type="personal" onclick="selectApplicationType('personal')">
+                                    <span class="icon">👤</span>
+                                    <div class="type-name">Personal</div>
+                                    <div class="type-description">Individual use</div>
+                                </div>
+                                
+                                <div class="application-type-box" data-type="business" onclick="selectApplicationType('business')">
+                                    <span class="icon">💼</span>
+                                    <div class="type-name">Business</div>
+                                    <div class="type-description">Small business</div>
+                                </div>
+                                
+                                <div class="application-type-box" data-type="enterprise" onclick="selectApplicationType('enterprise')">
+                                    <span class="icon">🏢</span>
+                                    <div class="type-name">Enterprise</div>
+                                    <div class="type-description">Large organization</div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Application Type Display Box -->
@@ -1076,9 +1143,8 @@
                     <div id="address-tab" class="tab-content">
                         <h3 style="color: #667eea; margin-bottom: 20px;">🏠 Address Information (All fields required)</h3>
                         
-                        <!-- iframe with nested forms -->
                         <div class="iframe-container">
-                            <h3>📦 Embedded Address Form (iframe Level 1)</h3>
+                            <h3>📦 Address Information</h3>
                             <iframe id="addressIframe" src="address-form.html"></iframe>
                         </div>
                     </div>
@@ -1087,9 +1153,8 @@
                     <div id="preferences-tab" class="tab-content">
                         <h3 style="color: #667eea; margin-bottom: 20px;">⚙️ Preferences & Settings</h3>
                         
-                        <!-- Hover Menu -->
                         <div class="form-group">
-                            <label>Special Options (Hover to reveal) *</label>
+                            <label>Special Options *</label>
                             <div class="hover-container">
                                 <button type="button" class="btn btn-secondary">🔽 Hover Here</button>
                                 <div class="hover-menu">
@@ -1105,9 +1170,8 @@
                             </div>
                         </div>
 
-                        <!-- Shadow DOM Component -->
                         <div class="form-group">
-                            <label>Rating (Shadow DOM Component) *</label>
+                            <label>Rating *</label>
                             <rating-widget></rating-widget>
                         </div>
 
@@ -1176,13 +1240,11 @@
                                 <option value="Flask">Flask</option>
                                 <option value="Spring">Spring</option>
                             </select>
-                            <small style="color: #666; display: block; margin-top: 5px;">Hold Ctrl (Windows) or Cmd (Mac) to select multiple</small>
                         </div>
 
                         <!-- Project Priority Drag and Drop -->
                         <div class="form-group">
                             <label>Project Priority Assignment *</label>
-                            <p style="color: #666; font-size: 14px; margin-bottom: 15px;">Drag the project into one of the priority boxes below:</p>
                             
                             <!-- Draggable Item -->
                             <div style="margin-bottom: 20px;">
@@ -1226,7 +1288,7 @@
                             <input type="hidden" id="projectPriority" name="projectPriority" required>
                             <div id="priorityStatus" style="margin-top: 15px; padding: 10px; background: #f8f9fa; 
                                                            border-radius: 6px; text-align: center; font-weight: 600; color: #666;">
-                                ⚠️ Please drag the project to a priority box
+                                ⚠️ Priority not assigned
                             </div>
                         </div>
                     </div>
@@ -1734,7 +1796,7 @@
             }
             
             if (!document.getElementById('projectPriority').value) {
-                errors.push('Project Priority must be assigned (drag the project to a priority box)');
+                errors.push('Project Priority must be assigned');
             }
             
             return errors;
@@ -1977,6 +2039,10 @@
             document.getElementById('phone').value = formData.phone || '';
             document.getElementById('birthdate').value = formData.birthdate || '';
             document.getElementById('applicationType').value = formData.applicationType || '';
+            // Trigger visual selection of application type box
+            if (formData.applicationType) {
+                selectApplicationType(formData.applicationType);
+            }
             document.querySelector('input[name="companyName"]').value = formData.companyName || '';
             document.getElementById('taxId').value = formData.taxId || '';
             document.getElementById('managerPhone').value = formData.managerPhone || '';
@@ -2126,6 +2192,23 @@
         // ========================================
         // CONDITIONAL FIELDS (Application Type)
         // ========================================
+        
+        // Function to handle application type selection from boxes
+        function selectApplicationType(type) {
+            // Update hidden input
+            document.getElementById('applicationType').value = type;
+            
+            // Update visual selection
+            document.querySelectorAll('.application-type-box').forEach(box => {
+                box.classList.remove('selected');
+            });
+            document.querySelector(`.application-type-box[data-type="${type}"]`).classList.add('selected');
+            
+            // Trigger the change event to update conditional fields
+            const event = new Event('change');
+            document.getElementById('applicationType').dispatchEvent(event);
+        }
+        
         document.getElementById('applicationType').addEventListener('change', function() {
             const value = this.value;
             const companyGroup = document.getElementById('companyNameGroup');
@@ -2142,7 +2225,7 @@
             const managerNotesInput = document.getElementById('managerNotes');
             
             // Get display text for the selected type
-            const typeText = this.options[this.selectedIndex].text;
+            const typeText = value.charAt(0).toUpperCase() + value.slice(1);
             
             // Show/hide and update the application type box
             if (value) {
