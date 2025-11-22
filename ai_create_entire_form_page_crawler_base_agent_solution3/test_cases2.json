@@ -1,0 +1,12 @@
+[
+  {
+    "test_id": "TEST_1_create_form",
+    "description": "TEST 1: Fill and submit a generic form with all field types",
+    "expected_outcome": "Form submission successful"
+  },
+  {
+    "test_id": "TEST_2_edit_form",
+    "description": "TEST 2: Click to update the created form and verify and then update each field one after the other for all the different fields",
+    "expected_outcome": "Form update successful"
+  }
+]

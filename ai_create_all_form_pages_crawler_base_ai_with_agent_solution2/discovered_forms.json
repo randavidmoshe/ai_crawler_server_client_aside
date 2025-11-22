@@ -1,0 +1,283 @@
+[
+  {
+    "id": "form_1",
+    "name": "employee_personal_details",
+    "url": "https://opensource-demo.orangehrmlive.com/web/index.php/pim/viewPersonalDetails/empNumber/7",
+    "path": [
+      {
+        "selector": "a[href='/web/index.php/pim/viewMyDetails']",
+        "description": "Click 'My Info'",
+        "step_number": "discovery_1",
+        "action": "click"
+      }
+    ],
+    "relationship_fields": [
+      {
+        "label": "Employee Id",
+        "type": "text",
+        "value": "",
+        "selector": "input.oxd-input.oxd-input--active"
+      }
+    ],
+    "depth": 1
+  },
+  {
+    "id": "form_2",
+    "name": "administrator_access_confirmation",
+    "url": "https://opensource-demo.orangehrmlive.com/web/index.php/maintenance/purgeEmployee",
+    "path": [
+      {
+        "selector": "a[href='/web/index.php/maintenance/viewMaintenanceModule']",
+        "description": "Click 'Maintenance'",
+        "step_number": "discovery_1",
+        "action": "click"
+      }
+    ],
+    "relationship_fields": [
+      {
+        "label": "_token",
+        "type": "hidden",
+        "value": "",
+        "selector": "input[name='_token'][type='hidden']"
+      }
+    ],
+    "depth": 1
+  },
+  {
+    "id": "form_3",
+    "name": "create_buzz_post",
+    "url": "https://opensource-demo.orangehrmlive.com/web/index.php/buzz/viewBuzz",
+    "path": [
+      {
+        "selector": "a[href='/web/index.php/buzz/viewBuzz']",
+        "description": "Click 'Buzz'",
+        "step_number": "discovery_1",
+        "action": "click"
+      }
+    ],
+    "relationship_fields": [],
+    "depth": 1
+  },
+  {
+    "id": "form_4",
+    "name": "add_employee",
+    "url": "https://opensource-demo.orangehrmlive.com/web/index.php/pim/addEmployee",
+    "path": [
+      {
+        "selector": "a[href='/web/index.php/pim/viewPimModule']",
+        "description": "Click 'PIM'",
+        "step_number": "discovery_1",
+        "action": "click"
+      },
+      {
+        "selector": "button.oxd-button.oxd-button--medium.oxd-button--secondary[type='button']",
+        "description": "Click 'Add'",
+        "step_number": "discovery_3",
+        "action": "click"
+      }
+    ],
+    "relationship_fields": [
+      {
+        "label": "Employee Id",
+        "type": "text",
+        "value": "",
+        "selector": "input.oxd-input.oxd-input--active:not(.orangehrm-firstname):not(.orangehrm-middlename):not(.orangehrm-lastname)"
+      }
+    ],
+    "depth": 2
+  },
+  {
+    "id": "form_5",
+    "name": "apply_leave",
+    "url": "https://opensource-demo.orangehrmlive.com/web/index.php/leave/applyLeave",
+    "path": [
+      {
+        "selector": "a[href='/web/index.php/leave/viewLeaveModule']",
+        "description": "Click 'Leave'",
+        "step_number": "discovery_1",
+        "action": "click"
+      },
+      {
+        "selector": "a.oxd-topbar-body-nav-tab-item[href='#']:first-of-type",
+        "description": "Click 'Apply'",
+        "step_number": "discovery_4",
+        "action": "click"
+      }
+    ],
+    "relationship_fields": [
+      {
+        "label": "Leave Type",
+        "type": "dropdown",
+        "value": "-- Select --",
+        "selector": "select[name*='leave'], .oxd-select-text"
+      }
+    ],
+    "depth": 2
+  },
+  {
+    "id": "form_6",
+    "name": "apply_leave",
+    "url": "https://opensource-demo.orangehrmlive.com/web/index.php/leave/applyLeave",
+    "path": [
+      {
+        "selector": "a[href='/web/index.php/leave/viewLeaveModule']",
+        "description": "Click 'Leave'",
+        "step_number": "discovery_1",
+        "action": "click"
+      },
+      {
+        "selector": "a.oxd-topbar-body-nav-tab-item[href='#']:last-of-type",
+        "description": "Click 'Assign Leave'",
+        "step_number": "discovery_4",
+        "action": "click"
+      }
+    ],
+    "relationship_fields": [
+      {
+        "label": "Leave Type",
+        "type": "dropdown",
+        "value": "-- Select --",
+        "selector": "select[name*='leave'], .oxd-select-text"
+      }
+    ],
+    "depth": 2
+  },
+  {
+    "id": "form_7",
+    "name": "administrator_access_verification",
+    "url": "https://opensource-demo.orangehrmlive.com/web/index.php/maintenance/purgeEmployee",
+    "path": [
+      {
+        "selector": "a[href='/web/index.php/directory/viewDirectory']",
+        "description": "Click 'Directory'",
+        "step_number": "discovery_1",
+        "action": "click"
+      },
+      {
+        "selector": "a[href='/web/index.php/maintenance/viewMaintenanceModule']",
+        "description": "Click 'Maintenance'",
+        "step_number": "discovery_9",
+        "action": "click"
+      }
+    ],
+    "relationship_fields": [
+      {
+        "label": "_token",
+        "type": "hidden",
+        "value": "",
+        "selector": "input[name='_token']"
+      }
+    ],
+    "depth": 2
+  },
+  {
+    "id": "form_8",
+    "name": "create_buzz_post",
+    "url": "https://opensource-demo.orangehrmlive.com/web/index.php/buzz/viewBuzz",
+    "path": [
+      {
+        "selector": "a[href='/web/index.php/directory/viewDirectory']",
+        "description": "Click 'Directory'",
+        "step_number": "discovery_1",
+        "action": "click"
+      },
+      {
+        "selector": "a[href='/web/index.php/buzz/viewBuzz']",
+        "description": "Click 'Buzz'",
+        "step_number": "discovery_9",
+        "action": "click"
+      }
+    ],
+    "relationship_fields": [],
+    "depth": 2
+  },
+  {
+    "id": "form_9",
+    "name": "submit_claim",
+    "url": "https://opensource-demo.orangehrmlive.com/web/index.php/claim/submitClaim",
+    "path": [
+      {
+        "selector": "a[href='/web/index.php/claim/viewClaimModule']",
+        "description": "Click 'Claim'",
+        "step_number": "discovery_1",
+        "action": "click"
+      },
+      {
+        "selector": "a.oxd-topbar-body-nav-tab-item[href='#']:nth-of-type(1)",
+        "description": "Click 'Submit Claim'",
+        "step_number": "discovery_11",
+        "action": "click"
+      }
+    ],
+    "relationship_fields": [
+      {
+        "label": "Event",
+        "type": "select",
+        "value": "-- Select --",
+        "selector": "select[data-v-957b4417]"
+      },
+      {
+        "label": "Currency",
+        "type": "select",
+        "value": "-- Select --",
+        "selector": "select[data-v-957b4417]"
+      }
+    ],
+    "depth": 2
+  },
+  {
+    "id": "form_10",
+    "name": "assign_claim",
+    "url": "https://opensource-demo.orangehrmlive.com/web/index.php/claim/assignClaim",
+    "path": [
+      {
+        "selector": "a[href='/web/index.php/claim/viewClaimModule']",
+        "description": "Click 'Claim'",
+        "step_number": "discovery_1",
+        "action": "click"
+      },
+      {
+        "selector": "button.oxd-button.oxd-button--medium.oxd-button--secondary[type='button']",
+        "description": "Click 'Assign Claim'",
+        "step_number": "discovery_11",
+        "action": "click"
+      }
+    ],
+    "relationship_fields": [
+      {
+        "label": "Employee Name",
+        "type": "autocomplete",
+        "value": "",
+        "selector": "input.oxd-input.oxd-input--active"
+      }
+    ],
+    "depth": 2
+  },
+  {
+    "id": "form_11",
+    "name": "corporate_branding_theme",
+    "url": "https://opensource-demo.orangehrmlive.com/web/index.php/admin/addTheme",
+    "path": [
+      {
+        "selector": "a[href='/web/index.php/admin/viewAdminModule']",
+        "description": "Click 'Admin'",
+        "step_number": "discovery_1",
+        "action": "click"
+      },
+      {
+        "selector": "li.oxd-topbar-body-nav-tab.--parent.--visited",
+        "description": "Click 'User Management'",
+        "step_number": "discovery_2",
+        "action": "click"
+      },
+      {
+        "selector": "li.oxd-topbar-body-nav-tab:nth-of-type(6)",
+        "description": "Click 'Nationalities'",
+        "step_number": "discovery_13",
+        "action": "click"
+      }
+    ],
+    "relationship_fields": [],
+    "depth": 3
+  }
+]

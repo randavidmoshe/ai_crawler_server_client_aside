@@ -1774,3 +1774,539 @@ class AgentSelenium:
         except Exception as e:
             clean_error = self._clean_error_message(e)
             return {"success": False, "error": clean_error}
+
+
+# ============================================================================
+# MULTI-FORMS DISCOVERY AGENT
+# ============================================================================
+
+class MultiFormsDiscoveryAgent(AgentSelenium):
+    """
+    Extended agent for multi-form discovery and crawling operations
+    Inherits all functionality from AgentSelenium
+    Adds methods needed for recursive form page discovery across web applications
+    
+    This agent is designed for server-client architecture where:
+    - Server: Runs form discovery logic with AI
+    - Client: Executes Selenium operations and returns results
+    """
+    
+    def __init__(self, screenshot_folder: Optional[str] = None):
+        super().__init__(screenshot_folder)
+    
+    # ========================================================================
+    # ELEMENT FINDING & INTERACTION
+    # ========================================================================
+    
+    def find_elements(self, selector: str, by_type: str = "css") -> Dict:
+        """
+        Find multiple elements by selector
+        
+        Args:
+            selector: CSS selector or XPath
+            by_type: "css" or "xpath"
+            
+        Returns:
+            Dict with success, count, and element info list
+        """
+        try:
+            if by_type == "xpath":
+                elements = self.driver.find_elements(By.XPATH, selector)
+            else:
+                elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+            
+            elements_info = []
+            for idx, el in enumerate(elements):
+                try:
+                    elements_info.append({
+                        "index": idx,
+                        "tag": el.tag_name,
+                        "text": (el.text or "").strip(),
+                        "displayed": el.is_displayed(),
+                        "enabled": el.is_enabled(),
+                        "location": el.location
+                    })
+                except StaleElementReferenceException:
+                    continue
+            
+            return {
+                "success": True,
+                "count": len(elements_info),
+                "elements": elements_info
+            }
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error, "count": 0, "elements": []}
+    
+    def wait_dom_ready(self, timeout: int = 8) -> Dict:
+        """Wait for DOM to be ready"""
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                lambda d: d.execute_script("return document.readyState") == "complete"
+            )
+            return {"success": True}
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error}
+    
+    def scroll_into_view(self, selector: str) -> Dict:
+        """Scroll element into view"""
+        try:
+            element = self._find_element(selector)
+            if not element:
+                return {"success": False, "error": f"Element not found: {selector}"}
+            
+            self.driver.execute_script("arguments[0].scrollIntoView({block:'center'})", element)
+            return {"success": True}
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error}
+    
+    def safe_click(self, selector: str) -> Dict:
+        """Safe click with multiple fallback strategies"""
+        try:
+            element = self._find_element(selector)
+            if not element:
+                return {"success": False, "error": f"Element not found: {selector}"}
+            
+            # Try scroll + ActionChains click
+            try:
+                self.driver.execute_script("arguments[0].scrollIntoView({block:'center'})", element)
+                ActionChains(self.driver).move_to_element(element).pause(0.05).click().perform()
+                return {"success": True, "method": "action_chains"}
+            except:
+                pass
+            
+            # Try direct click
+            try:
+                element.click()
+                return {"success": True, "method": "direct"}
+            except:
+                pass
+            
+            # Try JavaScript click
+            try:
+                self.driver.execute_script("arguments[0].click();", element)
+                return {"success": True, "method": "javascript"}
+            except:
+                pass
+            
+            return {"success": False, "error": "All click methods failed"}
+            
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error}
+    
+    def visible_text(self, selector: str) -> Dict:
+        """Get visible text from element"""
+        try:
+            element = self._find_element(selector)
+            if not element:
+                return {"success": False, "error": f"Element not found: {selector}"}
+            
+            text = (element.text or "").strip()
+            return {"success": True, "text": text}
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error, "text": ""}
+    
+    # ========================================================================
+    # FORM DETECTION
+    # ========================================================================
+    
+    def page_has_form_fields(self, ai_classifier_results: Optional[Dict] = None) -> Dict:
+        """
+        Check if page has form fields AND submission button in the same container
+        
+        Args:
+            ai_classifier_results: Dict with button text -> is_submission mapping
+                                  Example: {"Save": True, "Cancel": False}
+        
+        Returns:
+            Dict with success, has_form, and details
+        """
+        try:
+            input_fields = self.driver.find_elements(By.CSS_SELECTOR,
+                                                "input:not([type='hidden']), textarea, select")
+            visible_inputs = [f for f in input_fields if f.is_displayed()]
+            
+            if len(visible_inputs) < 1:
+                return {"success": True, "has_form": False, "reason": "No input fields"}
+            
+            button_blacklist = ['search', 'filter', 'find', 'reset', 'clear', 'back', 'cancel', 'close']
+            buttons = self.driver.find_elements(By.CSS_SELECTOR,
+                                           "button, input[type='submit'], input[type='button']")
+            
+            for button in buttons:
+                if not button.is_displayed():
+                    continue
+                
+                text = (button.text or button.get_attribute('value') or '').strip()
+                if not text:
+                    continue
+                
+                if any(blacklisted in text.lower() for blacklisted in button_blacklist):
+                    continue
+                
+                # Check AI classifier results if provided
+                if ai_classifier_results and text in ai_classifier_results:
+                    if ai_classifier_results[text]:
+                        # Check if button shares container with inputs
+                        shares_container = self._check_button_container(button, visible_inputs)
+                        if shares_container:
+                            return {
+                                "success": True,
+                                "has_form": True,
+                                "submission_button": text,
+                                "input_count": len(visible_inputs)
+                            }
+            
+            return {"success": True, "has_form": False, "reason": "No submission button found"}
+            
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error, "has_form": False}
+    
+    def _check_button_container(self, button, visible_inputs) -> bool:
+        """Check if button is in the same parent container as input fields"""
+        try:
+            result = self.driver.execute_script("""
+                var button = arguments[0];
+                var inputs = arguments[1];
+                
+                function getAncestors(el, maxDepth) {
+                    var ancestors = [];
+                    var current = el;
+                    var depth = 0;
+                    while (current && current.tagName !== 'BODY' && depth < maxDepth) {
+                        ancestors.push(current);
+                        current = current.parentElement;
+                        depth++;
+                    }
+                    return ancestors;
+                }
+                
+                var buttonAncestors = getAncestors(button, 10);
+                
+                for (var i = 0; i < inputs.length; i++) {
+                    var inputAncestors = getAncestors(inputs[i], 10);
+                    
+                    for (var j = 0; j < buttonAncestors.length; j++) {
+                        for (var k = 0; k < inputAncestors.length; k++) {
+                            if (buttonAncestors[j] === inputAncestors[k]) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                
+                return false;
+            """, button, visible_inputs)
+            
+            return result
+            
+        except Exception:
+            return True
+    
+    # ========================================================================
+    # ELEMENT SEARCHING
+    # ========================================================================
+    
+    def find_clickables_by_keywords(self, keywords: List[str]) -> Dict:
+        """Find clickable elements by keyword matching"""
+        try:
+            els = self.driver.find_elements(By.XPATH, "//*")
+            matches = []
+            seen = set()
+            
+            for el in els:
+                try:
+                    if not el.is_displayed():
+                        continue
+                    tag = el.tag_name.lower()
+                    if tag in ("script", "style", "meta", "link"):
+                        continue
+                    txt = (el.text or "").strip().lower()
+                    if not txt or len(txt) > 100:
+                        continue
+                    if any(k in txt for k in keywords):
+                        key = (tag, txt, el.location.get("y", 0), el.location.get("x", 0))
+                        if key not in seen:
+                            matches.append({
+                                "tag": tag,
+                                "text": txt,
+                                "location": el.location
+                            })
+                            seen.add(key)
+                except StaleElementReferenceException:
+                    continue
+            
+            matches.sort(key=lambda e: e['location'].get("y", 0))
+            return {"success": True, "count": len(matches), "elements": matches}
+            
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error, "count": 0, "elements": []}
+    
+    def all_inputs_on_page(self) -> Dict:
+        """Get all input elements on page"""
+        try:
+            inputs = []
+            for css in ("input", "select", "textarea"):
+                elements = self.driver.find_elements(By.CSS_SELECTOR, css)
+                for el in elements:
+                    try:
+                        inputs.append({
+                            "tag": el.tag_name,
+                            "type": el.get_attribute("type"),
+                            "name": el.get_attribute("name"),
+                            "id": el.get_attribute("id"),
+                            "displayed": el.is_displayed()
+                        })
+                    except StaleElementReferenceException:
+                        continue
+            
+            return {"success": True, "count": len(inputs), "inputs": inputs}
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error, "count": 0, "inputs": []}
+    
+    # ========================================================================
+    # ERROR & POPUP HANDLING
+    # ========================================================================
+    
+    def collect_error_messages(self) -> Dict:
+        """Collect error messages from page"""
+        ERROR_SELECTORS = [
+            ".error", ".error-message", ".invalid-feedback",
+            ".validation-error", ".help-block.error", ".text-danger",
+            ".is-invalid + .invalid-feedback", "[role='alert']", "[aria-invalid='true']"
+        ]
+        
+        try:
+            msgs = []
+            for sel in ERROR_SELECTORS:
+                try:
+                    for el in self.driver.find_elements(By.CSS_SELECTOR, sel):
+                        if el.is_displayed():
+                            t = (el.text or "").strip()
+                            if t:
+                                msgs.append(t)
+                except:
+                    continue
+            
+            unique_msgs = list(dict.fromkeys(msgs))
+            return {"success": True, "count": len(unique_msgs), "messages": unique_msgs}
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error, "count": 0, "messages": []}
+    
+    def dismiss_all_popups_and_overlays(self) -> Dict:
+        """Dismiss ALL popups: cookies, modals, overlays, chat widgets"""
+        try:
+            dismissed_count = 0
+            
+            cookie_selectors = [
+                "//button[contains(translate(., 'ACCEPT', 'accept'), 'accept')]",
+                "//button[contains(translate(., 'OK', 'ok'), 'ok')]",
+                "//a[contains(translate(., 'ACCEPT', 'accept'), 'accept')]",
+                ".cookie-consent button", ".cookie-banner button",
+                "#accept-cookies", ".oxd-toast-close"
+            ]
+            
+            for sel in cookie_selectors:
+                try:
+                    if sel.startswith("//"):
+                        elements = self.driver.find_elements(By.XPATH, sel)
+                    else:
+                        elements = self.driver.find_elements(By.CSS_SELECTOR, sel)
+                    
+                    for el in elements:
+                        if el.is_displayed():
+                            try:
+                                el.click()
+                                time.sleep(0.3)
+                                dismissed_count += 1
+                                break
+                            except:
+                                pass
+                except:
+                    pass
+            
+            close_selectors = [
+                ".modal.show .close", ".modal.show [data-dismiss='modal']",
+                ".dialog[open] .close", "[role='dialog'] button[aria-label='Close']",
+                ".ant-modal-close", ".MuiDialog-root button[aria-label='close']"
+            ]
+            
+            for sel in close_selectors:
+                try:
+                    elements = self.driver.find_elements(By.CSS_SELECTOR, sel)
+                    for el in elements:
+                        if el.is_displayed():
+                            try:
+                                el.click()
+                                time.sleep(0.3)
+                                dismissed_count += 1
+                                break
+                            except:
+                                pass
+                except:
+                    pass
+            
+            try:
+                overlays = self.driver.find_elements(By.CSS_SELECTOR, ".modal-backdrop, .overlay, [class*='backdrop']")
+                for overlay in overlays:
+                    if overlay.is_displayed():
+                        try:
+                            overlay.click()
+                            time.sleep(0.3)
+                            dismissed_count += 1
+                            break
+                        except:
+                            pass
+            except:
+                pass
+            
+            try:
+                from selenium.webdriver.common.keys import Keys
+                self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                time.sleep(0.2)
+            except:
+                pass
+            
+            return {"success": True, "dismissed_count": dismissed_count}
+            
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error, "dismissed_count": 0}
+    
+    def handle_overlay_dismiss(self, overlay_selector: str) -> Dict:
+        """Dismiss specific overlay/modal"""
+        try:
+            overlay = self.driver.find_element(By.CSS_SELECTOR, overlay_selector)
+            if overlay.is_displayed():
+                close_btn = overlay.find_element(By.CSS_SELECTOR, ".close, [aria-label='Close'], button")
+                close_btn.click()
+                time.sleep(0.3)
+                return {"success": True}
+            return {"success": False, "error": "Overlay not visible"}
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error}
+    
+    # ========================================================================
+    # ADVANCED INTERACTIONS
+    # ========================================================================
+    
+    def handle_hover(self, selector: str) -> Dict:
+        """Hover over element"""
+        try:
+            element = self._find_element(selector)
+            if not element:
+                return {"success": False, "error": f"Element not found: {selector}"}
+            
+            ActionChains(self.driver).move_to_element(element).perform()
+            time.sleep(0.3)
+            return {"success": True}
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error}
+    
+    def handle_scroll(self, direction: str = "down", amount: int = 500) -> Dict:
+        """Scroll page"""
+        try:
+            if direction == "down":
+                self.driver.execute_script(f"window.scrollBy(0, {amount})")
+            elif direction == "up":
+                self.driver.execute_script(f"window.scrollBy(0, -{amount})")
+            time.sleep(0.5)
+            return {"success": True, "direction": direction, "amount": amount}
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error}
+    
+    def select_by_visible_text(self, selector: str, text: str) -> Dict:
+        """Select dropdown option by visible text"""
+        try:
+            element = self._find_element(selector)
+            if not element:
+                return {"success": False, "error": f"Element not found: {selector}"}
+            
+            Select(element).select_by_visible_text(text)
+            return {"success": True, "selected": text}
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error}
+    
+    # ========================================================================
+    # NAVIGATION & WINDOW MANAGEMENT
+    # ========================================================================
+    
+    def go_back(self) -> Dict:
+        """Navigate back"""
+        try:
+            self.driver.back()
+            time.sleep(0.5)
+            return {"success": True}
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error}
+    
+    def get_window_handles(self) -> Dict:
+        """Get all window handles"""
+        try:
+            handles = self.driver.window_handles
+            return {"success": True, "handles": handles, "count": len(handles)}
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error, "handles": [], "count": 0}
+    
+    def switch_window(self, handle: str) -> Dict:
+        """Switch to specific window"""
+        try:
+            self.driver.switch_to.window(handle)
+            time.sleep(0.5)
+            return {"success": True, "current_url": self.driver.current_url}
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error}
+    
+    def close_current_window(self) -> Dict:
+        """Close current window"""
+        try:
+            self.driver.close()
+            time.sleep(0.3)
+            return {"success": True}
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error}
+    
+    def get_main_window_handle(self) -> Dict:
+        """Get the first (main) window handle"""
+        try:
+            handles = self.driver.window_handles
+            if handles:
+                return {"success": True, "handle": handles[0]}
+            return {"success": False, "error": "No windows open"}
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error}
+    
+    def execute_script(self, script: str, *args) -> Dict:
+        """
+        Execute JavaScript code
+        
+        Args:
+            script: JavaScript code to execute
+            *args: Arguments to pass to the script
+            
+        Returns:
+            Dict with success and result
+        """
+        try:
+            result = self.driver.execute_script(script, *args)
+            return {"success": True, "result": result}
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error, "result": None}

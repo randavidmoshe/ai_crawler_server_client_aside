@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-sys.path.append('../ai_create_form_page_json')
+sys.path.append('../ai_create_form_page_json_old')
 
 """
 Test Script: Run Form Mapper Against Complex Test Form
