@@ -29,6 +29,7 @@ class AIHelper:
             )
         
         self.client = Anthropic(api_key=self.api_key)
+        self.model = MODEL  # Store model for vision API calls
         
         # Cost tracking
         self.total_input_tokens = 0
@@ -274,12 +275,19 @@ Return the JSON array with ALL fields and obstacles."""
         return {"type": "assign_random_text", "size": "50"}
     
     def _simplify_html(self, html: str) -> str:
-        """Simplify HTML by removing scripts, styles"""
+        """Simplify HTML while preserving structure for better AI analysis"""
+        # Remove scripts and styles
         html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
         html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
         html = re.sub(r'<!--.*?-->', '', html, flags=re.DOTALL)
+        
+        # Remove inline styles but keep structure
         html = re.sub(r' style="[^"]*"', '', html)
-        html = re.sub(r'\s+', ' ', html)
+        
+        # Normalize whitespace but preserve line breaks for readability
+        html = re.sub(r'[ \t]+', ' ', html)  # Multiple spaces/tabs to single space
+        html = re.sub(r'\n\s*\n', '\n', html)  # Multiple newlines to single
+        
         return html.strip()
     
     def _extract_json_from_response(self, response: str) -> List[Dict[str, Any]]:
@@ -327,3 +335,185 @@ Return the JSON array with ALL fields and obstacles."""
                 return "John Doe"
         else:
             return "Test Value"
+    
+    def extract_parent_reference_fields(self, form_name: str, page_html: str, screenshot_base64: str = None) -> List[Dict[str, Any]]:
+        """
+        Extract parent reference fields from form page.
+        These are dropdowns or autocomplete fields where user selects values from OTHER form pages.
+        
+        Args:
+            form_name: Name of the form (to help locate it in HTML)
+            page_html: Full page HTML
+            screenshot_base64: Base64-encoded screenshot of the form for vision analysis
+            
+        Returns:
+            List of parent reference fields with name, type, and label
+        """
+        print(f"[AIHelper] Extracting parent reference fields for form: {form_name}")
+        
+        simplified_html = self._simplify_html(page_html)
+        
+        # DEBUG: Save HTML to file for inspection
+        debug_html_path = f"/tmp/ai_debug_{form_name}_html.txt"
+        try:
+            with open(debug_html_path, "w", encoding="utf-8") as f:
+                f.write(simplified_html[:30000])
+            print(f"[AIHelper] 🔍 DEBUG: Saved HTML to {debug_html_path}")
+        except Exception as e:
+            print(f"[AIHelper] ⚠️  Could not save debug HTML: {e}")
+        
+        system_prompt = """You are an expert at analyzing web forms to identify parent reference fields.
+
+Parent reference fields are fields that reference OTHER form pages/entities (like Employees, Events, Currencies, Departments, Projects, etc.).
+
+CRITICAL: Look for BOTH traditional HTML elements AND modern framework components:
+
+1. DROPDOWN/SELECT fields:
+   - Traditional: <select name="employee_id">...</select>
+   - Vue.js/React: <div class="oxd-select-wrapper">...<div class="oxd-select-text-input">-- Select --</div>...
+   - Angular: <mat-select>...</mat-select>
+   - ANY element with classes like: select-wrapper, dropdown, select-text, select-input
+
+2. AUTOCOMPLETE/HINT fields:
+   - Traditional: <input type="text" placeholder="Type for hints..." list="employees">
+   - Vue.js/React: <div class="oxd-autocomplete-wrapper">...<input placeholder="Type for hints...">...
+   - Angular: <input matAutocomplete>
+   - ANY element with classes like: autocomplete-wrapper, autocomplete-text-input, combobox, type-ahead
+   - Inputs with placeholders containing: "Type for hints", "Search", "Start typing", etc.
+
+3. Field LABELS that suggest entity selection (look for labels NEAR the fields):
+   - "Employee Name", "Employee", "Staff Member"
+   - "Event", "Event Type", "Event Name"
+   - "Currency", "Currency Type"
+   - "Project", "Department", "Location", "Supervisor", "Manager", "Customer", "Vendor"
+   - ANY label that suggests selecting from a list of entities
+
+IMPORTANT: The field structure might be deeply nested in divs with Vue.js classes (data-v-*). The label and input may be in separate divs. Look for the PATTERN:
+- A label element with entity-like text
+- Followed by a select-wrapper OR autocomplete-wrapper div
+- This indicates a parent reference field
+
+Return ONLY a valid JSON array:
+[
+  {
+    "field_name": "best guess at logical field name (from label or nearby text)",
+    "field_type": "dropdown|autocomplete",
+    "field_label": "exact text from the visible label"
+  }
+]
+
+If no parent reference fields found, return empty array: []"""
+
+        prompt = f"""Analyze this form page and extract ALL parent reference fields (dropdowns and autocomplete fields).
+
+Form Name: {form_name}
+
+HTML (first 30000 chars):
+{simplified_html[:30000]}
+
+INSTRUCTIONS:
+1. Look for LABELS with entity-like text: "Employee Name", "Event", "Currency", "Project", "Department", etc.
+2. Near each label, look for EITHER:
+   - A <div class="oxd-select-wrapper"> (this is a DROPDOWN)
+   - A <div class="oxd-autocomplete-wrapper"> (this is an AUTOCOMPLETE field)
+   - Traditional <select> elements
+   - Traditional <input> with autocomplete attributes
+
+3. For EACH field you find, extract:
+   - field_name: derive from the label text (e.g., "Employee Name" → "employee_name", "Event" → "event")
+   - field_type: "dropdown" or "autocomplete"
+   - field_label: exact label text (e.g., "Employee Name", "Event", "Currency")
+
+EXAMPLE from OrangeHRM form:
+```html
+<label class="oxd-label">Employee Name</label>
+<div class="oxd-autocomplete-wrapper">
+  <input placeholder="Type for hints...">
+</div>
+```
+Should return: {{"field_name": "employee_name", "field_type": "autocomplete", "field_label": "Employee Name"}}
+
+```html
+<label class="oxd-label">Event</label>
+<div class="oxd-select-wrapper">
+  <div class="oxd-select-text-input">-- Select --</div>
+</div>
+```
+Should return: {{"field_name": "event", "field_type": "dropdown", "field_label": "Event"}}
+
+Return the complete JSON array of ALL parent reference fields you find."""
+
+        # Build content array for API call
+        content = []
+        
+        # Add screenshot first if available (AI sees image first)
+        if screenshot_base64:
+            print(f"[AIHelper] 📸 Including screenshot in vision analysis")
+            content.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": screenshot_base64
+                }
+            })
+            # Add instruction to look at the screenshot
+            content.append({
+                "type": "text",
+                "text": f"""FIRST: Look at the screenshot of the form page above.
+
+{prompt}
+
+IMPORTANT: Use the screenshot to visually identify the form fields. The HTML is provided for reference, but the screenshot shows the ACTUAL rendered form."""
+            })
+        else:
+            # No screenshot, use text only
+            content.append({
+                "type": "text",
+                "text": prompt
+            })
+        
+        # Make API call with vision
+        try:
+            messages = [{"role": "user", "content": content}]
+            
+            kwargs = {
+                "model": self.model,
+                "max_tokens": MAX_TOKENS,
+                "temperature": TEMPERATURE,
+                "messages": messages,
+                "system": system_prompt
+            }
+            
+            api_response = self.client.messages.create(**kwargs)
+            
+            # Track token usage
+            self.api_call_count += 1
+            self.total_input_tokens += api_response.usage.input_tokens
+            self.total_output_tokens += api_response.usage.output_tokens
+            
+            response = api_response.content[0].text
+            
+        except Exception as e:
+            print(f"[AIHelper] Error calling Claude API with vision: {e}")
+            response = "[]"
+        
+        # DEBUG: Print AI response to console
+        print(f"[AIHelper] 🔍 AI Response (first 500 chars): {response[:500]}")
+        
+        # DEBUG: Save AI response
+        debug_response_path = f"/tmp/ai_debug_{form_name}_response.txt"
+        try:
+            with open(debug_response_path, "w", encoding="utf-8") as f:
+                f.write(response)
+            print(f"[AIHelper] 🔍 DEBUG: Saved AI response to {debug_response_path}")
+        except Exception as e:
+            print(f"[AIHelper] ⚠️  Could not save debug response: {e}")
+        
+        fields = self._extract_json_from_response(response)
+        
+        # DEBUG: Print parsed fields
+        print(f"[AIHelper] 🔍 Parsed fields: {fields}")
+        
+        print(f"[AIHelper] Found {len(fields)} parent reference fields")
+        return fields

@@ -436,7 +436,8 @@ class AgentSelenium:
             Dict with dom_html, dom_hash, url
         """
         try:
-            dom_html = self.driver.page_source
+            #dom_html = self.driver.page_source
+            dom_html = self.driver.execute_script("return document.documentElement.outerHTML")
             dom_hash = hashlib.md5(dom_html.encode('utf-8')).hexdigest()
             
             return {
@@ -455,7 +456,8 @@ class AgentSelenium:
         Reduces DOM size by 70-80%
         """
         try:
-            soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+            #soup = BeautifulSoup(self.driver.page_source, 'html.parser')
+            soup = BeautifulSoup(self.driver.execute_script("return document.documentElement.outerHTML"), 'html.parser')
             result = []
             
             # Extract forms

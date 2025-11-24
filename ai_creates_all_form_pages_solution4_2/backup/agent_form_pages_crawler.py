@@ -13,11 +13,10 @@ from selenium.common.exceptions import StaleElementReferenceException, NoSuchEle
 from selenium.webdriver.support.wait import WebDriverWait
 
 from agent_form_pages_utils import (
-    OUT_MASTER_PAGES, OUT_DIR_HIER, get_project_base_dir, create_form_page_folder,
+    get_project_base_dir, create_form_page_folder,
     wait_dom_ready, safe_click, page_has_form_fields, sanitize_filename, visible_text,
     dismiss_all_popups_and_overlays,
 )
-from server_form_pages_ai_helper import AIHelper
 
 import logging
 
@@ -39,9 +38,7 @@ class FormPagesCrawler:
         project_name: str = "default_project",
         max_pages: int = 20,
         max_depth: int = 5,
-        use_ai: bool = True,
         target_form_pages: List[str] = None,
-        api_key: str = None,
         discovery_only: bool = False,
         slow_mode: bool = False,
         server=None
@@ -57,10 +54,8 @@ class FormPagesCrawler:
         self.max_pages = max_pages
         self.max_depth = max_depth
         self.project_name = project_name
-        self.use_ai = use_ai
         self.target_form_pages = target_form_pages or []
         self.discovery_only = discovery_only
-        self.master: List[Dict[str, Any]] = []
         
         # Track visited states
         self.visited_urls: Set[str] = set()
@@ -131,20 +126,9 @@ class FormPagesCrawler:
         
         self.base_domain = urlparse(self.start_url).netloc
         
-        if self.use_ai:
-            try:
-                self.ai_helper = AIHelper(api_key=api_key)
-                print("[Crawler] 🤖 AI-powered recursive exploration enabled")
-            except Exception as e:
-                print(f"[Crawler] Warning: Could not initialize AI: {e}")
-                self.use_ai = False
-                self.ai_helper = None
-        else:
-            self.ai_helper = None
-            print("[Crawler] Using keyword-based exploration")
+        print("[Crawler] 🤖 AI-powered recursive exploration enabled (via Server)")
         
         self.project_base = get_project_base_dir(project_name)
-        self.master_pages_path = self.project_base / "form_pages.json"
         self.hierarchy_path = self.project_base / "form_hierarchy.json"
         relationships_path = self.project_base / "form_relationships.json"
         self.existing_form_urls = set()
@@ -395,50 +379,6 @@ class FormPagesCrawler:
 
         return dropdown_items
 
-    def _navigate_efficiently(self, path: List[dict]) -> bool:
-        """
-        Navigate using optimized algorithm: always try to jump to the end,
-        fall back to earlier steps only when needed.
-        Does NOT modify the path - only uses it for navigation.
-        """
-        if not path:
-            return True
-
-        clicked_up_to = -1  # Index of last successfully clicked element (-1 = at dashboard)
-        target = len(path) - 1  # Index of final element we want to reach
-
-        max_attempts = len(path) * 2  # Safety limit to prevent infinite loops
-        attempts = 0
-
-        while clicked_up_to < target and attempts < max_attempts:
-            attempts += 1
-            found = False
-
-            # Try to click from target backwards to (clicked_up_to + 1)
-            for i in range(target, clicked_up_to, -1):
-                step = path[i]
-                element = self._find_element_by_selector_or_text(
-                    step.get('selector', ''),
-                    step.get('text', '')
-                )
-
-                if element and element.is_displayed():
-                    try:
-                        if safe_click(self.driver, element):
-                            time.sleep(0.3)
-                            clicked_up_to = i
-                            found = True
-                            break
-                    except:
-                        continue
-
-            if not found:
-                # Couldn't click any element - navigation failed
-                return False
-
-        # Check if we reached the target
-        return clicked_up_to == target
-
     def _matches_target(self, form_name: str) -> bool:
         """Check if form matches target filter"""
         if not self.target_form_pages:
@@ -489,308 +429,6 @@ class FormPagesCrawler:
             return False
         except:
             return True
-
-    def _extract_form_name_from_page(self) -> str:
-        """Extract form name from current page"""
-        try:
-            title = self.driver.title
-            if title and len(title) < 100:
-                return title
-            for tag in ['h1', 'h2']:
-                headers = self.driver.find_elements(By.TAG_NAME, tag)
-                if headers and headers[0].is_displayed():
-                    text = visible_text(headers[0])
-                    if text and len(text) < 100:
-                        return text
-            return "Unknown Form"
-        except:
-            return "Unknown Form"
-
-    def _extract_form_name_from_context(self, url: str, button_text: str) -> str:
-        """Extract entity name from form page - single word or underscore format"""
-
-        action_words = [
-            'add', 'create', 'new', 'edit', 'update', 'register',
-            'view', 'show', 'display', 'define', 'verify', 'configure',
-            'manage', 'setup', 'set', 'assign', 'apply', 'save', 'insert',
-            'open', 'start', 'begin', 'launch', 'modify', 'change', 'revise',
-            'amend'
-        ]
-
-        try:
-            # PRIORITY 1: Extract from URL (most reliable!)
-            import re
-            path_parts = [p for p in url.split('/') if p and not p.isdigit()]
-
-            # Get the LAST meaningful part
-            if path_parts:
-                last_part = path_parts[-1]
-
-                # Remove action prefixes from camelCase
-                for action in action_words:
-                    last_part = re.sub(f'^{action}', '', last_part, flags=re.IGNORECASE)
-
-                # Convert camelCase to words
-                words = re.findall('[A-Z][a-z]*|[a-z]+', last_part)
-
-                # Remove any remaining action words
-                cleaned_words = [w for w in words if w.lower() not in action_words]
-
-                if cleaned_words:
-                    if len(cleaned_words) == 1:
-                        return cleaned_words[0].capitalize()
-                    else:
-                        return '_'.join(w.capitalize() for w in cleaned_words)
-
-            # FALLBACK 2: Try headers
-            for tag in ['h1', 'h2', 'h3']:
-                headers = self.driver.find_elements(By.TAG_NAME, tag)
-                for header in headers:
-                    if header.is_displayed():
-                        text = visible_text(header).strip()
-                        if text and len(text) < 100:
-                            entity = text.lower()
-                            for action in action_words:
-                                entity = entity.replace(f'{action} ', '').replace(f' {action}', '').strip()
-
-                            if entity:
-                                words = entity.split()
-                                if len(words) == 1:
-                                    return words[0].capitalize()
-                                elif len(words) > 1:
-                                    return '_'.join(w.capitalize() for w in words)
-
-            # FALLBACK 3: Try page title
-            title = self.driver.title
-            if title and title != "OrangeHRM":
-                entity = title.replace("OrangeHRM", "").strip().lower()
-                for action in action_words:
-                    entity = entity.replace(f'{action} ', '').replace(f' {action}', '').strip()
-
-                if entity:
-                    words = entity.split()
-                    if len(words) == 1:
-                        return words[0].capitalize()
-                    elif len(words) > 1:
-                        return '_'.join(w.capitalize() for w in words)
-
-            # FALLBACK 4: Clean button text
-            entity = button_text.lower()
-            for action in action_words:
-                entity = entity.replace(action, '').strip()
-
-            if entity:
-                words = entity.split()
-                if words:
-                    return '_'.join(w.capitalize() for w in words) if len(words) > 1 else words[0].capitalize()
-
-            return button_text
-
-        except:
-            return button_text
-
-    def _is_constrained_field(self, element) -> bool:
-        """Check if field has constrained values (dropdown, autocomplete) vs free text"""
-        tag = element.tag_name.lower()
-
-        if tag == 'select':
-            return True
-
-        if tag == 'input':
-            if element.get_attribute('list'):
-                return True
-
-            role = element.get_attribute('role') or ''
-            if 'combobox' in role.lower():
-                return True
-
-            if element.get_attribute('aria-autocomplete'):
-                return True
-
-            # CHECK CLASS NAME for autocomplete patterns  ← ADD THIS
-            class_name = element.get_attribute('class') or ''
-            if any(keyword in class_name.lower() for keyword in ['autocomplete', 'typeahead', 'suggest', 'hint']):
-                return True
-
-            if element.get_attribute('readonly'):
-                return True
-
-        return False
-
-    def _extract_id_fields_from_dom(self) -> List[str]:
-        """Extract ID fields by analyzing HTML attributes AND labels"""
-        print(f"        [DEBUG ID EXTRACTION] ⭐ Starting field extraction...")
-        id_fields = []
-
-        try:
-            # Entity keywords to look for
-            entity_keywords = [
-                'user', 'employee', 'customer', 'project', 'vacancy',
-                'candidate', 'supervisor', 'manager', 'reviewer',
-                'location', 'department', 'job', 'position',
-                'nationality', 'skill', 'category', 'status',
-                'performance', 'tracker', 'timesheet', 'leave',
-                'attendance', 'shift', 'work', 'termination', 'role'
-            ]
-
-            # FIRST: Check labels (most reliable)
-            labels = self.driver.find_elements(By.TAG_NAME, 'label')
-            print(f"        [DEBUG ID EXTRACTION] Found {len(labels)} label elements")
-            for label in labels:
-                if not label.is_displayed():
-                    continue
-
-                label_text = (label.text or "").lower().strip()
-                if not label_text:
-                    continue
-
-                # Check if label contains entity keywords
-                for keyword in entity_keywords:
-                    if keyword in label_text:
-                        # Found entity reference in label
-                        if keyword not in id_fields:
-                            id_fields.append(keyword)
-                            print(f"        [ID Field] Found from label: '{label.text}' → {keyword}")
-                        break
-
-            # SECOND: Check form elements
-            form_elements = self.driver.find_elements(By.CSS_SELECTOR,
-                                                      "input, select, textarea")
-            
-            print(f"        [DEBUG ID EXTRACTION] Found {len(form_elements)} form elements (input/select/textarea)")
-
-            # NEW: Track top dropdown/autocomplete fields (potential foreign keys)
-            top_dropdowns = []
-            field_count = 0
-            visible_count = 0
-
-            for element in form_elements:
-                if not element.is_displayed():
-                    continue
-                
-                visible_count += 1
-                field_count += 1
-                
-                # Get field details for debugging
-                element_type = element.get_attribute("type") or element.tag_name.lower()
-                field_name = (element.get_attribute("name") or 
-                             element.get_attribute("id") or "").lower()
-                
-                print(f"        [DEBUG ID EXTRACTION] Field #{field_count}: type={element_type}, name={field_name}")
-                
-                # NEW: Capture top 4 dropdown/autocomplete fields
-                if field_count <= 4:
-                    # Check if it's a dropdown or has autocomplete
-                    is_dropdown = element.tag_name.lower() == 'select'
-                    has_autocomplete = element.get_attribute("autocomplete") or element.get_attribute("list")
-                    
-                    print(f"        [DEBUG ID EXTRACTION]   → is_dropdown={is_dropdown}, has_autocomplete={has_autocomplete}")
-                    
-                    if (is_dropdown or has_autocomplete) and field_name:
-                        if field_name not in top_dropdowns:
-                            top_dropdowns.append(field_name)
-                            print(f"        [Potential FK] Top field #{field_count}: {field_name} ({'dropdown' if is_dropdown else 'autocomplete'})")
-
-                # Get various attributes
-                field_name = (element.get_attribute("name") or
-                              element.get_attribute("id") or "").lower()
-                field_class = (element.get_attribute("class") or "").lower()
-                placeholder = (element.get_attribute("placeholder") or "").lower()
-
-                # Check data-* attributes
-                for attr_name in ['data-entity', 'data-parent', 'data-source',
-                                  'data-reference', 'data-foreign-key', 'data-model']:
-                    attr_value = element.get_attribute(attr_name)
-                    if attr_value:
-                        attr_value = attr_value.lower()
-                        if attr_value not in id_fields:
-                            id_fields.append(attr_value)
-                            print(f"        [ID Field] Found from {attr_name}: {attr_value}")
-
-                if not field_name or len(field_name) < 2:
-                    continue
-
-                # Check if field name contains "id"
-                if "id" in field_name and field_name not in id_fields:
-                    if self._is_constrained_field(element):
-                        id_fields.append(field_name)
-                        print(f"        [ID Field] Found: {field_name} (constrained)")
-                    else:
-                        print(f"        [ID Field] Skipped: {field_name} (free text)")
-
-                # Check if field name, class, or placeholder contains entity keywords
-                for keyword in entity_keywords:
-                    if (keyword in field_name or keyword in field_class or keyword in placeholder):
-                        if keyword not in id_fields and self._is_constrained_field(element):
-                            id_fields.append(keyword)
-                            print(f"        [ID Field] Entity reference: {keyword} (constrained)")
-                        break
-
-                # Check dropdown option values
-                if element.tag_name.lower() == 'select':
-                    try:
-                        options = element.find_elements(By.TAG_NAME, 'option')
-                        for option in options[:5]:
-                            value = (option.get_attribute('value') or "").lower()
-                            for keyword in entity_keywords:
-                                if keyword in value:
-                                    entity_name = f"{keyword}_id"
-                                    if entity_name not in id_fields:
-                                        id_fields.append(entity_name)
-                                        print(f"        [ID Field] Entity from dropdown: {entity_name}")
-                                    break
-                    except:
-                        pass
-
-            print(f"        [DEBUG ID EXTRACTION] Visible fields: {visible_count}, Top dropdowns found: {len(top_dropdowns)}")
-            
-            # NEW: Add top dropdowns to id_fields (they're potential foreign keys)
-            for dropdown in top_dropdowns:
-                if dropdown not in id_fields:
-                    id_fields.append(dropdown)
-                    print(f"        [ID Field] Added top dropdown: {dropdown}")
-
-            print(f"        [DEBUG ID EXTRACTION] ✅ Extraction complete. Total fields: {len(id_fields)}")
-            print(f"        [DEBUG ID EXTRACTION] Final list: {id_fields}")
-
-        except Exception as e:
-            print(f"        [ID Field] Error extracting: {e}")
-            import traceback
-            traceback.print_exc()
-
-        return id_fields
-
-    def _update_relationships_json(self, form_name: str, form_url: str, id_fields: List[str]):
-        """Update form_relationships.json immediately when form is discovered"""
-        relationships_path = self.project_base / "form_relationships.json"
-
-        # Load existing JSON or create new
-        if relationships_path.exists():
-            with open(relationships_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        else:
-            data = {
-                "project_name": self.project_name,
-                "total_forms": 0,
-                "forms": {}
-            }
-
-        # Add/update this form's info
-        data["forms"][form_name] = {
-            "url": form_url,
-            "id_fields": id_fields,
-            "parents": [],
-            "children": []
-        }
-
-        data["total_forms"] = len(data["forms"])
-
-        # Save immediately
-        with open(relationships_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-
-        print(f"        [Relationships] Updated JSON with {form_name}")
-
 
     def _manage_windows(self, current_path: List[Dict] = None) -> List[Dict[str, Any]]:
         """Check tabs for forms, then close them"""
@@ -951,8 +589,6 @@ class FormPagesCrawler:
 
                         print(f"{indent}    ✅ Form #{len(all_forms)}: {form['form_name']} (new tab)")
                         if len(all_forms) >= self.max_pages:
-                            self.master = all_forms[:]
-                            self._save_forms_list(all_forms)
                             return all_forms
             
             if state.depth > self.max_depth:
@@ -1033,21 +669,14 @@ class FormPagesCrawler:
                     if not any(f["form_url"] == form_url for f in all_forms):
                         print(f"{indent}✅ Direct form page: {form_name}")
 
-                        # ✅ EXTRACT ID FIELDS FROM DOM
-                        id_fields = self._extract_id_fields_from_dom()
-
                         all_forms.append({
                             "form_name": form_name,
                             "form_url": form_url,
                             "navigation_steps": self._convert_path_to_steps(state.path),
                             "navigation_depth": state.depth,
                             "immediate_first_page": state.depth == 0,
-                            "direct_form_page": True,
-                            "id_fields": id_fields  # ✅ ADD THIS LINE
+                            "direct_form_page": True
                         })
-
-                        # ✅ UPDATE JSON IMMEDIATELY
-                        self._update_relationships_json(form_name, form_url, id_fields)
 
                         # NEW: Create folder + JSONs immediately
                         if self.discovery_only:
@@ -1055,8 +684,6 @@ class FormPagesCrawler:
 
 
                         if len(all_forms) >= self.max_pages:
-                            self.master = all_forms[:]
-                            self._save_forms_list(all_forms)
                             return all_forms
 
                     # Already on a form page - skip further exploration of this page
@@ -1255,9 +882,6 @@ class FormPagesCrawler:
 
                             print(f"{indent}    ✅ Form #{len(all_forms) + 1}: {form_name}")
 
-                            # ✅ EXTRACT ID FIELDS FROM DOM
-                            id_fields = self._extract_id_fields_from_dom()
-
                             nav_steps = self._convert_path_to_steps(state.path)
                             nav_steps.append({
                                 "action": "click",
@@ -1272,20 +896,14 @@ class FormPagesCrawler:
                                 "form_url": form_url,
                                 "navigation_steps": nav_steps,
                                 "navigation_depth": state.depth + 1,
-                                "immediate_first_page": False,
-                                "id_fields": id_fields  # ✅ ADD THIS LINE
+                                "immediate_first_page": False
                             })
-
-                            # ✅ UPDATE JSON IMMEDIATELY
-                            self._update_relationships_json(form_name, form_url, id_fields)
 
                             if self.discovery_only:
                                 self._create_minimal_json_for_form(all_forms[-1])
 
                             if len(all_forms) >= self.max_pages:
                                 print(f"\n{indent}[Explore] Reached max pages ({self.max_pages}), stopping")
-                                self.master = all_forms[:]
-                                self._save_forms_list(all_forms)
                                 return all_forms
                     else:
                         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -1371,13 +989,6 @@ class FormPagesCrawler:
         print(f"\n[Explore] Exploration complete. Explored {explored_count} states.")
         print(f"[Explore] Found {len(all_forms)} form pages\n")
         
-        self.master = all_forms[:]
-        
-        if self.server:
-            self.server.save_forms_list(self.project_name, all_forms)
-        else:
-            self._save_forms_list(all_forms)
-        
         return all_forms
 
     def _simple_form_name_cleanup(self, url: str, button_text: str) -> str:
@@ -1452,78 +1063,18 @@ class FormPagesCrawler:
             context_data['form_labels'] = labels if labels else []
 
             # Call server to extract form name
-            if self.server:
-                return self.server.extract_form_name(context_data)
-            else:
-                # Fallback: direct API call if no server
-                context_str = f"""URL: {context_data['url']}
-    URL Path: {context_data['url_path']}
-    Button Clicked: {context_data['button_clicked']}
-    Page Title: {context_data['page_title']}
-    Headers: {', '.join(context_data['headers']) if context_data['headers'] else 'None'}
-    Form Labels: {', '.join(context_data['form_labels']) if context_data['form_labels'] else 'None'}"""
-
-                prompt = f"""You are analyzing a form page to determine its proper name for a test automation framework.
-
-            Context about the page:
-            {context_str}
-
-            Based on this context, what is the BEST name for this form?
-
-            Rules:
-            1. Focus on the ENTITY (thing) being managed, NOT the action
-               - ✅ Good: "Employee", "Leave_Type", "Performance_Review"
-               - ❌ Bad: "Employee_Search", "Leave_Type_List", "Search_Performance"
-
-            2. Remove action/operation words:
-               - Remove: search, view, list, add, create, edit, update, delete, manage, management, configure, configuration, define, tracker, log
-               - Exception: Keep action words ONLY if they're part of the entity name itself (e.g., "Leave_Entitlement")
-
-            3. Simplify compound names:
-               - "performance_tracker_log" → "Performance"
-               - "candidate_search" → "Candidate"  
-               - "system_users_admin" → "System_User"
-               - "leave_type_list" → "Leave_Type"
-
-            4. Use Title_Case_With_Underscores (e.g., "Performance_Review", "Leave_Type")
-
-            5. Use singular or plural based on context:
-               - For forms managing ONE item: use singular (e.g., "Employee", "Project")
-               - For forms managing LISTS/MULTIPLE: keep plural if it's the entity name (e.g., "Leave_Entitlements" if that's the actual feature name)
-
-            6. Be concise: 1-3 words maximum
-
-            7. Remove technical suffixes: .htm, .php, _page, _form, etc.
-
-            Examples:
-            - URL: /employee/search → Name: "Employee"
-            - URL: /performance/tracker/log → Name: "Performance"
-            - URL: /leave/types/list → Name: "Leave_Type"
-            - URL: /candidate/view → Name: "Candidate"
-
-            Respond with ONLY the form name, nothing else.
-
-            Form name:"""
-
-                print(f"    [AI Extract] Analyzing page context...")
-                print(f"    [AI Extract]   - URL: {context_data['url_path']}")
-                print(f"    [AI Extract]   - Title: {context_data['page_title']}")
-                print(f"    [AI Extract]   - Headers: {context_data['headers']}")
-                print(f"    [AI Extract]   - Labels: {context_data['form_labels']}")
-
-                response = self.ai_helper.client.messages.create(
-                    model="claude-3-5-haiku-20241022",
-                    max_tokens=30,
-                    temperature=0,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-
-                form_name = response.content[0].text.strip()
-                form_name = form_name.lower()
-                form_name = form_name.strip('"\'` ')
-
-                print(f"    [AI Extract] ✅ Determined form name: '{form_name}'")
-                return form_name
+            # Get page HTML - use outerHTML to get fully rendered DOM (includes Vue.js/React content)
+            page_html = self.driver.execute_script("return document.documentElement.outerHTML")
+            
+            # Take screenshot of the form page for AI vision analysis
+            screenshot_base64 = None
+            try:
+                screenshot_base64 = self.driver.get_screenshot_as_base64()
+                print(f"[Agent] 📸 Captured screenshot for AI vision analysis")
+            except Exception as e:
+                print(f"[Agent] ⚠️ Could not capture screenshot: {e}")
+            
+            return self.server.extract_form_name(context_data, page_html, screenshot_base64)
 
         except Exception as e:
             print(f"    [AI Extract] ⚠️ Error: {e}")
@@ -1561,53 +1112,8 @@ class FormPagesCrawler:
                 return True
 
         # Not in whitelist - ask server AI for uncertain cases
-        if self.server:
-            print(f"    [AI] Button '{button_text}' → Not in whitelist, asking server AI...")
-            return self.server.is_submission_button(button_text)
-        else:
-            # Fallback: direct API call if no server
-            try:
-                print(f"    [AI] Button '{button_text}' → Not in whitelist, asking AI...")
-
-                prompt = f"""You are analyzing a button on a web page to determine if it's a form SUBMISSION button.
-
-            Button text: "{button_text}"
-            
-
-            CRITICAL: Distinguish between two types of buttons:
-
-            ✅ SUBMISSION BUTTONS (answer YES):
-            - Buttons that SUBMIT/SAVE data on the CURRENT form
-            - Examples: 'Submit', 'Save', 'Update', 'Confirm', 'Apply', 'Send'
-            - These buttons process data that's already entered in the form
-
-            ❌ NOT SUBMISSION BUTTONS (answer NO):
-            - Buttons that NAVIGATE to a NEW form page to create/add something
-            - Examples: 'Add', 'Create', 'New', 'Insert', 'Register'
-            - These buttons OPEN a form, they don't submit one
-            - Also: search buttons, filter buttons, navigation buttons, cancel buttons
-
-            Question: Does this button SUBMIT data on the current form, or does it OPEN a new form page?
-            If it opens a new form → answer 'no'
-            If it submits current form data → answer 'yes'
-
-            Answer ONLY 'yes' or 'no'."""
-                response = self.ai_helper.client.messages.create(
-                    model="claude-3-5-haiku-20241022",
-                    max_tokens=10,
-                    temperature=0,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-
-                answer = response.content[0].text.strip().upper()
-                is_submission = answer.startswith("YES")
-
-                print(f"    [AI] Button '{button_text}' → AI says {answer}")
-                return is_submission
-
-            except Exception as e:
-                print(f"    [AI] ⚠️  Error: {e}, defaulting to False")
-                return False
+        print(f"    [AI] Button '{button_text}' → Not in whitelist, asking server AI...")
+        return self.server.is_submission_button(button_text)
 
 
     def _wait_for_page_stable(self, timeout: float = None):
@@ -1627,12 +1133,6 @@ class FormPagesCrawler:
 
         # Small buffer for JS to finish
         time.sleep(0.2)
-
-    def _save_forms_list(self, forms: List[Dict[str, Any]]):
-        """Save master forms list"""
-        with open(self.master_pages_path, "w", encoding="utf-8") as f:
-            json.dump(forms, f, indent=2)
-        print(f"✅ Saved master form pages list: {self.master_pages_path}")
 
     def _is_likely_user_dropdown(self, clickable: Dict) -> bool:
         """
@@ -2296,11 +1796,6 @@ class FormPagesCrawler:
 
         return None
 
-    def _click_element(self, element, current_path: List[Dict] = None) -> bool:
-        """Safely click"""
-        success, _ = self._safe_click_with_protection(element, current_path)
-        return success
-
     def _get_selector_for_element(self, el) -> str:
         """Get CSS selector"""
         try:
@@ -2438,52 +1933,6 @@ class FormPagesCrawler:
 
         return steps
 
-    def _verify_form_path(self, form: Dict) -> Tuple[bool, int]:
-        """
-        Verify that the saved navigation path actually works.
-        Returns (success, failed_step_index)
-        """
-        print(f"  🔍 Verifying path to: {form['form_name']}")
-
-        # Go to dashboard
-        self.driver.get(self.start_url)
-        dismiss_all_popups_and_overlays(self.driver)
-        wait_dom_ready(self.driver)
-        time.sleep(1)
-
-        steps = form.get('navigation_steps', [])
-
-        for idx, step in enumerate(steps):
-            if step.get('action') == 'wait_for_load':
-                continue
-
-            selector = step.get('selector', '')
-            text = step.get('locator_text', '')
-
-            element = self._find_element_by_selector_or_text(selector, text)
-
-            if not element:
-                print(f"    ❌ Step {idx + 1} failed: Cannot find '{text}'")
-                return False, idx
-
-            if not safe_click(self.driver, element):
-                print(f"    ❌ Step {idx + 1} failed: Click failed on '{text}'")
-                return False, idx
-
-            time.sleep(0.8)
-            wait_dom_ready(self.driver)
-
-        # Check if we reached the correct URL
-        current_url = self.driver.current_url
-        expected_url = form.get('form_url', '')
-
-        if current_url == expected_url:
-            print(f"    ✅ Path verified successfully!")
-            return True, None
-        else:
-            print(f"    ❌ Wrong destination: {current_url}")
-            return False, len(steps) - 1
-
     def _fix_failing_step(self, form: Dict, failed_step_index: int) -> bool:
         """
         Try to fix a failing step by finding a better selector.
@@ -2617,6 +2066,15 @@ class FormPagesCrawler:
                     if current_url == expected_url:
                         print(f"    ✅ Path verified successfully!")
                         print(f"    ✅ Reached form page: {current_url}")
+                        
+                        # Call Server to update verification in form_relationships.json
+                        self.server.update_form_verification(
+                            project_name=self.project_name,
+                            form_name=form_name,
+                            navigation_steps=steps,
+                            verification_attempts=attempt
+                        )
+                        
                         return True
                     else:
                         print(f"    ❌ Wrong destination!")
@@ -2625,6 +2083,15 @@ class FormPagesCrawler:
                         # Check if URLs match ignoring trailing slash
                         if current_url.rstrip('/') == expected_url.rstrip('/'):
                             print(f"    ✅ URLs match (ignoring trailing slash)")
+                            
+                            # Call Server to update verification in form_relationships.json
+                            self.server.update_form_verification(
+                                project_name=self.project_name,
+                                form_name=form_name,
+                                navigation_steps=steps,
+                                verification_attempts=attempt
+                            )
+                            
                             return True
                         failed_step = len(steps) - 1
                         # Fall through to retry logic
@@ -2635,8 +2102,6 @@ class FormPagesCrawler:
 
                     if self._fix_failing_step(form, failed_step):
                         print(f"  ✅ Step {failed_step} fixed successfully")
-                        # Save the updated form
-                        self._update_form_json(form)
                         continue
                     else:
                         print(f"  ❌ Cannot fix step {failed_step}")
@@ -2647,151 +2112,8 @@ class FormPagesCrawler:
         print(f"  ⚠️  Verification failed after {max_attempts} attempts")
         return False
 
-    def _update_form_json(self, form: Dict):
-        """Update the JSON files with the corrected navigation path"""
-        form_name = form["form_name"]
-        form_slug = sanitize_filename(form_name)
-
-        from pathlib import Path
-        project_base = get_project_base_dir(self.project_name)
-        form_folder = project_base / form_slug
-
-        # Update main_setup.json
-        main_setup_path = form_folder / f"{form_slug}_main_setup.json"
-
-        if main_setup_path.exists():
-            with open(main_setup_path, "r", encoding="utf-8") as f:
-                main_setup = json.load(f)
-
-            # Rebuild gui_pre_create_actions with updated steps
-            is_modal = form.get("is_modal", False)
-            modal_trigger = form.get("modal_trigger", "")
-
-            gui_pre_create_actions = []
-            for step in form.get("navigation_steps", []):
-                action_entry = {
-                    "update_type": "",
-                    "update_ai_stages": [step],
-                    "action_description": step.get("description", ""),
-                    "update_css": "",
-                    "update_css_playwright": "",
-                    "webdriver_sleep_before_action": "",
-                    "playwright_sleep_before_action": "",
-                    "non_editable_condition": {"operator": "or"},
-                    "validate_non_editable": False
-                }
-                gui_pre_create_actions.append(action_entry)
-
-            main_setup['gui_pre_create_actions'] = gui_pre_create_actions
-
-            # Update system_values with modal info
-            if 'system_values' not in main_setup:
-                main_setup['system_values'] = []
-
-            # Remove old modal entries if they exist
-            main_setup['system_values'] = [sv for sv in main_setup['system_values']
-                                           if sv.get('name') not in ['is_modal', 'modal_trigger']]
-
-            # Add new modal entries
-            main_setup['system_values'].extend([
-                {"name": "is_modal", "value": is_modal},
-                {"name": "modal_trigger", "value": modal_trigger}
-            ])
-
-            with open(main_setup_path, "w", encoding="utf-8") as f:
-                json.dump(main_setup, f, indent=2)
-
-            print(f"    ✅ Updated: {main_setup_path.name}")
-
-    def _build_hierarchy(self, forms: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Build parent-child relationships from form_relationships.json"""
-
-        relationships_path = self.project_base / "form_relationships.json"
-
-        if not relationships_path.exists():
-            print("⚠️  No form_relationships.json found!")
-            return {}
-
-        print("\n" + "=" * 70)
-        print("🔗 BUILDING PARENT-CHILD RELATIONSHIPS")
-        print("=" * 70)
-
-        # Load the JSON (already has ID fields from discovery)
-        with open(relationships_path, "r", encoding="utf-8") as f:
-            hierarchy = json.load(f)
-
-        print(f"Analyzing {hierarchy['total_forms']} forms...\n")
-
-        relationships_found = 0
-
-        # Build parent-child relationships based on ID fields
-        for form_name, form_data in hierarchy["forms"].items():
-            id_fields = form_data.get("id_fields", [])
-
-            if not id_fields:
-                continue
-
-            for id_field in id_fields:
-                # Extract potential parent name from ID field
-                # e.g., "employee_id" -> "employee"
-                potential_parent_base = (id_field
-                                         .replace("_id", "")
-                                         .replace("id", "")
-                                         .replace("-", "")
-                                         .replace("_", "")
-                                         .strip()
-                                         .lower())
-
-                if not potential_parent_base:
-                    continue
-
-                # Find matching parent form
-                for parent_name in hierarchy["forms"].keys():
-                    if parent_name == form_name:
-                        continue
-
-                    parent_name_normalized = parent_name.replace("_", "").replace("-", "").lower()
-
-                    # Check if ID field matches parent form name
-                    if potential_parent_base in parent_name_normalized or parent_name_normalized in potential_parent_base:
-                        print(f"  🔗 {form_name} is child of {parent_name} (via {id_field})")
-
-                        relationships_found += 1
-
-                        # Add parent relationship
-                        if parent_name not in form_data["parents"]:
-                            form_data["parents"].append(parent_name)
-
-                        # Add child relationship
-                        if form_name not in hierarchy["forms"][parent_name]["children"]:
-                            hierarchy["forms"][parent_name]["children"].append(form_name)
-
-                        break  # Only match to one parent per ID field
-
-        # Mark which forms are roots (no parents)
-        for form_name, form_data in hierarchy["forms"].items():
-            form_data["is_root"] = len(form_data["parents"]) == 0
-
-        # Save updated JSON with relationships
-        with open(relationships_path, "w", encoding="utf-8") as f:
-            json.dump(hierarchy, f, indent=2)
-
-        print(f"\n✅ Found {relationships_found} parent-child relationships")
-        print(f"✅ Updated: {relationships_path}")
-        print("=" * 70 + "\n")
-
-        return hierarchy
-
     def crawl(self):
         """Main crawl"""
-        # ✅ PRINT AI BUDGET/COST INFO AT START
-        if self.use_ai and self.ai_helper:
-            print("\n" + "=" * 70)
-            print("💰 AI BUDGET INFO")
-            print("=" * 70)
-            self.ai_helper.print_cost_summary()
-            print("=" * 70 + "\n")
-
         all_forms = self._gather_all_form_pages()
 
         if not all_forms:
@@ -2805,7 +2127,7 @@ class FormPagesCrawler:
             return
 
         # Build hierarchy to establish parent-child relationships
-        hierarchy = self._build_hierarchy(all_forms)
+        hierarchy = self.server.build_hierarchy(self.project_name)
         ordered_names = hierarchy.get("ordered_forms") or [f["form_name"] for f in all_forms]
 
         # ✅ FIX: In discovery_only mode, all work is done - exit early!
@@ -2817,9 +2139,6 @@ class FormPagesCrawler:
             print(f"Forms: {ordered_names}")
             print("Next step: Run with discovery_only=False for field exploration")
             print("=" * 70 + "\n")
-
-            if self.use_ai and self.ai_helper:
-                self.ai_helper.print_cost_summary()
 
             return  # ← EXIT - Don't run the loop again!
 
@@ -2851,8 +2170,7 @@ class FormPagesCrawler:
             #     form_name=f["form_name"],
             #     start_url=f["form_url"],
             #     base_url=self.base_url,
-            #     project_name=self.project_name,
-            #     ai_helper=self.ai_helper if self.use_ai else None
+            #     project_name=self.project_name
             # )
             #
             # for step in f.get("navigation_steps", []):
@@ -2882,9 +2200,6 @@ class FormPagesCrawler:
         print("=" * 70)
         print(f"Fully explored {len(all_forms)} forms")
         print("=" * 70 + "\n")
-
-        if self.use_ai and self.ai_helper:
-            self.ai_helper.print_cost_summary()
 
     def _create_minimal_json_for_form(self, form: Dict[str, Any]):
         """Create folder and JSONs - calls server to do it"""

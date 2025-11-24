@@ -20,16 +20,6 @@ from selenium.common.exceptions import StaleElementReferenceException
 # ------------------------------------------------------------
 # Output locations
 # ------------------------------------------------------------
-OUT_DIR_FORMS = "../forms_json"
-OUT_DIR_ROUTES = "../form_routes"
-OUT_DIR_VERIF = "../form_verifications"
-OUT_DIR_NAV = "../form_navigation"
-OUT_DIR_UPDATES = "../form_updates"
-OUT_DIR_HIER = "../form_hierarchy"
-OUT_MASTER_PAGES = "form_pages.json"
-
-for d in [OUT_DIR_FORMS, OUT_DIR_ROUTES, OUT_DIR_VERIF, OUT_DIR_NAV, OUT_DIR_UPDATES, OUT_DIR_HIER]:
-    os.makedirs(d, exist_ok=True)
 
 # ------------------------------------------------------------
 # Heuristics and limits

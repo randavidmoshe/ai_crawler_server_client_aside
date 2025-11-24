@@ -250,91 +250,96 @@ class Agent:
         
         time.sleep(2)
     
-    def attempt_login(self, username: str, password: str) -> bool:
-        """Attempt automatic login"""
+    def attempt_login(self, username: str, password: str, project_name: str, server=None) -> bool:
+        """
+        Attempt automatic login using AI-generated steps from Server.
+        
+        Args:
+            username: Username to login with
+            password: Password to login with
+            project_name: Project name for storing login stages
+            server: Server instance for AI operations
+        """
         self.info_logger.info(f"[Agent] Attempting login as: {username}")
-        print(f"[Agent] Attempting login as: {username}")
+        print(f"[Agent] 🔐 Attempting login as: {username}")
         
         try:
-            # Find username field
-            username_field = None
-            username_selectors = [
-                'input[type="email"]',
-                'input[type="text"][name*="user"]',
-                'input[type="text"][name*="email"]',
-                'input[name="username"]',
-                'input[name="email"]'
-            ]
+            # Get current URL (login page)
+            login_url = self.driver.current_url
+            print(f"[Agent] 🔐 Login URL: {login_url}")
             
-            for selector in username_selectors:
-                try:
-                    elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
-                    for el in elements:
-                        if el.is_displayed():
-                            username_field = el
-                            break
-                    if username_field:
-                        break
-                except Exception:
-                    continue
+            # Capture DOM and screenshot for Server
+            page_html = self.driver.execute_script("return document.documentElement.outerHTML")
             
-            # Find password field
-            password_field = None
+            screenshot_base64 = None
             try:
-                elements = self.driver.find_elements(By.CSS_SELECTOR, 'input[type="password"]')
-                for el in elements:
-                    if el.is_displayed():
-                        password_field = el
-                        break
-            except Exception:
-                pass
+                screenshot_base64 = self.driver.get_screenshot_as_base64()
+                print(f"[Agent] 📸 Captured login page screenshot")
+            except Exception as e:
+                print(f"[Agent] ⚠️ Could not capture screenshot: {e}")
             
-            if username_field and password_field:
-                username_field.clear()
-                username_field.send_keys(username)
-                time.sleep(0.5)
-                
-                password_field.clear()
-                password_field.send_keys(password)
-                time.sleep(0.5)
-                
-                # Find submit button
-                submit_button = None
-                submit_selectors = [
-                    'button[type="submit"]',
-                    'input[type="submit"]',
-                    'button'
-                ]
-                
-                for selector in submit_selectors:
-                    try:
-                        elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
-                        for el in elements:
-                            if el.is_displayed():
-                                el_text = (el.text or "").lower()
-                                if "log" in el_text or "sign" in el_text or not el_text:
-                                    submit_button = el
-                                    break
-                        if submit_button:
-                            break
-                    except Exception:
-                        continue
-                
-                if submit_button:
-                    submit_button.click()
-                    time.sleep(2.0)
-                    wait_dom_ready(self.driver)
-                    print("[Agent] ✅ Login submitted")
-                    return True
-                else:
-                    print("[Agent] ⚠️ Could not find submit button")
-                    return False
-            else:
-                print("[Agent] ⚠️ No login fields detected")
+            # Call Server to get/create login steps
+            if not server:
+                print("[Agent] ⚠️ No server - cannot generate login steps")
                 return False
+            
+            login_steps = server.create_login_stages(
+                project_name=project_name,
+                login_url=login_url,
+                page_html=page_html,
+                screenshot_base64=screenshot_base64,
+                username=username,
+                password=password
+            )
+            
+            if not login_steps:
+                print("[Agent] ⚠️ No login steps received from Server")
+                return False
+            
+            print(f"[Agent] 🔐 Received {len(login_steps)} login steps from Server")
+            
+            # Execute login steps
+            for i, step in enumerate(login_steps, 1):
+                action = step.get("action", "")
+                selector = step.get("selector", "")
+                value = step.get("value", "")
+                
+                print(f"[Agent] 🔐 Step {i}: {action} on {selector}")
+                
+                # Find element
+                try:
+                    element = self.driver.find_element(By.CSS_SELECTOR, selector)
+                except Exception as e:
+                    print(f"[Agent] ❌ Could not find element: {selector} - {e}")
+                    return False
+                
+                if action == "fill":
+                    # Replace placeholders with actual values
+                    actual_value = value.replace("{{username}}", username).replace("{{password}}", password)
+                    element.clear()
+                    element.send_keys(actual_value)
+                    time.sleep(0.3)
+                    print(f"[Agent] ✅ Filled: {selector}")
+                    
+                elif action == "click":
+                    element.click()
+                    time.sleep(0.5)
+                    print(f"[Agent] ✅ Clicked: {selector}")
+                    
+                else:
+                    print(f"[Agent] ⚠️ Unknown action: {action}")
+            
+            # Wait for page to load after login
+            time.sleep(2.0)
+            wait_dom_ready(self.driver)
+            
+            print("[Agent] ✅ Login steps completed")
+            return True
                 
         except Exception as e:
             print(f"[Agent] ❌ Login error: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def run_crawler(
@@ -344,9 +349,7 @@ class Agent:
         username: str = None,
         password: str = None,
         logged_in: bool = True,
-        use_ai: bool = True,
         target_form_pages: Optional[List[str]] = None,
-        api_key: str = None,
         server=None,  # Server reference for AI callbacks
         max_pages: int = 20,
         max_depth: int = 4,
@@ -373,7 +376,7 @@ class Agent:
         
         # Handle login
         if username and password:
-            login_attempted = self.attempt_login(username, password)
+            login_attempted = self.attempt_login(username, password, project_name, server)
             if login_attempted:
                 print("[Agent] Login completed, waiting for dashboard...")
                 time.sleep(2.0)
@@ -388,7 +391,6 @@ class Agent:
         print(f"[Agent] Base URL: {base_url}")
         
         # Create crawler instance
-        # NOTE: Crawler will need to be updated to use server for AI calls
         crawler = FormPagesCrawler(
             self.driver,
             start_url=self.driver.current_url,
@@ -396,10 +398,8 @@ class Agent:
             project_name=project_name,
             max_pages=max_pages,
             max_depth=max_depth,
-            use_ai=use_ai,
             target_form_pages=target_form_pages or [],
-            api_key=api_key,
-            server=server,  # Pass server to crawler
+            server=server,  # Pass server to crawler for AI operations
             discovery_only=discovery_only,
             slow_mode=slow_mode
         )

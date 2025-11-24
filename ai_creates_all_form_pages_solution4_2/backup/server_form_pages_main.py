@@ -25,6 +25,9 @@ class Server:
         # Track created form names
         self.created_form_names = []
         
+        # Store parent reference fields for current form (to be used later)
+        self.current_form_parent_fields = []
+        
         # AI Helper - only initialize if API key available
         self.ai_helper = None
         if self.api_key:
@@ -214,7 +217,7 @@ class Server:
     
     def create_form_folder(self, project_name: str, form: Dict[str, Any]):
         """
-        Server creates folder and JSON files for discovered form
+        Server creates folder for discovered form (no files inside)
         
         Args:
             project_name: Project name
@@ -231,99 +234,57 @@ class Server:
         if form_name not in self.created_form_names:
             self.created_form_names.append(form_name)
         
-        # Create ONLY the form folder, no subfolders
+        # Create ONLY the form folder, no files inside
         project_base = get_project_base_dir(project_name)
         form_folder = project_base / form_slug
         form_folder.mkdir(parents=True, exist_ok=True)
         print(f"[Server] 📁 Created folder: {form_folder}")
         
-        # Extract modal metadata
-        is_modal = form.get("is_modal", False)
-        modal_trigger = form.get("modal_trigger", "")
+        # Update form_relationships.json with AI-found parent fields
+        relationships_path = project_base / "form_relationships.json"
         
-        gui_pre_create_actions = []
-        for step in form.get("navigation_steps", []):
-            action_entry = {
-                "update_type": "",
-                "update_ai_stages": [step],
-                "action_description": step.get("description", ""),
-                "update_css": "",
-                "update_css_playwright": "",
-                "webdriver_sleep_before_action": "",
-                "playwright_sleep_before_action": "",
-                "non_editable_condition": {"operator": "or"},
-                "validate_non_editable": False
+        # Load existing or create new
+        if relationships_path.exists():
+            with open(relationships_path, "r", encoding="utf-8") as f:
+                relationships = json.load(f)
+        else:
+            relationships = {
+                "project_name": project_name,
+                "total_forms": 0,
+                "forms": {}
             }
-            gui_pre_create_actions.append(action_entry)
         
-        main_setup = {
-            "gui_pre_create_actions": gui_pre_create_actions,
-            "css_values": [],
-            "gui_post_update_actions": [],
-            "gui_post_create_actions": [],
-            "gui_pre_update_actions": [],
-            "gui_pre_verification_actions": [],
-            "system_values": [
-                {"name": "main_component_tab", "value": "main"},
-                {"name": "is_sub_project", "value": False},
-                {"name": "is_modal", "value": is_modal},
-                {"name": "modal_trigger", "value": modal_trigger}
-            ],
-            "sub_components": [],
-            "pre_fields_values": [],
-            "non_editable_condition": {},
-            "gui_fields": []
+        # Extract parent field names from AI results (stage 3.5)
+        ai_parent_fields = [field["field_name"] for field in self.current_form_parent_fields]
+        
+        # Extract FULL navigation steps (complete objects with xpath, type, description, etc.)
+        navigation_steps = form.get("navigation_steps", [])
+        
+        # Add/update this form's entry
+        relationships["forms"][form_name] = {
+            "url": form["form_url"],
+            "navigation_steps": navigation_steps,  # Full navigation step objects
+            "id_fields": ai_parent_fields,  # Use AI-found parent fields
+            "parents": [],
+            "children": []
         }
         
-        main_setup_path = form_folder / f"{form_slug}_main_setup.json"
-        with open(main_setup_path, "w", encoding="utf-8") as f:
-            json.dump(main_setup, f, indent=2)
-        print(f"[Server] ✅ Created: {main_setup_path.name}")
+        relationships["total_forms"] = len(relationships["forms"])
         
-        setup = {
-            "gui_pre_create_actions": [],
-            "css_values": [],
-            "all_sub_components_items_list": [form_name, f"{form_name}_main"],
-            "gui_pre_verification_actions": [],
-            "gui_pre_update_actions": [],
-            "system_values": [
-                {"name": "is_sub_project", "value": True},
-                {"name": "is_modal", "value": is_modal},
-                {"name": "modal_trigger", "value": modal_trigger}
-            ],
-            "sub_components": [{"type": "single", "name": "main"}],
-            "gui_fields": []
-        }
+        # Save
+        with open(relationships_path, "w", encoding="utf-8") as f:
+            json.dump(relationships, f, indent=2)
         
-        setup_path = form_folder / f"{form_slug}_setup.json"
-        with open(setup_path, "w", encoding="utf-8") as f:
-            json.dump(setup, f, indent=2)
-        print(f"[Server] ✅ Created: {setup_path.name}")
+        print(f"[Server] ✅ Updated: form_relationships.json with {len(ai_parent_fields)} parent fields")
     
-    def save_forms_list(self, project_name: str, forms: List[Dict[str, Any]]):
-        """
-        Server saves master forms list
-        
-        Args:
-            project_name: Project name
-            forms: List of all discovered forms
-        """
-        import json
-        from agent_form_pages_utils import get_project_base_dir
-        
-        project_base = get_project_base_dir(project_name)
-        master_pages_path = project_base / "form_pages.json"
-        
-        with open(master_pages_path, "w", encoding="utf-8") as f:
-            json.dump(forms, f, indent=2)
-        print(f"[Server] ✅ Saved master form pages list: {master_pages_path}")
-    
-    def extract_form_name(self, context_data: Dict[str, Any]) -> str:
+    def extract_form_name(self, context_data: Dict[str, Any], page_html: str = "", screenshot_base64: str = None) -> str:
         """
         Agent calls this to extract form name using AI
         
         Args:
             context_data: Dictionary with url, url_path, button_clicked, page_title, headers, form_labels
+            page_html: Full page HTML/DOM from agent
+            screenshot_base64: Base64-encoded screenshot of the form page for AI vision
             
         Returns:
             Clean form name as string
@@ -409,6 +370,16 @@ class Server:
             form_name = form_name.strip('"\'` ')
 
             print(f"[Server] AI: ✅ Determined form name: '{form_name}'")
+            
+            # Store page_html and screenshot for later saving to form folder
+            self.current_form_page_html = page_html
+            self.current_form_screenshot_base64 = screenshot_base64
+            
+            # Extract parent reference fields (stage 3.5)
+            print(f"[Server] AI: Extracting parent reference fields...")
+            self.current_form_parent_fields = self.ai_helper.extract_parent_reference_fields(form_name, page_html, screenshot_base64)
+            print(f"[Server] AI: ✅ Found {len(self.current_form_parent_fields)} parent reference fields")
+            
             return form_name
             
         except Exception as e:
@@ -491,6 +462,138 @@ class Server:
         # Show AI costs
         if self.ai_helper:
             self.print_ai_cost_summary()
+    
+    def update_form_verification(self, project_name: str, form_name: str, navigation_steps: List[Dict[str, Any]], verification_attempts: int = 1):
+        """
+        Update form_relationships.json with verified navigation steps
+        Called by Agent after Stage 8 (verification)
+        
+        Args:
+            project_name: Project name
+            form_name: Form name
+            navigation_steps: Verified navigation steps
+            verification_attempts: Number of attempts it took to verify
+        """
+        import json
+        from pathlib import Path
+        from agent_form_pages_utils import get_project_base_dir
+        from datetime import datetime
+        
+        project_base = get_project_base_dir(project_name)
+        relationships_path = project_base / "form_relationships.json"
+        
+        if not relationships_path.exists():
+            print(f"[Server] ⚠️  form_relationships.json not found")
+            return
+        
+        # Load existing relationships
+        with open(relationships_path, "r", encoding="utf-8") as f:
+            relationships = json.load(f)
+        
+        # Update the form's navigation steps and verification metadata
+        if form_name in relationships["forms"]:
+            relationships["forms"][form_name]["navigation_steps"] = navigation_steps
+            relationships["forms"][form_name]["verification_attempts"] = verification_attempts
+            relationships["forms"][form_name]["last_verified"] = datetime.now().isoformat()
+            
+            # Save
+            with open(relationships_path, "w", encoding="utf-8") as f:
+                json.dump(relationships, f, indent=2)
+            
+            print(f"[Server] ✅ Updated verification data in form_relationships.json for '{form_name}'")
+        else:
+            print(f"[Server] ⚠️  Form '{form_name}' not found in relationships")
+    
+    def build_hierarchy(self, project_name: str) -> Dict[str, Any]:
+        """
+        Build parent-child relationships from form_relationships.json
+        Called by Agent after all forms are discovered (Stage 10)
+        
+        Args:
+            project_name: Project name
+            
+        Returns:
+            Updated hierarchy dict
+        """
+        import json
+        from agent_form_pages_utils import get_project_base_dir
+        
+        project_base = get_project_base_dir(project_name)
+        relationships_path = project_base / "form_relationships.json"
+        
+        if not relationships_path.exists():
+            print("[Server] ⚠️  No form_relationships.json found!")
+            return {}
+        
+        print("\n" + "=" * 70)
+        print("🔗 SERVER: BUILDING PARENT-CHILD RELATIONSHIPS")
+        print("=" * 70)
+        
+        # Load the JSON (already has ID fields from discovery)
+        with open(relationships_path, "r", encoding="utf-8") as f:
+            hierarchy = json.load(f)
+        
+        print(f"[Server] Analyzing {hierarchy['total_forms']} forms...\n")
+        
+        relationships_found = 0
+        
+        # Build parent-child relationships based on ID fields
+        for form_name, form_data in hierarchy["forms"].items():
+            id_fields = form_data.get("id_fields", [])
+            
+            if not id_fields:
+                continue
+            
+            for id_field in id_fields:
+                # Extract potential parent name from ID field
+                # e.g., "employee_id" -> "employee"
+                potential_parent_base = (id_field
+                                         .replace("_id", "")
+                                         .replace("id", "")
+                                         .replace("-", "")
+                                         .replace("_", "")
+                                         .strip()
+                                         .lower())
+                
+                if not potential_parent_base:
+                    continue
+                
+                # Find matching parent form
+                for parent_name in hierarchy["forms"].keys():
+                    if parent_name == form_name:
+                        continue
+                    
+                    parent_name_normalized = parent_name.replace("_", "").replace("-", "").lower()
+                    
+                    # Check if ID field matches parent form name
+                    if potential_parent_base in parent_name_normalized or parent_name_normalized in potential_parent_base:
+                        print(f"  🔗 {form_name} is child of {parent_name} (via {id_field})")
+                        
+                        relationships_found += 1
+                        
+                        # Add parent relationship
+                        if parent_name not in form_data["parents"]:
+                            form_data["parents"].append(parent_name)
+                        
+                        # Add child relationship
+                        if form_name not in hierarchy["forms"][parent_name]["children"]:
+                            hierarchy["forms"][parent_name]["children"].append(form_name)
+                        
+                        break  # Only match to one parent per ID field
+        
+        # Mark which forms are roots (no parents)
+        for form_name, form_data in hierarchy["forms"].items():
+            form_data["is_root"] = len(form_data["parents"]) == 0
+        
+        # Save updated JSON with relationships
+        with open(relationships_path, "w", encoding="utf-8") as f:
+            json.dump(hierarchy, f, indent=2)
+        
+        print(f"\n[Server] ✅ Found {relationships_found} parent-child relationships")
+        print(f"[Server] ✅ Updated: {relationships_path}")
+        print("=" * 70 + "\n")
+        
+        return hierarchy
     
     def health_check(self) -> Dict[str, Any]:
         """

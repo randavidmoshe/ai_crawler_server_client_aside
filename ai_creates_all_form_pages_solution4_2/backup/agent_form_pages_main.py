@@ -344,9 +344,7 @@ class Agent:
         username: str = None,
         password: str = None,
         logged_in: bool = True,
-        use_ai: bool = True,
         target_form_pages: Optional[List[str]] = None,
-        api_key: str = None,
         server=None,  # Server reference for AI callbacks
         max_pages: int = 20,
         max_depth: int = 4,
@@ -388,7 +386,6 @@ class Agent:
         print(f"[Agent] Base URL: {base_url}")
         
         # Create crawler instance
-        # NOTE: Crawler will need to be updated to use server for AI calls
         crawler = FormPagesCrawler(
             self.driver,
             start_url=self.driver.current_url,
@@ -396,10 +393,8 @@ class Agent:
             project_name=project_name,
             max_pages=max_pages,
             max_depth=max_depth,
-            use_ai=use_ai,
             target_form_pages=target_form_pages or [],
-            api_key=api_key,
-            server=server,  # Pass server to crawler
+            server=server,  # Pass server to crawler for AI operations
             discovery_only=discovery_only,
             slow_mode=slow_mode
         )

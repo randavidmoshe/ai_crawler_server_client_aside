@@ -26,14 +26,12 @@ if __name__ == "__main__":
     PASSWORD = "admin123"
     LOGGED_IN = False
 
-    USE_AI = True
     API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 
     if API_KEY:
         print(f"[Server] ✅ API Key loaded")
     else:
-        print("[Server] ❌ No API key - disabling AI")
-        USE_AI = False
+        print("[Server] ❌ No API key - Server AI will not work")
 
     DISCOVERY_ONLY = True
     TARGET_FORMS = []
@@ -67,9 +65,7 @@ if __name__ == "__main__":
             username=USERNAME,
             password=PASSWORD,
             logged_in=LOGGED_IN,
-            use_ai=USE_AI,
             target_form_pages=TARGET_FORMS,
-            api_key=API_KEY,
             server=server,
             max_pages=MAX_PAGES,
             max_depth=MAX_DEPTH,
