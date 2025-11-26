@@ -520,13 +520,15 @@ IMPORTANT: Use the screenshot to visually identify the form fields. The HTML is 
         print(f"[AIHelper] Found {len(fields)} parent reference fields")
         return fields
 
-    def generate_login_steps(self, page_html: str, screenshot_base64: str = None) -> List[Dict[str, Any]]:
+    def generate_login_steps(self, page_html: str, screenshot_base64: str = None, username: str = "", password: str = "") -> List[Dict[str, Any]]:
         """
         Use AI Vision to analyze login page and generate login steps.
         
         Args:
             page_html: HTML of the login page
             screenshot_base64: Base64-encoded screenshot of the login page
+            username: Actual username to use in login steps
+            password: Actual password to use in login steps
             
         Returns:
             List of login steps with action, selector, value
@@ -536,30 +538,42 @@ IMPORTANT: Use the screenshot to visually identify the form fields. The HTML is 
         system_prompt = """You are an expert at analyzing login pages and generating automation steps.
 Your task is to identify the login form fields and generate steps to fill and submit the form."""
 
-        user_prompt = """Analyze this login page screenshot and HTML to generate login automation steps.
+        user_prompt = f"""Analyze this login page screenshot and HTML to generate login automation steps.
 
 Look for:
 1. Username/email input field
 2. Password input field  
 3. Submit/Login button
 
+CREDENTIALS TO USE:
+- Username: {username}
+- Password: {password}
+
 For each element, provide:
 - action: "fill" for input fields, "click" for buttons
 - selector: CSS selector to find the element (prefer id, then name, then type attributes)
-- value: Use "{{username}}" for username field, "{{password}}" for password field, empty string "" for buttons
+- value: Use the actual username "{username}" for username field, actual password "{password}" for password field, empty string "" for buttons
+
+IMPORTANT: After the login click, you MUST add 2 verification steps:
+1. wait_dom_ready - waits for page to stabilize after login
+2. verify_clickables - verifies at least 3 clickable elements exist (proves we reached a real logged-in page, not an error page)
 
 Return ONLY a JSON array of steps in order, like:
 [
-  {"action": "fill", "selector": "input[name='username']", "value": "{{username}}"},
-  {"action": "fill", "selector": "input[type='password']", "value": "{{password}}"},
-  {"action": "click", "selector": "button[type='submit']", "value": ""}
+  {{"action": "fill", "selector": "input[name='username']", "value": "{username}"}},
+  {{"action": "fill", "selector": "input[type='password']", "value": "{password}"}},
+  {{"action": "click", "selector": "button[type='submit']", "value": ""}},
+  {{"action": "wait_dom_ready", "selector": "", "value": ""}},
+  {{"action": "verify_clickables", "selector": "", "value": "3"}}
 ]
 
 IMPORTANT:
 - Return ONLY the JSON array, no other text
 - Use the most reliable CSS selectors you can find from the HTML
-- Steps must be in correct order: username, password, then submit
+- Steps must be in correct order: username, password, submit, wait_dom_ready, verify_clickables
 - Every step MUST have action, selector, and value fields
+- Use the ACTUAL credentials provided above, NOT placeholders
+- ALWAYS include the 2 verification steps at the end
 """
 
         # Build message content with image if available
@@ -612,3 +626,224 @@ IMPORTANT:
         
         print(f"[AIHelper] 🔐 Generated {len(steps)} login steps")
         return steps
+
+    def generate_logout_steps(self, page_html: str, screenshot_base64: str = None) -> List[Dict[str, Any]]:
+        """
+        Use AI Vision to analyze page and generate logout steps.
+        
+        Args:
+            page_html: HTML of the current page
+            screenshot_base64: Base64-encoded screenshot of the page
+            
+        Returns:
+            List of logout steps with action, selector, value
+        """
+        print(f"[AIHelper] 🚪 Generating logout steps using AI Vision...")
+        
+        system_prompt = """You are an expert at analyzing web applications and generating automation steps.
+Your task is to identify the logout button/link and generate steps to log out of the application."""
+
+        user_prompt = """Analyze this page screenshot and HTML to generate logout automation steps.
+
+Look for:
+1. User menu/dropdown (usually shows username or profile icon in header/navbar)
+2. Logout/Sign out button or link (might be inside a dropdown menu)
+
+Common patterns:
+- Click on user avatar/name to open dropdown, then click "Logout"
+- Direct "Logout" or "Sign out" link in navigation
+- Settings menu with logout option
+
+For each element, provide:
+- action: "click" for buttons/links
+- selector: CSS selector to find the element (prefer id, then class, then text-based selectors)
+- value: empty string "" for click actions
+
+IMPORTANT: After the logout click, you MUST add 2 verification steps:
+1. wait_dom_ready - waits for page to stabilize after logout
+2. verify_login_page - verifies we're back at the login page (checks for username/password input fields)
+
+Return ONLY a JSON array of steps in order, like:
+[
+  {"action": "click", "selector": ".user-dropdown", "value": ""},
+  {"action": "click", "selector": "a[href*='logout']", "value": ""},
+  {"action": "wait_dom_ready", "selector": "", "value": ""},
+  {"action": "verify_login_page", "selector": "", "value": ""}
+]
+
+Or for direct logout link:
+[
+  {"action": "click", "selector": "a.logout-btn", "value": ""},
+  {"action": "wait_dom_ready", "selector": "", "value": ""},
+  {"action": "verify_login_page", "selector": "", "value": ""}
+]
+
+IMPORTANT:
+- Return ONLY the JSON array, no other text
+- Use the most reliable CSS selectors you can find from the HTML
+- If logout requires opening a menu first, include that step
+- Every step MUST have action, selector, and value fields
+- ALWAYS include the 2 verification steps at the end
+"""
+
+        # Build message content with image if available
+        content = []
+        
+        if screenshot_base64:
+            content.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": screenshot_base64
+                }
+            })
+        
+        # Add HTML context (truncated if too long)
+        html_truncated = page_html[:15000] if len(page_html) > 15000 else page_html
+        content.append({
+            "type": "text",
+            "text": f"{user_prompt}\n\nHTML:\n{html_truncated}"
+        })
+        
+        messages = [{"role": "user", "content": content}]
+        
+        try:
+            kwargs = {
+                "model": self.model,
+                "max_tokens": 1000,
+                "temperature": 0,
+                "messages": messages,
+                "system": system_prompt
+            }
+            
+            api_response = self.client.messages.create(**kwargs)
+            
+            # Track token usage
+            self.api_call_count += 1
+            self.total_input_tokens += api_response.usage.input_tokens
+            self.total_output_tokens += api_response.usage.output_tokens
+            
+            response = api_response.content[0].text
+            
+        except Exception as e:
+            print(f"[AIHelper] Error calling Claude API for logout steps: {e}")
+            return []
+        
+        print(f"[AIHelper] 🚪 AI Response: {response[:500]}")
+        
+        steps = self._extract_json_from_response(response)
+        
+        print(f"[AIHelper] 🚪 Generated {len(steps)} logout steps")
+        return steps
+
+    def verify_ui_defects(self, form_name: str, screenshot_base64: str) -> str:
+        """
+        Use AI Vision to analyze form page screenshot for UI defects.
+        
+        Args:
+            form_name: Name of the form being analyzed
+            screenshot_base64: Base64-encoded screenshot of the form page
+            
+        Returns:
+            String describing defects found, or empty string if none
+        """
+        print(f"[AIHelper] 🔍 Verifying UI for defects on form: {form_name}")
+        
+        if not screenshot_base64:
+            print(f"[AIHelper] ⚠️ No screenshot provided for UI verification")
+            return ""
+        
+        system_prompt = """You are a test automation expert performing UI verification."""
+        
+        user_prompt = """You are provided with a screenshot of the current page. Your task is to perform a thorough UI verification by analyzing the screenshot for visual defects.
+
+**MANDATORY SYSTEMATIC SCAN - Follow this checklist in order:**
+
+**Step 1: Scan Page Edges and Background**
+- Check TOP-LEFT corner of the entire viewport
+- Check TOP-RIGHT corner of the entire viewport  
+- Check BOTTOM-LEFT corner of the entire viewport
+- Check BOTTOM-RIGHT corner of the entire viewport
+- Check the BACKGROUND area around the form container
+- Check the HEADER area above the form
+- Look for any floating, orphaned, or disconnected visual elements (colored boxes, shapes, artifacts)
+
+**Step 2: Scan Each Form Field Individually**
+Go through EVERY visible form field one by one and check:
+- LEFT side of the field - any unexpected borders, boxes, or artifacts?
+- RIGHT side of the field - any unexpected borders, boxes, or artifacts?
+- TOP of the field - any unexpected borders, boxes, or artifacts?
+- BOTTOM of the field - any unexpected borders, boxes, or artifacts?
+- INSIDE the field - any styling issues, corrupted visuals?
+
+**What to Look For:**
+1. **Overlapping Elements** - Buttons, fields, or text covering each other
+2. **Unexpected Overlays** - Cookie banners or chat widgets blocking elements
+3. **Broken Layout** - Misaligned elements, horizontal scrollbars
+4. **Missing/Broken Visual Elements** - Broken icons, missing graphics
+5. **Visual Artifacts** - Unexpected colored boxes, shapes, borders (RED boxes, GREEN boxes, GRAY boxes, BLUE boxes, etc.)
+6. **Styling Defects** - Corrupted borders, inconsistent colors/backgrounds
+7. **Positioning Anomalies** - Elements floating outside containers
+8. **Spacing Issues** - Excessive or missing spacing
+
+**IMPORTANT:**
+- Don't stop after finding ONE issue - continue checking ALL areas and ALL fields
+- Some issues are subtle (small gray boxes) while others are obvious (bright red/green boxes)
+- Report ALL issues you find, comma-separated
+- Be specific: mention which field has which issue, or where in the page the issue appears
+
+**Example of complete report:**
+"Phone Number field has red border artifact on left side, Email Address field has gray box on right side, Green square visible in top-right corner of page"
+
+**If NO defects found, respond with:** "No defects detected"
+
+**Your response (defects found or "No defects detected"):**"""
+
+        # Build message content with screenshot
+        content = [
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": screenshot_base64
+                }
+            },
+            {
+                "type": "text",
+                "text": user_prompt
+            }
+        ]
+        
+        messages = [{"role": "user", "content": content}]
+        
+        try:
+            kwargs = {
+                "model": self.model,
+                "max_tokens": 500,
+                "temperature": 0,
+                "messages": messages,
+                "system": system_prompt
+            }
+            
+            api_response = self.client.messages.create(**kwargs)
+            
+            # Track token usage
+            self.api_call_count += 1
+            self.total_input_tokens += api_response.usage.input_tokens
+            self.total_output_tokens += api_response.usage.output_tokens
+            
+            response = api_response.content[0].text.strip()
+            
+        except Exception as e:
+            print(f"[AIHelper] Error calling Claude API for UI verification: {e}")
+            return ""
+        
+        print(f"[AIHelper] 🔍 AI Response: {response[:200]}")
+        
+        # Check if no defects found
+        if "no defects detected" in response.lower():
+            return ""
+        
+        return response

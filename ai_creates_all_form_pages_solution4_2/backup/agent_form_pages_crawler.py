@@ -36,22 +36,28 @@ class FormPagesCrawler:
         start_url: str,
         base_url: str,
         project_name: str = "default_project",
-        max_pages: int = 20,
         max_depth: int = 5,
         target_form_pages: List[str] = None,
         discovery_only: bool = False,
         slow_mode: bool = False,
-        server=None
+        server=None,
+        username: str = None,
+        login_url: str = None,
+        agent=None
     ):
         self.driver = driver
         self.server = server
+        self.agent = agent
+        
+        # Store username and login_url for tagging forms
+        self.username = username if username else "no_login"
+        self.login_url = login_url if login_url else ""
 
         self.logger = logging.getLogger('init_logger')
         self.result_logger_gui = logging.getLogger('init_result_logger_gui')
 
         self.start_url = start_url
         self.base_url = base_url
-        self.max_pages = max_pages
         self.max_depth = max_depth
         self.project_name = project_name
         self.target_form_pages = target_form_pages or []
@@ -130,32 +136,8 @@ class FormPagesCrawler:
         
         self.project_base = get_project_base_dir(project_name)
         self.hierarchy_path = self.project_base / "form_hierarchy.json"
-        relationships_path = self.project_base / "form_relationships.json"
-        self.existing_form_urls = set()
-        if relationships_path.exists():
-            try:
-                with open(relationships_path, 'r', encoding='utf-8') as f:
-                    relationships = json.load(f)
-
-                # Build set of URLs (normalize for comparison)
-                for form_name, form_data in relationships.items():
-                    url = form_data.get("url", "")
-                    # Normalize URL: remove #modal, remove query params
-                    url_base = url.split('#')[0].split('?')[0]
-                    if url_base:
-                        self.existing_form_urls.add(url_base)
-
-                print(
-                    f"[Resume] 📂 Loaded {len(self.existing_form_urls)} existing form URLs from form_relationships.json")
-            except Exception as e:
-                print(f"[Resume] ⚠️ Could not load form_relationships.json: {e}")
-                self.existing_form_urls = set()
-        else:
-            print("[Resume] No existing form_relationships.json found - starting fresh")
-            self.existing_form_urls = set()
         
         print(f"[Crawler] Project base: {self.project_base}")
-        print(f"[Crawler] Max forms: {self.max_pages}")
         print(f"[Crawler] Max depth: {self.max_depth} levels")
         
         if self.discovery_only:
@@ -452,14 +434,13 @@ class FormPagesCrawler:
                                 continue
 
                             if page_has_form_fields(self.driver, self._is_submission_button_ai):
-                                form_name = self._extract_form_name_with_ai(tab_url, "")
-
-                                # Check if URL already exists (normalize for comparison)
-                                url_base = tab_url.split('#')[0].split('?')[0]
-                                if url_base in self.existing_form_urls:
-                                    print(f"[Window]   ⏭️  Form URL already discovered - skipping (URL: {url_base})")
+                                # Check if form URL already exists in server before AI call
+                                if self.server and self.server.check_form_exists(self.project_name, tab_url):
+                                    print(f"[Window]   ⏭️  Form URL already exists in server - skipping")
                                     self.driver.close()
                                     continue
+
+                                form_name = self._extract_form_name_with_ai(tab_url, "")
 
                                 print(f"[Window]   ✅ Found form: {form_name}")
                                 full_path = (current_path or []) + [{
@@ -513,8 +494,11 @@ class FormPagesCrawler:
         new_domain = urlparse(new_url).netloc
         if new_domain != self.base_domain:
             print(f"[Protection] 🚫 External redirect, going back")
-            self.driver.back()
-            wait_dom_ready(self.driver)
+            try:
+                self.driver.back()
+                wait_dom_ready(self.driver)
+            except Exception as e:
+                print(f"[Protection] ❌ Failed to go back: {e}")
             return False, discovered_forms
 
         return True, discovered_forms
@@ -535,8 +519,16 @@ class FormPagesCrawler:
             print(f"Mode: Discovery only - will skip field exploration")
         print("="*70 + "\n")
         
-        self.driver.get(self.start_url)
-        self.main_window_handle = self.driver.current_window_handle
+        try:
+            self.driver.get(self.start_url)
+            self.main_window_handle = self.driver.current_window_handle
+        except Exception as e:
+            print(f"[Crawler] ❌ Failed to navigate to start URL: {e}")
+            print(f"[Crawler] Cannot continue - stopping crawler")
+            if self.agent:
+                error_msg = str(e).split('\n')[0]
+                self.agent.log_error(f"CRITICAL: Failed to navigate to start URL: {error_msg}", "crawler_critical_start_url_failed")
+            return []
 
         print("[Crawler] Checking for popups...")
         dismiss_all_popups_and_overlays(self.driver)
@@ -554,7 +546,7 @@ class FormPagesCrawler:
         queue = [initial_state]
         explored_count = 0
 
-        while queue and explored_count < self.max_pages * 3:
+        while queue and explored_count < 500:  # Safety limit for exploration states
             # Use DFS: Pop from END to explore children before siblings
             state = queue.pop()  # ← Changed from pop(0) to pop()
             
@@ -585,11 +577,11 @@ class FormPagesCrawler:
 
                         # NEW: Create folder + JSONs immediately
                         if self.discovery_only:
-                            self._create_minimal_json_for_form(all_forms[-1])
+                            if not self._create_minimal_json_for_form(all_forms[-1]):
+                                print(f"{indent}    ⛔ Server limit reached - stopping discovery")
+                                return all_forms
 
                         print(f"{indent}    ✅ Form #{len(all_forms)}: {form['form_name']} (new tab)")
-                        if len(all_forms) >= self.max_pages:
-                            return all_forms
             
             if state.depth > self.max_depth:
                 print(f"[DEBUG] ❌ Max depth exceeded - SKIPPING")
@@ -658,6 +650,12 @@ class FormPagesCrawler:
             # Check if we landed directly on a form page (no "Add" button needed)
             if page_has_form_fields(self.driver, self._is_submission_button_ai):
                 form_url = self.driver.current_url
+
+                # Check if form URL already exists in server before AI call
+                if self.server and self.server.check_form_exists(self.project_name, form_url):
+                    print(f"{indent}⏭️  Form URL already exists in server - skipping")
+                    continue
+
                 form_name = self._extract_form_name_with_ai(form_url, "")
 
                 # Skip password-related forms
@@ -680,11 +678,10 @@ class FormPagesCrawler:
 
                         # NEW: Create folder + JSONs immediately
                         if self.discovery_only:
-                            self._create_minimal_json_for_form(all_forms[-1])
+                            if not self._create_minimal_json_for_form(all_forms[-1]):
+                                print(f"{indent}⛔ Server limit reached - stopping discovery")
+                                return all_forms
 
-
-                        if len(all_forms) >= self.max_pages:
-                            return all_forms
 
                     # Already on a form page - skip further exploration of this page
                     print(f"{indent}[DEBUG] Already on form page - skipping button/clickable exploration")
@@ -728,12 +725,6 @@ class FormPagesCrawler:
                     print(
                         f"{indent}    [Global] Added form button to global_locators: '{button_text}' | {button_selector[:80]}...")
 
-
-                screenshots_folder = self.project_base / "debug_screenshots"
-                screenshots_folder.mkdir(exist_ok=True)
-                self.driver.save_screenshot(
-                    str(screenshots_folder / f"form_before_click_{button_text}_{timestamp}.png"))
-
                 url_before = self.driver.current_url
 
                 success, new_tab_forms = self._safe_click_with_protection(
@@ -750,9 +741,6 @@ class FormPagesCrawler:
                     print(f"[{timestamp}] [DEBUG] URL before: {url_before}")
                     print(f"[{timestamp}] [DEBUG] URL after:  {url_after}")
 
-                    self.driver.save_screenshot(
-                        str(screenshots_folder / f"form_after_click_{button_text}_{timestamp}.png"))
-
                     if url_before == url_after:
                         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
                         print(f"[{timestamp}] {indent}    ⚠️  URL didn't change - checking for modal...")
@@ -768,18 +756,15 @@ class FormPagesCrawler:
                                 # Extract form information
                                 form_url = url_after  # Use the page URL that triggered the modal
 
-                                # Get form name from AI or URL
-                                form_name = self._extract_form_name_with_ai(form_url, button_text)
-
-                                # Check if URL already exists (normalize for comparison)
-                                url_base = form_url.split('#')[0].split('?')[0]
-                                if url_base in self.existing_form_urls:
-                                    print(f"{indent}    ⏭️  Form URL already discovered - skipping (URL: {url_base})")
+                                # Check if form URL already exists in server before AI call
+                                if self.server and self.server.check_form_exists(self.project_name, form_url):
+                                    print(f"{indent}    ⏭️  Form URL already exists in server - skipping")
                                     self._close_modal()
                                     self._navigate_to_state(state)
                                     continue
 
-
+                                # Get form name from AI or URL
+                                form_name = self._extract_form_name_with_ai(form_url, button_text)
 
                                 if "password" in form_name.lower():
                                     print(f"{indent}    ⚠️  Skipping password form: {form_name}")
@@ -806,7 +791,10 @@ class FormPagesCrawler:
                                     all_forms.append(form_entry)
 
                                     if self.discovery_only:
-                                        self._create_minimal_json_for_form(form_entry)
+                                        if not self._create_minimal_json_for_form(form_entry):
+                                            print(f"{indent}    ⛔ Server limit reached - stopping discovery")
+                                            self._close_modal()
+                                            return all_forms
 
                                     print(f"{indent}    ✅ Form #{len(all_forms)}: {form_name} (modal)")
                                 else:
@@ -829,7 +817,9 @@ class FormPagesCrawler:
                         if self._matches_target(form["form_name"]):
                             all_forms.append(form)
                             if self.discovery_only:
-                                self._create_minimal_json_for_form(all_forms[-1])
+                                if not self._create_minimal_json_for_form(all_forms[-1]):
+                                    print(f"{indent}    ⛔ Server limit reached - stopping discovery")
+                                    return all_forms
                             print(f"{indent}    ✅ Form #{len(all_forms)}: {form['form_name']} (new tab)")
 
                     time.sleep(1.5)
@@ -852,13 +842,13 @@ class FormPagesCrawler:
                         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
                         print(f"[{timestamp}] [DEBUG] ✅ page_has_form_fields = TRUE")
 
-                        form_name = self._extract_form_name_with_ai(form_url, button_text)
-
-                        url_base = form_url.split('#')[0].split('?')[0]
-                        if url_base in self.existing_form_urls:
-                            print(f"{indent}    ⏭️  Form URL already discovered - skipping (URL: {url_base})")
+                        # Check if form URL already exists in server before AI call
+                        if self.server and self.server.check_form_exists(self.project_name, form_url):
+                            print(f"{indent}    ⏭️  Form URL already exists in server - skipping")
                             self._navigate_to_state(state)
                             continue
+
+                        form_name = self._extract_form_name_with_ai(form_url, button_text)
 
                         if "password" in form_name.lower():
                             print(f"{indent}    ⚠️  Skipping password form: {form_name}")
@@ -900,16 +890,12 @@ class FormPagesCrawler:
                             })
 
                             if self.discovery_only:
-                                self._create_minimal_json_for_form(all_forms[-1])
-
-                            if len(all_forms) >= self.max_pages:
-                                print(f"\n{indent}[Explore] Reached max pages ({self.max_pages}), stopping")
-                                return all_forms
+                                if not self._create_minimal_json_for_form(all_forms[-1]):
+                                    print(f"\n{indent}[Explore] ⛔ Server limit reached - stopping discovery")
+                                    return all_forms
                     else:
                         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
                         print(f"[{timestamp}] [DEBUG] ❌ page_has_form_fields = FALSE")
-                        self.driver.save_screenshot(
-                            str(screenshots_folder / f"form_NOT_detected_{button_text}_{timestamp}.png"))
                 else:
                     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
                     print(f"[{timestamp}] [DEBUG] ❌ Click on '{button_text}' failed")
@@ -1182,13 +1168,8 @@ class FormPagesCrawler:
         import datetime
 
         try:
-            # Create screenshots folder
-            screenshots_folder = self.project_base / "debug_screenshots"
-            screenshots_folder.mkdir(exist_ok=True)
-
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             print(f"[{timestamp}] [Nav] Starting navigation to state: {self._get_state_key(state)[:80]}")
-            self.driver.save_screenshot(str(screenshots_folder / f"nav_start_{timestamp}.png"))
 
             self.driver.get(self.start_url)
             dismiss_all_popups_and_overlays(self.driver)
@@ -1198,7 +1179,6 @@ class FormPagesCrawler:
 
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             print(f"[{timestamp}] [Nav] At dashboard, about to navigate {len(state.path)} steps")
-            self.driver.save_screenshot(str(screenshots_folder / f"nav_dashboard_{timestamp}.png"))
 
             # Navigate through each step sequentially
             for idx, step in enumerate(state.path, 1):
@@ -1214,19 +1194,16 @@ class FormPagesCrawler:
                 if not element:
                     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
                     print(f"[{timestamp}] [Nav] ❌ Step {idx} FAILED: Element '{step_text}' NOT FOUND")
-                    self.driver.save_screenshot(str(screenshots_folder / f"nav_notfound_step{idx}_{timestamp}.png"))
                     return False
 
                 timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
                 print(f"[{timestamp}] [Nav] ✅ Step {idx}: Found '{step_text}', attempting click")
-                self.driver.save_screenshot(str(screenshots_folder / f"nav_before_click_step{idx}_{timestamp}.png"))
 
                 try:
 
                     if not safe_click(self.driver, element):
                         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
                         print(f"[{timestamp}] [Nav] ❌ Step {idx} FAILED: Click on '{step_text}' returned False")
-                        self.driver.save_screenshot(str(screenshots_folder / f"nav_click_failed_step{idx}_{timestamp}.png"))
                         return False
 
                     #wait_dom_ready(self.driver)
@@ -1237,25 +1214,24 @@ class FormPagesCrawler:
                     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
                     print(f"[{timestamp}] [Nav] ✅ Step {idx}: Clicked '{step_text}' successfully")
 
-
-
-                    self.driver.save_screenshot(str(screenshots_folder / f"nav_after_click_step{idx}_{timestamp}.png"))
-
                 except Exception as e:
                     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
                     print(f"[{timestamp}] [Nav] ❌ Step {idx} EXCEPTION: '{step_text}': {e}")
-                    self.driver.save_screenshot(str(screenshots_folder / f"nav_exception_step{idx}_{timestamp}.png"))
+                    if self.agent:
+                        error_msg = str(e).split('\n')[0]
+                        self.agent.log_error(f"Navigation step {idx} exception: '{step_text}': {error_msg}", f"nav_step_{idx}_exception")
                     return False
 
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             print(f"[{timestamp}] [Nav] ✅ Navigation SUCCESS - all {len(state.path)} steps completed")
-            self.driver.save_screenshot(str(screenshots_folder / f"nav_success_{timestamp}.png"))
             return True
 
         except Exception as e:
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
             print(f"[{timestamp}] [Nav] ❌ OUTER EXCEPTION: {e}")
-            self.driver.save_screenshot(str(screenshots_folder / f"nav_outer_exception_{timestamp}.png"))
+            if self.agent:
+                error_msg = str(e).split('\n')[0]  # First line only, no stacktrace
+                self.agent.log_error(f"Navigation outer exception: {error_msg}", "nav_outer_exception")
             return False
 
     def _find_shortest_path(self, path: List[dict]) -> List[dict]:
@@ -1280,10 +1256,17 @@ class FormPagesCrawler:
                 dropdown_pairs.append((i, i + 1))
 
         # Go back to dashboard
-        self.driver.get(self.start_url)
-        dismiss_all_popups_and_overlays(self.driver)
-        wait_dom_ready(self.driver)
-        time.sleep(1)
+        try:
+            self.driver.get(self.start_url)
+            dismiss_all_popups_and_overlays(self.driver)
+            wait_dom_ready(self.driver)
+            time.sleep(1)
+        except Exception as e:
+            print(f"[Shortest Path] ❌ Failed to navigate to start URL: {e}")
+            if self.agent:
+                error_msg = str(e).split('\n')[0]
+                self.agent.log_error(f"Shortest path: Failed to navigate to start URL: {error_msg}", "shortest_path_nav_failed")
+            return path  # Return original path if navigation fails
 
         # ALWAYS keep the first step (e.g., 'Performance')
         first_step = path[0]
@@ -1940,10 +1923,17 @@ class FormPagesCrawler:
         print(f"  🔧 Fixing step {failed_step_index + 1}...")
 
         # Navigate to the step before the failing one
-        self.driver.get(self.start_url)
-        dismiss_all_popups_and_overlays(self.driver)
-        wait_dom_ready(self.driver)
-        time.sleep(1)
+        try:
+            self.driver.get(self.start_url)
+            dismiss_all_popups_and_overlays(self.driver)
+            wait_dom_ready(self.driver)
+            time.sleep(1)
+        except Exception as e:
+            print(f"  ❌ Failed to navigate to start URL: {e}")
+            if self.agent:
+                error_msg = str(e).split('\n')[0]
+                self.agent.log_error(f"Fix step: Failed to navigate to start URL: {error_msg}", "fix_step_nav_failed")
+            return False  # Cannot fix if we can't navigate
 
         steps = form.get('navigation_steps', [])
 
@@ -1999,7 +1989,7 @@ class FormPagesCrawler:
                 failed_step = None
 
                 # Navigate through each step
-                for i, step in enumerate(steps, 1):
+                for i, step in enumerate(steps):
 
                     # Skip wait_for_load actions
                     if step.get('action') == 'wait_for_load':
@@ -2010,7 +2000,7 @@ class FormPagesCrawler:
 
                     if is_form_button:
                         # This is the form-opening button (like "Add")
-                        print(f"    Step {i}/{len(steps)}: Looking for form button '{step_text}'")
+                        print(f"    Step {i+1}/{len(steps)}: Looking for form button '{step_text}'")
 
                         # Try to find the button on the current page
                         buttons = self.driver.find_elements(By.CSS_SELECTOR, "button, a, input[type='button']")
@@ -2026,13 +2016,13 @@ class FormPagesCrawler:
                                     break
 
                         if not found:
-                            print(f"    ❌ Step {i} failed: Cannot find form button '{step_text}'")
+                            print(f"    ❌ Step {i+1} failed: Cannot find form button '{step_text}'")
                             failed_step = i
                             break
 
                     else:
                         # Regular navigation step
-                        print(f"    Step {i}/{len(steps)}: Looking for '{step_text}'")
+                        print(f"    Step {i+1}/{len(steps)}: Looking for '{step_text}'")
 
                         element = self._find_element_by_selector_or_text(
                             step.get("selector", ""),
@@ -2040,18 +2030,18 @@ class FormPagesCrawler:
                         )
 
                         if not element:
-                            print(f"    ❌ Step {i} failed: Cannot find '{step_text}'")
+                            print(f"    ❌ Step {i+1} failed: Cannot find '{step_text}'")
                             failed_step = i
                             break
 
-                        print(f"    ✅ Step {i}: Found '{step_text}', attempting click")
+                        print(f"    ✅ Step {i+1}: Found '{step_text}', attempting click")
 
                         if not safe_click(self.driver, element):
-                            print(f"    ❌ Step {i} failed: Could not click '{step_text}'")
+                            print(f"    ❌ Step {i+1} failed: Could not click '{step_text}'")
                             failed_step = i
                             break
 
-                        print(f"    ✅ Step {i}: Clicked '{step_text}' successfully")
+                        print(f"    ✅ Step {i+1}: Clicked '{step_text}' successfully")
                         wait_dom_ready(self.driver)
                         time.sleep(0.3)
 
@@ -2066,6 +2056,13 @@ class FormPagesCrawler:
                     if current_url == expected_url:
                         print(f"    ✅ Path verified successfully!")
                         print(f"    ✅ Reached form page: {current_url}")
+                        
+                        # Log the verified route as human-readable description
+                        route_steps = [s.get("locator_text", "?") for s in steps if s.get("action") != "wait_for_load"]
+                        route_description = " → ".join([f"Click '{step}'" for step in route_steps]) + " to open the form"
+                        print(f"    📍 Verified route to '{form_name}': {route_description}")
+                        if self.agent:
+                            self.agent.log_message(f"Verified route to '{form_name}': {route_description}")
                         
                         # Call Server to update verification in form_relationships.json
                         self.server.update_form_verification(
@@ -2084,6 +2081,13 @@ class FormPagesCrawler:
                         if current_url.rstrip('/') == expected_url.rstrip('/'):
                             print(f"    ✅ URLs match (ignoring trailing slash)")
                             
+                            # Log the verified route as human-readable description
+                            route_steps = [s.get("locator_text", "?") for s in steps if s.get("action") != "wait_for_load"]
+                            route_description = " → ".join([f"Click '{step}'" for step in route_steps]) + " to open the form"
+                            print(f"    📍 Verified route to '{form_name}': {route_description}")
+                            if self.agent:
+                                self.agent.log_message(f"Verified route to '{form_name}': {route_description}")
+                            
                             # Call Server to update verification in form_relationships.json
                             self.server.update_form_verification(
                                 project_name=self.project_name,
@@ -2098,16 +2102,19 @@ class FormPagesCrawler:
 
                 # Try to fix the failed step
                 if attempt < max_attempts:
-                    print(f"  🔧 Fixing step {failed_step}...")
+                    print(f"  🔧 Fixing step {failed_step+1}...")
 
                     if self._fix_failing_step(form, failed_step):
-                        print(f"  ✅ Step {failed_step} fixed successfully")
+                        print(f"  ✅ Step {failed_step+1} fixed successfully")
                         continue
                     else:
-                        print(f"  ❌ Cannot fix step {failed_step}")
+                        print(f"  ❌ Cannot fix step {failed_step+1}")
 
             except Exception as e:
                 print(f"  ❌ Verification error: {e}")
+                if self.agent:
+                    error_msg = str(e).split('\n')[0]
+                    self.agent.log_error(f"Verification error for '{form_name}': {error_msg}", "verification_error")
 
         print(f"  ⚠️  Verification failed after {max_attempts} attempts")
         return False
@@ -2201,16 +2208,31 @@ class FormPagesCrawler:
         print(f"Fully explored {len(all_forms)} forms")
         print("=" * 70 + "\n")
 
-    def _create_minimal_json_for_form(self, form: Dict[str, Any]):
-        """Create folder and JSONs - calls server to do it"""
+    def _create_minimal_json_for_form(self, form: Dict[str, Any]) -> bool:
+        """Create folder and JSONs - calls server to do it
+        
+        Returns:
+            True if form was created, False if server limit reached
+        """
         if self.server:
-            self.server.create_form_folder(self.project_name, form)
+            result = self.server.create_form_folder(
+                self.project_name, 
+                form,
+                username=self.username,
+                login_url=self.login_url
+            )
+            if not result:
+                # Server limit reached
+                return False
         else:
             print("  ⚠️  No server - cannot create folder")
+            return False
         
         # Verify and fix the path
         print(f"\n  🔍 Verifying navigation path...")
         self._verify_and_fix_form(form)
+        
+        return True
 
 
     def close_logger(self):

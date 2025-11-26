@@ -106,9 +106,14 @@ def create_form_page_folder(project_name: str, form_page_name: str) -> Path:
 # Utilities
 # ------------------------------------------------------------
 def wait_dom_ready(driver, timeout=8):
-    WebDriverWait(driver, timeout).until(
-        lambda d: d.execute_script("return document.readyState") == "complete"
-    )
+    try:
+        WebDriverWait(driver, timeout).until(
+            lambda d: d.execute_script("return document.readyState") == "complete"
+        )
+    except Exception as e:
+        # Timeout or other error - continue anyway
+        print(f"[wait_dom_ready] ⚠️ Timeout or error: {e}")
+        pass
 
 def scroll_into_view(driver, el):
     driver.execute_script("arguments[0].scrollIntoView({block:'center'})", el)

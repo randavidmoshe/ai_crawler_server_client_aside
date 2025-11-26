@@ -13,17 +13,26 @@ class Server:
     Handles AI operations and coordinates with agent.
     """
     
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, max_form_pages: int = None, agent=None):
         """
         Initialize server with AI capabilities
         
         Args:
             api_key: Anthropic API key (or from environment)
+            max_form_pages: Maximum number of new form pages to create (None = unlimited)
+            agent: Agent instance for callbacks (e.g., logging UI defects)
         """
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         
+        # Store agent reference for callbacks
+        self.agent = agent
+        
         # Track created form names
         self.created_form_names = []
+        
+        # Track count of newly created form pages
+        self.new_form_pages_count = 0
+        self.max_form_pages = max_form_pages
         
         # Store parent reference fields for current form (to be used later)
         self.current_form_parent_fields = []
@@ -215,17 +224,27 @@ class Server:
             print(f"[Server] ❌ AI error: {e}")
             return False
     
-    def create_form_folder(self, project_name: str, form: Dict[str, Any]):
+    def create_form_folder(self, project_name: str, form: Dict[str, Any], username: str = None, login_url: str = None) -> bool:
         """
         Server creates folder for discovered form (no files inside)
         
         Args:
             project_name: Project name
             form: Form dictionary with form_name, navigation_steps, is_modal, etc.
+            username: Username that was used to login and discover this form
+            login_url: Login URL that was used to access this form
+            
+        Returns:
+            True if form was created, False if limit reached
         """
         import json
         from pathlib import Path
         from agent_form_pages_utils import get_project_base_dir, sanitize_filename
+        
+        # Check if we've reached the limit of new form pages
+        if self.max_form_pages is not None and self.new_form_pages_count >= self.max_form_pages:
+            print(f"[Server] ⛔ Limit reached: {self.new_form_pages_count}/{self.max_form_pages} new form pages")
+            return False
         
         form_name = form["form_name"]
         form_slug = sanitize_filename(form_name)
@@ -263,6 +282,8 @@ class Server:
         # Add/update this form's entry
         relationships["forms"][form_name] = {
             "url": form["form_url"],
+            "username": username if username else "unknown",
+            "login_url": login_url if login_url else "",
             "navigation_steps": navigation_steps,  # Full navigation step objects
             "id_fields": ai_parent_fields,  # Use AI-found parent fields
             "parents": [],
@@ -275,7 +296,56 @@ class Server:
         with open(relationships_path, "w", encoding="utf-8") as f:
             json.dump(relationships, f, indent=2)
         
-        print(f"[Server] ✅ Updated: form_relationships.json with {len(ai_parent_fields)} parent fields")
+        # Increment count of newly created form pages
+        self.new_form_pages_count += 1
+        print(f"[Server] ✅ Updated: form_relationships.json with {len(ai_parent_fields)} parent fields ({self.new_form_pages_count}/{self.max_form_pages if self.max_form_pages else '∞'} new forms)")
+        
+        # Log to agent's results logger
+        if self.agent:
+            self.agent.log_message(f"Found new form page: {form_name}")
+        
+        return True
+    
+    def check_form_exists(self, project_name: str, form_url: str) -> bool:
+        """
+        Check if a form with this URL already exists in form_relationships.json
+        
+        Args:
+            project_name: Project name
+            form_url: URL of the form page to check
+            
+        Returns:
+            True if form already exists, False otherwise
+        """
+        import json
+        from agent_form_pages_utils import get_project_base_dir
+        
+        project_base = get_project_base_dir(project_name)
+        relationships_path = project_base / "form_relationships.json"
+        
+        if not relationships_path.exists():
+            return False
+        
+        try:
+            with open(relationships_path, "r", encoding="utf-8") as f:
+                relationships = json.load(f)
+            
+            # Normalize the URL for comparison (remove query params and hash)
+            url_base = form_url.split('#')[0].split('?')[0]
+            
+            # Check if any existing form has this URL
+            for form_name, form_data in relationships.get("forms", {}).items():
+                existing_url = form_data.get("url", "")
+                existing_url_base = existing_url.split('#')[0].split('?')[0]
+                if url_base == existing_url_base:
+                    print(f"[Server] ⏭️ Form URL already exists: {url_base} (form: {form_name})")
+                    return True
+            
+            return False
+            
+        except Exception as e:
+            print(f"[Server] ⚠️ Error checking form existence: {e}")
+            return False
     
     def extract_form_name(self, context_data: Dict[str, Any], page_html: str = "", screenshot_base64: str = None) -> str:
         """
@@ -379,6 +449,18 @@ class Server:
             print(f"[Server] AI: Extracting parent reference fields...")
             self.current_form_parent_fields = self.ai_helper.extract_parent_reference_fields(form_name, page_html, screenshot_base64)
             print(f"[Server] AI: ✅ Found {len(self.current_form_parent_fields)} parent reference fields")
+            
+            # UI Verification (stage 3.6)
+            if hasattr(self, 'ui_verification') and self.ui_verification and screenshot_base64:
+                print(f"[Server] AI: Checking UI for defects...")
+                ui_defects = self.ai_helper.verify_ui_defects(form_name, screenshot_base64)
+                if ui_defects and ui_defects.strip():
+                    print(f"[Server] ⚠️ UI Defects detected: {ui_defects}")
+                    if self.agent:
+                        self.agent.capture_screenshot(f"ui_defect_{form_name}")
+                        self.agent.log_message(f"[UI DEFECT - {form_name}] {ui_defects}", "warning")
+                else:
+                    print(f"[Server] ✅ No UI defects detected")
             
             return form_name
             
@@ -607,3 +689,185 @@ class Server:
             "ai_available": self.ai_helper is not None,
             "has_api_key": self.api_key is not None
         }
+    
+    def create_login_stages(self, project_name: str, login_url: str, page_html: str, 
+                           screenshot_base64: str, username: str, password: str) -> List[Dict[str, Any]]:
+        """
+        Create login stages using AI Vision analysis.
+        
+        First checks if a login with this URL already exists - if so, returns existing steps.
+        Otherwise, creates new login folder (login_1, login_2, etc.) and saves steps.
+        
+        Args:
+            project_name: Project name
+            login_url: URL of the login page
+            page_html: HTML of the login page
+            screenshot_base64: Base64-encoded screenshot
+            username: Username for login
+            password: Password for login
+            
+        Returns:
+            List of login steps to execute
+        """
+        import json
+        from pathlib import Path
+        
+        print(f"[Server] 🔐 Creating login stages for project: {project_name}")
+        
+        # Base path for form_pages
+        base_path = Path(f"/home/ranlaser/automation_product_config/ai_projects/{project_name}/form_pages")
+        base_path.mkdir(parents=True, exist_ok=True)
+        
+        # Check if login with this URL already exists
+        existing_login_folder = None
+        login_num = 1
+        
+        while True:
+            login_folder = base_path / f"login_{login_num}"
+            if not login_folder.exists():
+                break
+            
+            # Check if this login has the same URL
+            stages_file = login_folder / "create_login.json"
+            if stages_file.exists():
+                try:
+                    with open(stages_file, "r", encoding="utf-8") as f:
+                        existing_data = json.load(f)
+                    if existing_data.get("url") == login_url:
+                        print(f"[Server] 🔐 Found existing login with same URL: {login_folder.name}")
+                        existing_login_folder = login_folder
+                        break
+                except Exception as e:
+                    print(f"[Server] ⚠️ Could not read {stages_file}: {e}")
+            
+            login_num += 1
+        
+        # If existing login found, return its steps
+        if existing_login_folder:
+            stages_file = existing_login_folder / "create_login.json"
+            with open(stages_file, "r", encoding="utf-8") as f:
+                existing_data = json.load(f)
+            print(f"[Server] 🔐 Reusing {len(existing_data.get('login_steps', []))} existing login steps")
+            return existing_data.get("login_steps", [])
+        
+        # No existing login - create new one
+        new_login_folder = base_path / f"login_{login_num}"
+        new_login_folder.mkdir(parents=True, exist_ok=True)
+        print(f"[Server] 🔐 Creating new login folder: {new_login_folder.name}")
+        
+        # Call AI to generate login steps
+        if not self.ai_helper:
+            print("[Server] ⚠️ No AI helper - cannot generate login steps")
+            return []
+        
+        login_steps = self.ai_helper.generate_login_steps(page_html, screenshot_base64, username, password)
+        
+        if not login_steps:
+            print("[Server] ⚠️ AI returned no login steps")
+            return []
+        
+        # Save login stages to JSON
+        login_data = {
+            "url": login_url,
+            "username": username,
+            "login_steps": login_steps
+        }
+        
+        stages_file = new_login_folder / "create_login.json"
+        with open(stages_file, "w", encoding="utf-8") as f:
+            json.dump(login_data, f, indent=2)
+        
+        print(f"[Server] 🔐 Saved {len(login_steps)} login steps to: {stages_file}")
+        
+        return login_steps
+
+    def create_logout_stages(self, project_name: str, logout_url: str, page_html: str, 
+                            screenshot_base64: str, username: str, login_url: str) -> List[Dict[str, Any]]:
+        """
+        Create logout stages using AI Vision analysis.
+        
+        First checks if a logout with this URL already exists - if so, returns existing steps.
+        Otherwise, creates new logout folder (logout_1, logout_2, etc.) and saves steps.
+        
+        Args:
+            project_name: Project name
+            logout_url: Current page URL (where logout is triggered from)
+            page_html: HTML of the current page
+            screenshot_base64: Base64-encoded screenshot
+            username: Username that was logged in
+            login_url: URL of the login page (for reference)
+            
+        Returns:
+            List of logout steps to execute
+        """
+        import json
+        from pathlib import Path
+        
+        print(f"[Server] 🚪 Creating logout stages for project: {project_name}")
+        
+        # Base path for form_pages
+        base_path = Path(f"/home/ranlaser/automation_product_config/ai_projects/{project_name}/form_pages")
+        base_path.mkdir(parents=True, exist_ok=True)
+        
+        # Check if logout with this URL already exists
+        existing_logout_folder = None
+        logout_num = 1
+        
+        while True:
+            logout_folder = base_path / f"logout_{logout_num}"
+            if not logout_folder.exists():
+                break
+            
+            # Check if this logout has the same URL
+            stages_file = logout_folder / "create_logout.json"
+            if stages_file.exists():
+                try:
+                    with open(stages_file, "r", encoding="utf-8") as f:
+                        existing_data = json.load(f)
+                    if existing_data.get("url") == login_url:
+                        print(f"[Server] 🚪 Found existing logout with same login URL: {logout_folder.name}")
+                        existing_logout_folder = logout_folder
+                        break
+                except Exception as e:
+                    print(f"[Server] ⚠️ Could not read {stages_file}: {e}")
+            
+            logout_num += 1
+        
+        # If existing logout found, return its steps
+        if existing_logout_folder:
+            stages_file = existing_logout_folder / "create_logout.json"
+            with open(stages_file, "r", encoding="utf-8") as f:
+                existing_data = json.load(f)
+            print(f"[Server] 🚪 Reusing {len(existing_data.get('logout_steps', []))} existing logout steps")
+            return existing_data.get("logout_steps", [])
+        
+        # No existing logout - create new one
+        new_logout_folder = base_path / f"logout_{logout_num}"
+        new_logout_folder.mkdir(parents=True, exist_ok=True)
+        print(f"[Server] 🚪 Creating new logout folder: {new_logout_folder.name}")
+        
+        # Call AI to generate logout steps
+        if not self.ai_helper:
+            print("[Server] ⚠️ No AI helper - cannot generate logout steps")
+            return []
+        
+        logout_steps = self.ai_helper.generate_logout_steps(page_html, screenshot_base64)
+        
+        if not logout_steps:
+            print("[Server] ⚠️ AI returned no logout steps")
+            return []
+        
+        # Save logout stages to JSON
+        logout_data = {
+            "url": login_url,
+            "username": username,
+            "logout_steps": logout_steps
+        }
+        
+        stages_file = new_logout_folder / "create_logout.json"
+        with open(stages_file, "w", encoding="utf-8") as f:
+            json.dump(logout_data, f, indent=2)
+        
+        print(f"[Server] 🚪 Saved {len(logout_steps)} logout steps to: {stages_file}")
+        
+        return logout_steps
