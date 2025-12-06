@@ -144,6 +144,8 @@ class Agent:
         self.headless = headless
         
         from webdriver_manager.chrome import ChromeDriverManager
+
+
         
         try:
             if browser_type.lower() == "chrome":
@@ -158,6 +160,7 @@ class Agent:
                     self.driver.set_page_load_timeout(40)
                 else:
                     options = Options()
+                    options.binary_location = '/opt/google/chrome/google-chrome'
                     
                     if headless:
                         options.add_argument('--headless=new')
@@ -178,6 +181,11 @@ class Agent:
                         self.driver.set_page_load_timeout(40)
                     except Exception:
                         downloaded_binary_path = ChromeDriverManager().install()
+                        if downloaded_binary_path.endswith('THIRD_PARTY_NOTICES.chromedriver'):
+                            import os
+                            downloaded_binary_path = os.path.join(os.path.dirname(downloaded_binary_path),
+                                                                  'chromedriver')
+                            os.chmod(downloaded_binary_path, 0o755)
                         service = Service(executable_path=downloaded_binary_path)
                         self.driver = webdriver.Chrome(service=service, options=options)
                         self.driver.set_page_load_timeout(40)

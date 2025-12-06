@@ -272,7 +272,7 @@ Then continue with other fields in order
 
 ```bash
 # Just run:
-python form_page_main.py
+python form_mapper_main.py
 ```
 
 **What happens:**
@@ -286,13 +286,13 @@ python form_page_main.py
 ### Run Multiple Times:
 ```bash
 # Run 1: AI might choose "Option A" → follows that path
-python form_page_main.py
+python form_mapper_main.py
 
 # Run 2: AI might choose "Option C" → follows different path
-python form_page_main.py
+python form_mapper_main.py
 
 # Run 3: AI might choose "Option B" → yet another path
-python form_page_main.py
+python form_mapper_main.py
 ```
 
 Each run explores a different random path!
@@ -363,7 +363,7 @@ Each run explores a different random path!
 ### 1. Run Multiple Times for Coverage
 ```bash
 # Run the test 5 times to explore different paths
-for i in {1..5}; do python form_page_main.py; done
+for i in {1..5}; do python form_mapper_main.py; done
 ```
 
 ### 2. Each Run is Independent
@@ -403,7 +403,7 @@ for i in {1..5}; do python form_page_main.py; done
 
 Just run:
 ```bash
-python form_page_main.py
+python form_mapper_main.py
 ```
 
 And watch it fill your form like a real user would! 🚀

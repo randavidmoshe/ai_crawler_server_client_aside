@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>People - Form Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fb;
+            min-height: 100vh;
+        }
+
+        /* Layout */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: linear-gradient(180deg, #1e1e2d 0%, #1a1a27 100%);
+            color: white;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar-header .logo {
+            font-size: 32px;
+        }
+
+        .sidebar-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .sidebar-nav {
+            padding: 20px 0;
+        }
+
+        .nav-section {
+            padding: 0 15px;
+            margin-bottom: 25px;
+        }
+
+        .nav-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.4);
+            padding: 0 10px;
+            margin-bottom: 10px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            transition: all 0.2s;
+            margin-bottom: 5px;
+            cursor: pointer;
+        }
+
+        .nav-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .nav-item .icon {
+            font-size: 20px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .nav-item .text {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .nav-item .badge {
+            margin-left: auto;
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .nav-item.active .badge {
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+            min-height: 100vh;
+        }
+
+        /* Top Header */
+        .top-header {
+            background: white;
+            padding: 15px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .page-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .breadcrumb {
+            color: #999;
+            font-size: 13px;
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 15px;
+            background: #f5f7fb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .user-menu:hover {
+            background: #e8ecf4;
+        }
+
+        .user-avatar {
+            width: 35px;
+            height: 35px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .user-info {
+            text-align: left;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: #999;
+        }
+
+        /* Page Content */
+        .page-content {
+            padding: 30px;
+        }
+
+        /* People Card */
+        .people-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 25px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .card-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .create-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .create-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Table */
+        .forms-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .forms-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .forms-table th {
+            padding: 15px 20px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .forms-table tbody tr {
+            background: white;
+            border-bottom: 1px solid #f0f0f0;
+            transition: all 0.2s;
+        }
+
+        .forms-table tbody tr:hover {
+            background: #f8f9ff;
+        }
+
+        .forms-table td {
+            padding: 15px 20px;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .forms-table .name-col {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .forms-table .email-col,
+        .forms-table .phone-col {
+            color: #666;
+        }
+
+        .type-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .type-badge.personal {
+            background: #e0e7ff;
+            color: #4338ca;
+        }
+
+        .type-badge.business {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .type-badge.enterprise {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .forms-table .date-col {
+            color: #999;
+            font-size: 13px;
+        }
+
+        .forms-table .actions-col {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        /* Action Buttons */
+        .view-btn, .update-btn, .delete-btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+
+        .view-btn {
+            background: #10b981;
+            color: white;
+        }
+
+        .view-btn:hover {
+            background: #059669;
+        }
+
+        .update-btn {
+            background: #667eea;
+            color: white;
+        }
+
+        .update-btn:hover {
+            background: #5558d3;
+        }
+
+        .delete-btn {
+            background: #ef4444;
+            color: white;
+        }
+
+        .delete-btn:hover {
+            background: #dc2626;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            font-size: 20px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            margin-bottom: 25px;
+        }
+
+        /* Logout Button */
+        .logout-section {
+            padding: 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: inherit;
+        }
+
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            width: 100%;
+            font-size: 14px;
+        }
+
+        .logout-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        /* Mobile */
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+
+            .forms-table {
+                font-size: 12px;
+            }
+
+            .forms-table th,
+            .forms-table td {
+                padding: 10px;
+            }
+
+            .view-btn, .update-btn, .delete-btn {
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+        }
+
+        /* Search and Filter */
+        .toolbar {
+            padding: 20px 30px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: #f5f7fb;
+            border-radius: 8px;
+            padding: 10px 15px;
+            flex: 1;
+            max-width: 300px;
+        }
+
+        .search-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            width: 100%;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        .filter-select {
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .results-count {
+            color: #999;
+            font-size: 14px;
+        }
+
+        /* Dropdown Menu */
+        .dropdown {
+            position: relative;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            min-width: 200px;
+            padding: 10px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            border-radius: 6px;
+            color: #333;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover {
+            background: #f5f7fb;
+        }
+
+        .dropdown-item.danger {
+            color: #ef4444;
+        }
+
+        .dropdown-item.danger:hover {
+            background: #fee2e2;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="logo">📋</span>
+                <h2>Form Manager</h2>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Main Menu</div>
+                    <a href="dashboard.html" class="nav-item">
+                        <span class="icon">🏠</span>
+                        <span class="text">Dashboard</span>
+                    </a>
+                    <a href="people.html" class="nav-item active">
+                        <span class="icon">👥</span>
+                        <span class="text">People</span>
+                        <span class="badge" id="peopleCount">0</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Management</div>
+                    <a href="#" class="nav-item" onclick="showComingSoon('Reports')">
+                        <span class="icon">📊</span>
+                        <span class="text">Reports</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="showComingSoon('Analytics')">
+                        <span class="icon">📈</span>
+                        <span class="text">Analytics</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="showComingSoon('Settings')">
+                        <span class="icon">⚙️</span>
+                        <span class="text">Settings</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">System</div>
+                    <a href="#" class="nav-item" onclick="showComingSoon('Audit Log')">
+                        <span class="icon">📝</span>
+                        <span class="text">Audit Log</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="showComingSoon('Help')">
+                        <span class="icon">❓</span>
+                        <span class="text">Help & Support</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="logout-section">
+                <button class="logout-btn" onclick="logout()">
+                    <span class="icon">🚪</span>
+                    <span class="text">Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+                    <div>
+                        <h1 class="page-title">People</h1>
+                        <div class="breadcrumb">
+                            <a href="dashboard.html">Home</a> / People
+                        </div>
+                    </div>
+                </div>
+
+                <div class="header-right">
+                    <div class="dropdown">
+                        <div class="user-menu" onclick="toggleDropdown()">
+                            <div class="user-avatar" id="userAvatar">A</div>
+                            <div class="user-info">
+                                <div class="user-name" id="userName">Admin</div>
+                                <div class="user-role">Administrator</div>
+                            </div>
+                            <span>▼</span>
+                        </div>
+                        <div class="dropdown-menu" id="userDropdown">
+                            <a href="#" class="dropdown-item" onclick="showComingSoon('Profile')">
+                                <span>👤</span> My Profile
+                            </a>
+                            <a href="#" class="dropdown-item" onclick="showComingSoon('Settings')">
+                                <span>⚙️</span> Settings
+                            </a>
+                            <hr style="margin: 10px 0; border: none; border-top: 1px solid #eee;">
+                            <a href="#" class="dropdown-item danger" onclick="logout()">
+                                <span>🚪</span> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <div class="page-content">
+                <div class="people-card">
+                    <div class="card-header">
+                        <h2>👥 Saved People</h2>
+                        <a href="test-form.html" class="create-btn">
+                            ➕ Create New Person
+                        </a>
+                    </div>
+
+                    <!-- Search and Filter Toolbar -->
+                    <div class="toolbar">
+                        <div class="search-box">
+                            <span>🔍</span>
+                            <input type="text" id="searchInput" placeholder="Search by name, email..." onkeyup="filterForms()">
+                        </div>
+
+                        <select class="filter-select" id="typeFilter" onchange="filterForms()">
+                            <option value="">All Types</option>
+                            <option value="personal">Personal</option>
+                            <option value="business">Business</option>
+                            <option value="enterprise">Enterprise</option>
+                        </select>
+
+                        <span class="results-count" id="resultsCount">0 people</span>
+                    </div>
+
+                    <!-- Table -->
+                    <div id="formsList">
+                        <!-- Forms will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Check authentication
+        if (sessionStorage.getItem('isLoggedIn') !== 'true') {
+            window.location.href = 'login.html';
+        }
+
+        // Load user info
+        const username = sessionStorage.getItem('username') || 'Admin';
+        document.getElementById('userName').textContent = username;
+        document.getElementById('userAvatar').textContent = username.charAt(0).toUpperCase();
+
+        // Store all forms for filtering
+        let allForms = [];
+
+        // Load and display forms
+        function loadForms() {
+            const formsList = document.getElementById('formsList');
+            allForms = JSON.parse(localStorage.getItem('savedForms') || '[]');
+            
+            document.getElementById('peopleCount').textContent = allForms.length;
+            
+            displayForms(allForms);
+        }
+
+        function displayForms(forms) {
+            const formsList = document.getElementById('formsList');
+            document.getElementById('resultsCount').textContent = `${forms.length} people`;
+
+            if (forms.length === 0) {
+                formsList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <h3>No people found</h3>
+                        <p>Create your first person to get started!</p>
+                        <a href="test-form.html" class="create-btn">
+                            ➕ Create New Person
+                        </a>
+                    </div>
+                `;
+                return;
+            }
+
+            formsList.innerHTML = `
+                <table class="forms-table">
+                    <thead>
+                        <tr>
+                            <th>👤 Person Name</th>
+                            <th>📧 Email</th>
+                            <th>📱 Phone</th>
+                            <th>🏢 Type</th>
+                            <th>📅 Saved Date</th>
+                            <th>⚙️ Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${forms.map((form, index) => {
+                            const appType = form.applicationType || 'personal';
+                            const originalIndex = allForms.indexOf(form);
+                            
+                            return `
+                                <tr>
+                                    <td class="name-col">${form.fullName || 'Unnamed Person'}</td>
+                                    <td class="email-col">${form.email || '-'}</td>
+                                    <td class="phone-col">${form.phone || '-'}</td>
+                                    <td><span class="type-badge ${appType}">${appType}</span></td>
+                                    <td class="date-col">
+                                        ${new Date(form.savedDate).toLocaleDateString()}<br>
+                                        <small>${new Date(form.savedDate).toLocaleTimeString()}</small>
+                                    </td>
+                                    <td class="actions-col">
+                                        <button class="view-btn" onclick="viewForm(${originalIndex})">👁️ View</button>
+                                        <button class="update-btn" onclick="updateForm(${originalIndex})">✏️ Update</button>
+                                        <button class="delete-btn" onclick="deleteForm(${originalIndex})">🗑️ Delete</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function filterForms() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const typeFilter = document.getElementById('typeFilter').value;
+
+            let filtered = allForms.filter(form => {
+                const matchesSearch = !searchTerm || 
+                    (form.fullName && form.fullName.toLowerCase().includes(searchTerm)) ||
+                    (form.email && form.email.toLowerCase().includes(searchTerm)) ||
+                    (form.phone && form.phone.toLowerCase().includes(searchTerm));
+
+                const matchesType = !typeFilter || form.applicationType === typeFilter;
+
+                return matchesSearch && matchesType;
+            });
+
+            displayForms(filtered);
+        }
+
+        function viewForm(index) {
+            window.location.href = `view-form.html?id=${index}`;
+        }
+
+        function updateForm(index) {
+            window.location.href = `test-form.html?edit=${index}`;
+        }
+
+        function deleteForm(index) {
+            if (confirm('Are you sure you want to delete this person?')) {
+                const forms = JSON.parse(localStorage.getItem('savedForms') || '[]');
+                forms.splice(index, 1);
+                localStorage.setItem('savedForms', JSON.stringify(forms));
+                loadForms();
+            }
+        }
+
+        // Toggle sidebar (mobile)
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // Toggle user dropdown
+        function toggleDropdown() {
+            document.getElementById('userDropdown').classList.toggle('show');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dropdown')) {
+                document.getElementById('userDropdown').classList.remove('show');
+            }
+        });
+
+        // Logout
+        function logout() {
+            sessionStorage.removeItem('isLoggedIn');
+            sessionStorage.removeItem('username');
+            window.location.href = 'login.html';
+        }
+
+        // Coming soon alert
+        function showComingSoon(feature) {
+            alert(`${feature} feature is coming soon! 🚀`);
+        }
+
+        // Initialize
+        loadForms();
+    </script>
+</body>
+</html>

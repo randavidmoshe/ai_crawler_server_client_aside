@@ -108,8 +108,8 @@ class AIHelper:
         
         for attempt in range(max_retries):
             try:
-                print(f"[AIHelper] Calling Claude API with vision (attempt {attempt + 1}/{max_retries})...")
-                result_logger_gui.info(f"[AIHelper] Calling Claude API with vision (attempt {attempt + 1}/{max_retries})...")
+                print(f"[AIHelper] Calling Claude API with vision for steps generation (attempt {attempt + 1}/{max_retries})...")
+                result_logger_gui.info(f"[AIHelper] Calling Claude API with vision for steps generation (attempt {attempt + 1}/{max_retries})...")
                 
                 message = self.client.messages.create(
                     model=self.model,
@@ -169,15 +169,17 @@ class AIHelper:
             test_context=None,
             is_first_iteration: bool = False,
             screenshot_base64: Optional[str] = None,
-            enable_ui_verification: bool = False,
-            critical_fields_checklist: Optional[Dict[str, str]] = None
+            critical_fields_checklist: Optional[Dict[str, str]] = None,
+            field_requirements: Optional[str] = None,
+            previous_paths: Optional[List[Dict]] = None,
+            current_path_junctions: Optional[List[Dict]] = None
     ) -> Dict[str, Any]:
         """
         Generate Selenium test steps based on DOM and test cases.
         If DOM changed, provide previous steps and which step caused the change.
         
         Returns:
-            Dict with 'steps' (list) and 'ui_issue' (string)
+            Dict with 'steps' (list), 'ui_issue' (string), and 'no_more_paths' (bool)
         """
         
         # Build the prompt
@@ -229,83 +231,22 @@ based on this NEW DOM state.
             else:
                 credentials_instruction = "=== NO CREDENTIALS AVAILABLE ===\nSkip any login/registration tests.\n"
 
-        # Build previously reported UI issues section
-        previously_reported_section = ""
-        if test_context and test_context.reported_ui_issues:
-            issues_list = "\n".join([f"- {issue}" for issue in test_context.reported_ui_issues])
-            previously_reported_section = f"""
-=== PREVIOUSLY REPORTED UI ISSUES ===
-You have already reported these UI issues in earlier steps of this test:
-{issues_list}
-
-**CRITICAL: DO NOT report these issues again!**
-Only report NEW issues that are not in the list above.
-If all visible issues are already in the list, leave ui_issue as empty string "".
-===============================================================================
-
-"""
-
-        # Build UI verification section conditionally
-        if enable_ui_verification and screenshot_base64:
-            ui_task_section = f"""You are a test automation expert. You have TWO SEPARATE TASKS to complete:
-
-        ================================================================================
-        TASK 1: UI VERIFICATION (DO THIS FIRST - ISOLATED FROM TASK 2)
-        ================================================================================
-        
-        {previously_reported_section}You are provided with a screenshot of the current page. Your FIRST task is to perform a thorough UI verification by analyzing the screenshot for visual defects.
-        
-        **MANDATORY SYSTEMATIC SCAN - Follow this checklist in order:**
-        
-        **Step 1: Scan Page Edges and Background**
-        - Check TOP-LEFT corner of the entire viewport
-        - Check TOP-RIGHT corner of the entire viewport  
-        - Check BOTTOM-LEFT corner of the entire viewport
-        - Check BOTTOM-RIGHT corner of the entire viewport
-        - Check the BACKGROUND area around the form container
-        - Check the HEADER area above the form
-        - Look for any floating, orphaned, or disconnected visual elements (colored boxes, shapes, artifacts)
-        
-        **Step 2: Scan Each Form Field Individually**
-        Go through EVERY visible form field one by one and check:
-        - LEFT side of the field - any unexpected borders, boxes, or artifacts?
-        - RIGHT side of the field - any unexpected borders, boxes, or artifacts?
-        - TOP of the field - any unexpected borders, boxes, or artifacts?
-        - BOTTOM of the field - any unexpected borders, boxes, or artifacts?
-        - INSIDE the field - any styling issues, corrupted visuals?
-        
-        **What to Look For:**
-        1. **Overlapping Elements** - Buttons, fields, or text covering each other
-        2. **Unexpected Overlays** - Cookie banners or chat widgets blocking elements
-        3. **Broken Layout** - Misaligned elements, horizontal scrollbars
-        4. **Missing/Broken Visual Elements** - Broken icons, missing graphics
-        5. **Visual Artifacts** - Unexpected colored boxes, shapes, borders (RED boxes, GREEN boxes, GRAY boxes, BLUE boxes, etc.)
-        6. **Styling Defects** - Corrupted borders, inconsistent colors/backgrounds
-        7. **Positioning Anomalies** - Elements floating outside containers
-        8. **Spacing Issues** - Excessive or missing spacing
-        
-        **IMPORTANT:**
-        - Don't stop after finding ONE issue - continue checking ALL areas and ALL fields
-        - Some issues are subtle (small gray boxes) while others are obvious (bright red/green boxes)
-        - Report ALL issues you find, comma-separated
-        - Be specific: mention which field has which issue, or where in the page the issue appears
-        
-        **Example of complete report:**
-        "Phone Number field has red border artifact on left side, Email Address field has gray box on right side, Green square visible in top-right corner of page"
-        
-        ================================================================================
-        TASK 2: GENERATE TEST STEPS (DO THIS SECOND - AFTER UI VERIFICATION)
-        ================================================================================
-        
-        Now generate Selenium WebDriver test steps for the form page.
-"""
-        else:
-            ui_task_section = "You are a test automation expert. Your task is to generate Selenium WebDriver test steps for the form page.\n\n"
+        # Build UI verification section - simplified intro without UI verification task
+        ui_task_section = "You are a test automation expert. Your task is to generate Selenium WebDriver test steps for the form page.\n\n"
         
         # Build critical fields checklist section (for Scenario B recovery)
         critical_fields_section = ""
         if critical_fields_checklist:
             fields_list = "\n".join([f"- **{field_name}**: {issue_type}" for field_name, issue_type in critical_fields_checklist.items()])
+            
+            # Include AI rewritten requirements if available
+            requirements_text = ""
+            if field_requirements:
+                requirements_text = f"""
+**EXACT REQUIREMENTS FROM ALERT:**
+{field_requirements}
+"""
+            
             critical_fields_section = f"""
 ⚠️⚠️⚠️ CRITICAL FIELDS CHECKLIST ⚠️⚠️⚠️
 ================================================================================
@@ -314,7 +255,7 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
 A validation alert was detected. The following fields MUST be filled correctly:
 
 {fields_list}
-
+{requirements_text}
 **MANDATORY INSTRUCTIONS:**
 1. Pay SPECIAL ATTENTION to these critical fields
 2. For fields marked "MUST FILL" - ensure they are filled with correct values from test_cases
@@ -328,8 +269,54 @@ This checklist will remain active until the test completes successfully.
 
 """
 
+        # Build route planning section for junction discovery
+        route_planning_section = ""
+        if previous_paths:
+            paths_summary = json.dumps(previous_paths, indent=2)
+            current_junctions_info = ""
+            if current_path_junctions:
+                current_junctions_info = f"""
+**CURRENT PATH JUNCTIONS (so far):**
+{json.dumps(current_path_junctions, indent=2)}
+"""
+            route_planning_section = f"""
+🔀🔀🔀 ROUTE PLANNING - JUNCTION DISCOVERY MODE 🔀🔀🔀
+================================================================================
+**GOAL:** Discover all form variations by taking DIFFERENT paths through junctions.
+
+**JUNCTIONS** are dropdowns, radio buttons, or other selectors where choosing different options reveals DIFFERENT fields.
+{current_junctions_info}
+**PREVIOUSLY COMPLETED PATHS:**
+{paths_summary}
+
+**YOUR TASK FOR THIS RUN:**
+1. Before filling the form, PLAN your route through the junctions
+2. Look at the junctions in previous paths and choose DIFFERENT values
+3. If you cannot find any new unexplored junction combinations, set "no_more_paths": true
+
+**IMPORTANT:** Choose different junction values than ALL previous paths to discover new form fields!
+================================================================================
+
+"""
+        elif previous_paths is not None:  # Empty list = first path
+            route_planning_section = """
+🔀🔀🔀 ROUTE PLANNING - JUNCTION DISCOVERY MODE 🔀🔀🔀
+================================================================================
+**GOAL:** Discover all form variations by exploring different paths through junctions.
+
+**JUNCTIONS** are dropdowns, radio buttons, or other selectors where choosing different options reveals DIFFERENT fields.
+
+**This is the FIRST PATH.** Fill the form normally and we will track which junctions you encounter.
+
+⚠️ **IMPORTANT:** On the FIRST PATH, you MUST set "no_more_paths": false. 
+   This is just the beginning of discovery - there are always more paths to explore after path 1!
+================================================================================
+
+"""
+
         prompt = f"""{ui_task_section}
 {critical_fields_section}
+{route_planning_section}
         === SELECTOR GUIDELINES ===
 
         **Use CSS selectors (RECOMMENDED):**
@@ -382,31 +369,10 @@ This checklist will remain active until the test completes successfully.
         === YOUR TASK: FORM PAGE TESTING ===
 
         You are testing a FORM PAGE. The test flow is:
+        You MUST generate steps to fill the form
         
-        **Step 1: Find the Entry Point**
-        - You start on a base page (like a list page, dashboard, or home page)
-        - Look for a button/link to enter the form, such as:
-          * "Add" / "Add New" / "Add [Item]"
-          * "Create" / "Create New" / "Create [Item]"
-          * "New" / "New [Item]"
-          * "+" button
-          * "Register" / "Sign Up"
-          * Any button/link that opens a form
-        - Click this button to enter the form
         
-        **CRITICAL: Entry Button Workflow**
-        Usually, the workflow is:
-        1. You see ONLY the entry button initially (no form yet)
-        2. You generate a click step for the entry button
-        3. After clicking, the FORM WILL APPEAR (even though you can't see it yet!)
-        4. You MUST generate steps to fill the form that will appear
-        
-        **Don't stop after clicking the entry button!** 
-        Even if you only see the button now, you know a form will open after clicking it.
-        Generate steps for: click button → THEN fill the form fields → THEN submit
-        
-        **Step 2: Fill the Form**
-        Once inside the form (after clicking entry button):
+        **Step 1: Fill the Form**
         
         **Form Structure:**
         - Input fields (text, email, number, date, etc.)
@@ -593,19 +559,11 @@ This checklist will remain active until the test completes successfully.
         2. Make a RANDOM choice (don't always pick the first!)
         3. Fill ALL fields and list items and dropdowns and anything else a user fills up that appear as a result
         4. Continue to next junction
-        
-        
+               
         
         **Your Testing Path - Act Like a Real User:**
         You should follow ONE RANDOM path through the form, like a real user would:
-        
-        **IMPORTANT: Even if you only see an entry button now, you MUST generate ALL steps including:**
-        - Click entry button
-        - Wait for form to load
-        - Fill ALL fields (that will appear after button click)
-        - Make selections at junctions (use test_data values if specified, otherwise random)
-        - Submit the form
-        
+                        
         Don't generate just the click and stop! Generate the complete flow!
         
         1. Start at the beginning of the form
@@ -652,16 +610,26 @@ This checklist will remain active until the test completes successfully.
 
         **Form Data Guidelines:**
         When generating test data for forms:
-        - Name: {test_context.registered_name if test_context and test_context.registered_name else 'TestUser123'}
-        - Email: {test_context.registered_email if test_context and test_context.registered_email else 'test@example.com'}
-        - Phone: 1234567890
-        - Address: 123 Main St
-        - City: Los Angeles
-        - State: California
-        - Zip: 90001
-        - Country: United States
-        - Dates: Use reasonable values (e.g., birthdate: 01/15/1990)
-        - Numbers: Use realistic values based on field context
+        
+        **⚠️ DATE FIELDS - CRITICAL:** For date fields with "mm/dd/yyyy" placeholder → enter digits only: "01152025" (no slashes)
+        
+        **⚠️ ONLY THE MAIN/PRIMARY FIELD NEEDS UNIQUE SUFFIX:** 
+        - ONLY the main identifying field (e.g., Person Name, Company Name, Title) gets a random suffix like "_184093" (e.g., "John Doe_184093")
+        - ALL OTHER FIELDS should have NORMAL realistic values WITHOUT any suffix!
+        
+        - Name (main field): {test_context.registered_name if test_context and test_context.registered_name else 'Add unique suffix (e.g., TestUser_184093)'}
+        - Email: {test_context.registered_email if test_context and test_context.registered_email else 'Normal email like john@example.com (NO suffix!)'}
+        - Phone, Address, City, State, Zip, Country, Numbers: Normal realistic values (NO suffix!)
+        - Dates: Look at screenshot/placeholder for required format
+
+        **⚠️ SPECIAL INPUT FIELDS (Date, Time, Phone, etc.) - CRITICAL:**
+        For date, time, and specially formatted fields:
+        1. Look at the SCREENSHOT to see the field's placeholder/format hint
+        2. Enter the value in the EXACT format shown in the placeholder
+        3. For date fields with "mm/dd/yyyy" placeholder → enter digits only: "01152025" (no slashes)
+        4. The placeholder tells you how to format your input - follow it exactly!
+        
+        **Wrong format will corrupt the data and cause verification failures!**
 
 
         === AVAILABLE ACTIONS ===
@@ -874,7 +842,6 @@ This checklist will remain active until the test completes successfully.
 
         4. **Verification Steps:**
            After important actions, verify success:
-           - After submit → verify success message exists
            - After navigation → verify new page/section loaded
            - After form completion → verify confirmation displayed
 
@@ -1043,10 +1010,7 @@ This checklist will remain active until the test completes successfully.
 
         {context}
 
-        === RESPONSE FORMAT ==="""
-        
-        if enable_ui_verification:
-            prompt += """
+        === RESPONSE FORMAT ===
         Return ONLY a JSON object with this structure:
 
         ```json
@@ -1055,27 +1019,14 @@ This checklist will remain active until the test completes successfully.
             {{"step_number": 1, "action": "fill", "selector": "input#field", "value": "value", "description": "Fill field"}},
             {{"step_number": 2, "action": "click", "selector": "button.submit", "description": "Submit form"}}
           ],
-          "ui_issue": ""
+          "no_more_paths": false
         }}
         ```
 
         - **steps**: Array of step objects to execute
-        - **ui_issue**: Empty string if UI is fine, or description of issue if detected (e.g., "Cookie banner overlapping submit button")
+        - **no_more_paths**: Set to `true` ONLY if all junction combinations have been explored (no new paths possible). Otherwise `false`.
 
         Return ONLY the JSON object, no other text.
-        """
-        else:
-            prompt += """
-        Return ONLY a JSON array of step objects:
-
-        ```json
-        [
-          {{"step_number": 1, "action": "fill", "selector": "input#field", "value": "value", "description": "Fill field"}},
-          {{"step_number": 2, "action": "click", "selector": "button.submit", "description": "Submit form"}}
-        ]
-        ```
-
-        Return ONLY the JSON array, no other text.
         """
         
         try:
@@ -1107,7 +1058,7 @@ This checklist will remain active until the test completes successfully.
             if response_text is None:
                 print("[AIHelper] ❌ Failed to get response from API after retries")
                 logger.error("[AIHelper] Failed to get response from API after retries")
-                return {"steps": [], "ui_issue": ""}
+                return {"steps": [], "ui_issue": "", "no_more_paths": False}
             
             logger.info(f"[AIHelper] Received response ({len(response_text)} chars)")
             print(f"[AIHelper] Received response ({len(response_text)} chars)")
@@ -1122,26 +1073,25 @@ This checklist will remain active until the test completes successfully.
                 response_text = response_text[:-3]
             response_text = response_text.strip()
             
-            # Try parsing as object first (new format with ui_issue)
+            # Try parsing as object first (new format)
             try:
                 result = json.loads(response_text)
                 if isinstance(result, dict) and "steps" in result:
-                    # New format: {"steps": [...], "ui_issue": "..."}
+                    # New format: {"steps": [...], "no_more_paths": bool}
                     steps = result.get("steps", [])
-                    ui_issue = result.get("ui_issue", "")
+                    no_more_paths = result.get("no_more_paths", False)
                     
                     logger.info(f"[AIHelper] Successfully parsed {len(steps)} steps")
                     print(f"[AIHelper] Successfully parsed {len(steps)} steps")
+                    if no_more_paths:
+                        print(f"[AIHelper] 🏁 AI indicates no more paths to explore")
                     
-                    if ui_issue:
-                        print(f"[AIHelper] ⚠️  UI Issue detected: {ui_issue}")
-                    
-                    return {"steps": steps, "ui_issue": ui_issue}
+                    return {"steps": steps, "ui_issue": "", "no_more_paths": no_more_paths}
                 elif isinstance(result, list):
                     # Old format: just array of steps (backward compatibility)
                     logger.info(f"[AIHelper] Successfully parsed {len(result)} steps (legacy format)")
                     print(f"[AIHelper] Successfully parsed {len(result)} steps (legacy format)")
-                    return {"steps": result, "ui_issue": ""}
+                    return {"steps": result, "ui_issue": "", "no_more_paths": False}
                 else:
                     raise ValueError("Unexpected response format")
             except (json.JSONDecodeError, ValueError) as e:
@@ -1149,14 +1099,14 @@ This checklist will remain active until the test completes successfully.
                 result_logger_gui.error(f"[AIHelper] Failed to parse JSON: {e}")
                 print(f"[AIHelper] Failed to parse JSON: {e}")
                 print(f"[AIHelper] Response text: {response_text[:500]}")
-                return {"steps": [], "ui_issue": ""}
+                return {"steps": [], "ui_issue": "", "no_more_paths": False}
             
         except Exception as e:
             result_logger_gui.error(f"[AIHelper] Error: {e}")
             print(f"[AIHelper] Error: {e}")
             import traceback
             traceback.print_exc()
-            return {"steps": [], "ui_issue": ""}
+            return {"steps": [], "ui_issue": "", "no_more_paths": False}
     
     def regenerate_steps(
         self,
@@ -1165,8 +1115,10 @@ This checklist will remain active until the test completes successfully.
         test_cases: list,
         test_context,
         screenshot_base64: Optional[str] = None,
-        enable_ui_verification: bool = False,
-        critical_fields_checklist: Optional[Dict[str, str]] = None
+        critical_fields_checklist: Optional[Dict[str, str]] = None,
+        field_requirements: Optional[str] = None,
+        previous_paths: Optional[List[Dict]] = None,
+        current_path_junctions: Optional[List[Dict]] = None
     ) -> Dict[str, Any]:
         """
         Regenerate remaining steps after DOM change
@@ -1176,10 +1128,12 @@ This checklist will remain active until the test completes successfully.
             executed_steps: Steps already executed
             test_cases: Test cases
             test_context: Test context
-            screenshot_base64: Optional base64 screenshot for UI verification
+            screenshot_base64: Optional base64 screenshot for visual context
+            previous_paths: Previously completed paths (for junction discovery)
+            current_path_junctions: Junctions taken in current path so far
             
         Returns:
-            Dict with 'steps' (list) and 'ui_issue' (string)
+            Dict with 'steps' (list), 'ui_issue' (string), and 'no_more_paths' (bool)
         """
         try:
             print(f"[AIHelper] Regenerating steps after DOM change...")
@@ -1189,8 +1143,11 @@ This checklist will remain active until the test completes successfully.
             executed_context = ""
             if executed_steps:
                 executed_context = f"""
-## Steps Already Completed:
-{json.dumps([{"step": i+1, "action": s.get("action"), "description": s.get("description"), "selector": s.get("selector")} for i, s in enumerate(executed_steps)], indent=2)}
+## Steps Already Completed (USE THESE VALUES FOR VERIFY STEPS!):
+{json.dumps([{"step": i+1, "action": s.get("action"), "description": s.get("description"), "selector": s.get("selector"), "value": s.get("value")} for i, s in enumerate(executed_steps)], indent=2)}
+
+**IMPORTANT:** When generating VERIFY steps, use the "value" field from FILL/SELECT steps above as the expected value.
+Do NOT use what you see on the screenshot or DOM - values may have been corrupted during input.
 """
             
             # Build test cases context
@@ -1201,26 +1158,19 @@ This checklist will remain active until the test completes successfully.
 {json.dumps(test_cases, indent=2)}
 """
             
-            # Build previously reported UI issues section
-            previously_reported_section = ""
-            if test_context and test_context.reported_ui_issues:
-                issues_list = "\n".join([f"- {issue}" for issue in test_context.reported_ui_issues])
-                previously_reported_section = f"""
-=== PREVIOUSLY REPORTED UI ISSUES ===
-You have already reported these UI issues in earlier steps of this test:
-{issues_list}
-
-**CRITICAL: DO NOT report these issues again!**
-Only report NEW issues that are not in the list above.
-If all visible issues are already in the list, leave ui_issue as empty string "".
-===============================================================================
-
-"""
-            
             # Build critical fields checklist section (for Scenario B recovery)
             critical_fields_section = ""
             if critical_fields_checklist:
                 fields_list = "\n".join([f"- **{field_name}**: {issue_type}" for field_name, issue_type in critical_fields_checklist.items()])
+                
+                # Include AI rewritten requirements if available
+                requirements_text = ""
+                if field_requirements:
+                    requirements_text = f"""
+**EXACT REQUIREMENTS FROM ALERT:**
+{field_requirements}
+"""
+                
                 critical_fields_section = f"""
 ⚠️⚠️⚠️ CRITICAL FIELDS CHECKLIST ⚠️⚠️⚠️
 ================================================================================
@@ -1229,7 +1179,7 @@ If all visible issues are already in the list, leave ui_issue as empty string ""
 A validation alert was detected. The following fields MUST be filled correctly:
 
 {fields_list}
-
+{requirements_text}
 **MANDATORY INSTRUCTIONS:**
 1. Pay SPECIAL ATTENTION to these critical fields
 2. For fields marked "MUST FILL" - ensure they are filled with correct values from test_cases
@@ -1242,60 +1192,53 @@ This checklist will remain active until the test completes successfully.
 ================================================================================
 
 """
+
+            # Build route planning section for junction discovery
+            route_planning_section = ""
+            if previous_paths:
+                paths_summary = json.dumps(previous_paths, indent=2)
+                current_junctions_info = ""
+                if current_path_junctions:
+                    current_junctions_info = f"""
+**CURRENT PATH JUNCTIONS (already taken in this run):**
+{json.dumps(current_path_junctions, indent=2)}
+"""
+                route_planning_section = f"""
+🔀🔀🔀 ROUTE PLANNING - JUNCTION DISCOVERY MODE 🔀🔀🔀
+================================================================================
+**GOAL:** Continue exploring a DIFFERENT path than previous runs.
+{current_junctions_info}
+**PREVIOUSLY COMPLETED PATHS:**
+{paths_summary}
+
+**YOUR TASK:** Continue with the planned route. For any remaining junctions, choose values DIFFERENT from previous paths.
+If no more unexplored combinations exist, set "no_more_paths": true.
+================================================================================
+
+"""
+            elif previous_paths is not None:  # Empty list = first path
+                current_junctions_info = ""
+                if current_path_junctions:
+                    current_junctions_info = f"""
+**CURRENT PATH JUNCTIONS (already taken in this run):**
+{json.dumps(current_path_junctions, indent=2)}
+"""
+                route_planning_section = f"""
+🔀🔀🔀 ROUTE PLANNING - JUNCTION DISCOVERY MODE 🔀🔀🔀
+================================================================================
+**GOAL:** This is the FIRST PATH. Continue filling the form normally.
+{current_junctions_info}
+⚠️ **IMPORTANT:** On the FIRST PATH, you MUST set "no_more_paths": false.
+   This is just the beginning of discovery - there are always more paths to explore after path 1!
+================================================================================
+
+"""
             
-            # Build full prompt conditionally with UI verification
-            if enable_ui_verification and screenshot_base64:
-                prompt = f"""You are a web automation expert. You have TWO SEPARATE TASKS to complete:
+            # Build full prompt - simplified without UI verification task
+            prompt = f"""You are a web automation expert. Your task is to generate remaining Selenium WebDriver test steps after a DOM change.
 
 {critical_fields_section}
-================================================================================
-TASK 1: UI VERIFICATION (DO THIS FIRST - ISOLATED FROM TASK 2)
-================================================================================
-
-{previously_reported_section}You are provided with a screenshot of the current page. Your FIRST task is to perform a thorough UI verification by analyzing the screenshot for visual defects.
-
-**MANDATORY SYSTEMATIC SCAN - Follow this checklist in order:**
-
-**Step 1: Scan Page Edges and Background**
-- Check TOP-LEFT corner of the entire viewport
-- Check TOP-RIGHT corner of the entire viewport  
-- Check BOTTOM-LEFT corner of the entire viewport
-- Check BOTTOM-RIGHT corner of the entire viewport
-- Check the BACKGROUND area around the form container
-- Check the HEADER area above the form
-- Look for any floating, orphaned, or disconnected visual elements (colored boxes, shapes, artifacts)
-
-**Step 2: Scan Each Form Field Individually**
-Go through EVERY visible form field one by one and check:
-- LEFT side of the field - any unexpected borders, boxes, or artifacts?
-- RIGHT side of the field - any unexpected borders, boxes, or artifacts?
-- TOP of the field - any unexpected borders, boxes, or artifacts?
-- BOTTOM of the field - any unexpected borders, boxes, or artifacts?
-- INSIDE the field - any styling issues, corrupted visuals?
-
-**What to Look For:**
-1. **Overlapping Elements** - Buttons, fields, or text covering each other
-2. **Unexpected Overlays** - Cookie banners or chat widgets blocking elements
-3. **Broken Layout** - Misaligned elements, horizontal scrollbars
-4. **Missing/Broken Visual Elements** - Broken icons, missing graphics
-5. **Visual Artifacts** - Unexpected colored boxes, shapes, borders (RED boxes, GREEN boxes, GRAY boxes, BLUE boxes, etc.)
-6. **Styling Defects** - Corrupted borders, inconsistent colors/backgrounds
-7. **Positioning Anomalies** - Elements floating outside containers
-8. **Spacing Issues** - Excessive or missing spacing
-
-**IMPORTANT:**
-- Don't stop after finding ONE issue - continue checking ALL areas and ALL fields
-- Some issues are subtle (small gray boxes) while others are obvious (bright red/green boxes)
-- Report ALL issues you find, comma-separated
-- Be specific: mention which field has which issue, or where in the page the issue appears
-
-**Example of complete report:**
-"Phone Number field has red border artifact on left side, Email Address field has gray box on right side, Green square visible in top-right corner of page"
-
-================================================================================
-TASK 2: GENERATE REMAINING TEST STEPS (DO THIS SECOND - AFTER UI VERIFICATION)
-================================================================================
-
+{route_planning_section}
 The DOM has changed after executing some steps.
 
 {executed_context}
@@ -1306,31 +1249,6 @@ The DOM changed, and here is the NEW current state:
 {dom_html}
 
 **If a screenshot is provided, you can also use it to get additional understanding of the current page state (which tab is visible, if any overlays/menus are blocking elements, etc.)**
-
-{test_cases_context}
-
-**CRITICAL: Generate steps for ALL test cases above in ONE continuous JSON array. Do NOT stop after TEST_1!**
-
-**For edit/update tests - COMPLETE WORKFLOW PER FIELD:**
-For each field that needs to be verified and updated, generate this complete sequence:
-1. Navigate to field (switch_to_frame/shadow_root, click tab, hover, wait_for_visible as needed)
-2. Verify original value (action: "verify", value: expected original value from TEST_1)
-3. Clear field (action: "clear" - only for text inputs, skip for select/checkbox/radio/slider)
-4. Update field (action: "fill"/"select"/"check" with new value)
-5. Navigate back (switch_to_default if you entered iframe/shadow_root)
-"""
-            else:
-                prompt = f"""You are a web automation expert. Your task is to generate remaining Selenium WebDriver test steps after a DOM change.
-
-{critical_fields_section}
-The DOM has changed after executing some steps.
-
-{executed_context}
-
-The DOM changed, and here is the NEW current state:
-
-## Current Page DOM:
-{dom_html}
 
 {test_cases_context}
 
@@ -1366,10 +1284,7 @@ Generate steps to:
 5. Submit the form
 6. Verify success
 
-## Response Format:"""
-            
-            if enable_ui_verification:
-                prompt += """
+## Response Format:
 Return ONLY a JSON object with this structure:
 
 ```json
@@ -1378,25 +1293,12 @@ Return ONLY a JSON object with this structure:
     {{"step_number": 1, "action": "fill", "selector": "input#field", "value": "value", "description": "Fill field"}},
     {{"step_number": 2, "action": "click", "selector": "button.submit", "description": "Submit form"}}
   ],
-  "ui_issue": ""
+  "no_more_paths": false
 }}
 ```
 
 - **steps**: Array of step objects to execute
-- **ui_issue**: Empty string if UI is fine, or description of ALL issues found (comma-separated)
-"""
-            else:
-                prompt += """
-Return ONLY a JSON array of step objects:
-
-```json
-{{
-  "steps": [
-    {{"step_number": 1, "action": "fill", "selector": "input#field", "value": "value", "description": "Fill field"}},
-    {{"step_number": 2, "action": "click", "selector": "button.submit", "description": "Submit form"}}
-  ]  
-}}
-```
+- **no_more_paths**: Set to `true` ONLY if all junction combinations have been explored. Otherwise `false`.
 """
             
             prompt += """
@@ -1494,6 +1396,24 @@ When verifying content on a page (especially view/detail pages after form submis
 3. **Use simple, robust selectors** - avoid complex chaining
 4. **DO NOT verify date/time fields unless you explicitly filled them** - Skip system-generated timestamps like "Saved Date", "Created At", "Last Modified"
 
+**WHERE TO GET EXPECTED VALUES:**
+For VERIFY steps, get expected values from the "Steps Already Completed" section above.
+Look at the "value" field from FILL/SELECT steps - those are the INTENDED values.
+Do NOT use what you see on the screenshot or DOM - the values may have been corrupted during input.
+
+**VERIFY ALL FIELDS ON VIEW/DETAIL PAGES:**
+When on a view/detail page after form submission, you MUST verify ALL fields that were filled during the test:
+1. Look through ALL FILL/SELECT steps in "Steps Already Completed" section
+2. Generate a VERIFY step for EACH field that was filled
+3. Do NOT skip any fields - every field that was filled must be verified
+4. This includes fields in iframes, modals, shadow DOM, and all tabs/sections
+
+**USE ROBUST SELECTORS:**
+- ✅ GOOD: `contains(@class, 'field-value')` - works if class has multiple values
+- ❌ BAD: `@class='field-value'` - fails if class is 'field-value other-class'
+- ✅ GOOD: `//div[contains(@class, 'field')]//span[contains(text(), 'value')]`
+- ❌ BAD: `//div[@class='field-label']/following-sibling::div[@class='field-value']` - too fragile
+
 **Correct Verify Step Format:**
 ```json
 {
@@ -1509,13 +1429,15 @@ When verifying content on a page (especially view/detail pages after form submis
 
 For text content verification:
 - ✅ GOOD: `//div[contains(text(), 'John Doe')]`
-- ✅ GOOD: `//span[@class='field-value' and contains(text(), 'test@example.com')]`
+- ✅ GOOD: `//span[contains(@class, 'field-value') and contains(text(), 'test@example.com')]`
 - ✅ GOOD: `//td[contains(text(), '1234567890')]`
+- ✅ GOOD: `//div[contains(@class, 'field')]//span[contains(text(), 'value')]`
+- ❌ BAD: `@class='field-value'` - use `contains(@class, 'field-value')` instead
 - ❌ BAD: `.field-label:contains('Email')` (jQuery syntax - doesn't work!)
 - ❌ BAD: `div:contains('text')` (CSS pseudo-selector - doesn't work!)
 
 For checking element existence:
-- ✅ GOOD: `//div[@class='success-message']`
+- ✅ GOOD: `//div[contains(@class, 'success-message')]`
 - ✅ GOOD: `div.success-message` (CSS is fine when not checking text)
 
 **Example Verification Steps:**
@@ -1523,7 +1445,7 @@ For checking element existence:
 {
   "step_number": 50,
   "action": "verify",
-  "selector": "//div[@class='success-message']",
+  "selector": "//div[contains(@class, 'success-message')]",
   "value": "Form created successfully",
   "description": "Verify form submission success"
 },
@@ -1537,7 +1459,7 @@ For checking element existence:
 {
   "step_number": 52,
   "action": "verify",
-  "selector": "//span[@class='email-field' and contains(text(), 'test@example.com')]",
+  "selector": "//span[contains(@class, 'email-field') and contains(text(), 'test@example.com')]",
   "value": "test@example.com",
   "description": "Verify email is displayed"
 }
@@ -1547,6 +1469,8 @@ For checking element existence:
 - Never leave `value` empty in verify steps
 - Always use XPath `contains(text(), '...')` for text verification
 - Never use CSS `:contains()` or `:has()` - they don't work in Selenium
+- Always use `contains(@class, '...')` instead of `@class='...'` for class matching
+- On view/detail pages, verify EVERY field that was filled - do NOT skip any
 
 Return ONLY the JSON object, no other text.
 
@@ -1627,7 +1551,7 @@ Return ONLY the JSON object, no other text.
             
             if response_text is None:
                 print("[AIHelper] ❌ Failed to regenerate steps after retries")
-                return {"steps": [], "ui_issue": ""}
+                return {"steps": [], "ui_issue": "", "no_more_paths": False}
             
             print(f"[AIHelper] Received regeneration response ({len(response_text)} chars)")
             
@@ -1639,22 +1563,22 @@ Return ONLY the JSON object, no other text.
             if json_match:
                 response_data = json.loads(json_match.group())
                 steps = response_data.get("steps", [])
-                ui_issue = response_data.get("ui_issue", "")
+                no_more_paths = response_data.get("no_more_paths", False)
                 
                 print(f"[AIHelper] Successfully regenerated {len(steps)} new steps")
-                if ui_issue:
-                    print(f"[AIHelper] ⚠️  UI Issue detected: {ui_issue}")
+                if no_more_paths:
+                    print(f"[AIHelper] 🏁 AI indicates no more paths to explore")
                 
-                return {"steps": steps, "ui_issue": ui_issue}
+                return {"steps": steps, "ui_issue": "", "no_more_paths": no_more_paths}
             else:
                 print("[AIHelper] No JSON object found in regeneration response")
-                return {"steps": [], "ui_issue": ""}
+                return {"steps": [], "ui_issue": "", "no_more_paths": False}
                 
         except Exception as e:
             print(f"[AIHelper] Error regenerating steps: {e}")
             import traceback
             traceback.print_exc()
-            return {"steps": [], "ui_issue": ""}
+            return {"steps": [], "ui_issue": "", "no_more_paths": False}
 
     def discover_test_scenarios(self, dom_html: str, already_tested: list, max_scenarios: int = 5) -> list:
         """
@@ -1764,7 +1688,8 @@ Return ONLY the JSON object, no other text.
         screenshot_path: str,
         test_cases: List[Dict],
         test_context,
-        attempt_number: int
+        attempt_number: int,
+        recovery_failure_history: List[Dict] = None
     ) -> List[Dict]:
         """
         Analyze a failed step using AI with vision and generate recovery steps
@@ -1777,6 +1702,7 @@ Return ONLY the JSON object, no other text.
             test_cases: Active test cases
             test_context: Test context
             attempt_number: Attempt number (1 or 2)
+            recovery_failure_history: List of previous failures for detecting repeated issues
             
         Returns:
             List of steps: [recovery steps] + [corrected failed step] + [remaining steps]
@@ -1798,7 +1724,8 @@ Return ONLY the JSON object, no other text.
                 fresh_dom=fresh_dom,
                 test_cases=test_cases,
                 test_context=test_context,
-                attempt_number=attempt_number
+                attempt_number=attempt_number,
+                recovery_failure_history=recovery_failure_history
             )
             
             # Call Claude with vision and retry logic
@@ -1853,7 +1780,8 @@ Return ONLY the JSON object, no other text.
         fresh_dom: str,
         test_cases: List[Dict],
         test_context,
-        attempt_number: int
+        attempt_number: int,
+        recovery_failure_history: List[Dict] = None
     ) -> str:
         """Build the prompt for failure recovery analysis"""
         
@@ -1866,7 +1794,19 @@ Return ONLY the JSON object, no other text.
         if executed_steps:
             executed_context = f"""
 Steps completed successfully so far:
-{json.dumps([{"step": i+1, "action": s.get("action"), "description": s.get("description")} for i, s in enumerate(executed_steps)], indent=2)}
+{json.dumps([{"step": i+1, "action": s.get("action"), "description": s.get("description"), "selector": s.get("selector"), "value": s.get("value")} for i, s in enumerate(executed_steps)], indent=2)}
+"""
+        
+        # Build recovery failure history section
+        failure_history_section = ""
+        if recovery_failure_history and len(recovery_failure_history) > 0:
+            failure_history_section = f"""
+## ⚠️ ACCUMULATED RECOVERY FAILURE HISTORY:
+The following steps have failed during this recovery session:
+{json.dumps(recovery_failure_history, indent=2)}
+
+**CRITICAL: If you see 4 or more failures in a row that are about the same stage (same action trying to do the same thing), 
+this indicates an unrecoverable issue. In this case, return an EMPTY array [] to signal that recovery is not possible.**
 """
         
         prompt = f"""
@@ -1880,6 +1820,7 @@ A test step has FAILED. Your job is to analyze the failure and provide recovery 
 - Description: {description}
 
 {executed_context}
+{failure_history_section}
 
 ## What I'm Providing:
 1. **Screenshot**: Full page screenshot showing current state

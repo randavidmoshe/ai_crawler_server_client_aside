@@ -1,4 +1,4 @@
-# form_page_runner.py
+# forms_runner.py
 # Execute form page stages from JSON file
 
 import sys
@@ -7,7 +7,7 @@ import json
 import time
 import logging
 from agent_selenium import AgentSelenium
-from ai_form_page_runner_error_prompter import AIFormPageRunError
+from ai_forms_runner_error_prompter import AIFormPageRunError
 
 logger = logging.getLogger('init_logger.form_page_run')
 result_logger_gui = logging.getLogger('init_result_logger_gui.form_page_run')

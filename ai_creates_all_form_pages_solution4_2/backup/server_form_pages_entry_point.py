@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
     DISCOVERY_ONLY = True
     TARGET_FORMS = []
-    MAX_FORM_PAGES_TO_LOCATE = 3
+    MAX_FORM_PAGES_TO_LOCATE = None
     MAX_DEPTH = 20
     SLOW_MODE = True
     HEADLESS = False

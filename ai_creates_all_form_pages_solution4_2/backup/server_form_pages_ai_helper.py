@@ -554,19 +554,26 @@ For each element, provide:
 - selector: CSS selector to find the element (prefer id, then name, then type attributes)
 - value: Use the actual username "{username}" for username field, actual password "{password}" for password field, empty string "" for buttons
 
+IMPORTANT: After the login click, you MUST add 2 verification steps:
+1. wait_dom_ready - waits for page to stabilize after login
+2. verify_clickables - verifies at least 3 clickable elements exist (proves we reached a real logged-in page, not an error page)
+
 Return ONLY a JSON array of steps in order, like:
 [
   {{"action": "fill", "selector": "input[name='username']", "value": "{username}"}},
   {{"action": "fill", "selector": "input[type='password']", "value": "{password}"}},
-  {{"action": "click", "selector": "button[type='submit']", "value": ""}}
+  {{"action": "click", "selector": "button[type='submit']", "value": ""}},
+  {{"action": "wait_dom_ready", "selector": "", "value": ""}},
+  {{"action": "verify_clickables", "selector": "", "value": "3"}}
 ]
 
 IMPORTANT:
 - Return ONLY the JSON array, no other text
 - Use the most reliable CSS selectors you can find from the HTML
-- Steps must be in correct order: username, password, then submit
+- Steps must be in correct order: username, password, submit, wait_dom_ready, verify_clickables
 - Every step MUST have action, selector, and value fields
 - Use the ACTUAL credentials provided above, NOT placeholders
+- ALWAYS include the 2 verification steps at the end
 """
 
         # Build message content with image if available
@@ -652,15 +659,23 @@ For each element, provide:
 - selector: CSS selector to find the element (prefer id, then class, then text-based selectors)
 - value: empty string "" for click actions
 
+IMPORTANT: After the logout click, you MUST add 2 verification steps:
+1. wait_dom_ready - waits for page to stabilize after logout
+2. verify_login_page - verifies we're back at the login page (checks for username/password input fields)
+
 Return ONLY a JSON array of steps in order, like:
 [
   {"action": "click", "selector": ".user-dropdown", "value": ""},
-  {"action": "click", "selector": "a[href*='logout']", "value": ""}
+  {"action": "click", "selector": "a[href*='logout']", "value": ""},
+  {"action": "wait_dom_ready", "selector": "", "value": ""},
+  {"action": "verify_login_page", "selector": "", "value": ""}
 ]
 
 Or for direct logout link:
 [
-  {"action": "click", "selector": "a.logout-btn", "value": ""}
+  {"action": "click", "selector": "a.logout-btn", "value": ""},
+  {"action": "wait_dom_ready", "selector": "", "value": ""},
+  {"action": "verify_login_page", "selector": "", "value": ""}
 ]
 
 IMPORTANT:
@@ -668,6 +683,7 @@ IMPORTANT:
 - Use the most reliable CSS selectors you can find from the HTML
 - If logout requires opening a menu first, include that step
 - Every step MUST have action, selector, and value fields
+- ALWAYS include the 2 verification steps at the end
 """
 
         # Build message content with image if available

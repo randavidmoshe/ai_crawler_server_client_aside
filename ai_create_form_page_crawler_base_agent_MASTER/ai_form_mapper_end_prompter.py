@@ -1,4 +1,4 @@
-# ai_form_page_end_prompter.py
+# ai_form_mapper_end_prompter.py
 # Assign test cases to stages after test completion
 
 import json

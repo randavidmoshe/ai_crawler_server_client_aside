@@ -1,4 +1,4 @@
-# form_page_main.py
+# form_mapper_main.py
 # LOCAL TESTING MODE
 # Run everything on one machine for testing/development
 
@@ -8,9 +8,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../agent'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../server'))
 
 from agent_selenium import AgentSelenium
-from ai_form_page_main_prompter import AIHelper
-from ai_form_page_alert_recovery_prompter import AIErrorRecovery
-from ai_form_page_end_prompter import AIFormPageEndPrompter
+from ai_form_mapper_main_prompter import AIHelper
+from ai_form_mapper_alert_recovery_prompter import AIErrorRecovery
+from ai_form_mapper_end_prompter import AIFormPageEndPrompter
+from ai_form_page_ui_visual_verify_prompter import AIUIVisualVerifier
 import time
 import json
 import hashlib
@@ -37,10 +38,20 @@ class LocalTestOrchestrator:
         enable_ui_verification: bool = False,
         form_page_name: Optional[str] = None,
         max_retries: int = 2,
-        use_detect_fields_change: bool = True
+        use_detect_fields_change: bool = True,
+        use_full_dom: bool = True,
+        use_optimized_dom: bool = False,
+        use_forms_dom: bool = False,
+        include_js_in_dom: bool = True
     ):
         # Initialize Selenium (from agent code) with screenshot folder
         self.selenium = AgentSelenium(screenshot_folder=screenshot_folder)
+        
+        # DOM extraction mode
+        self.use_full_dom = use_full_dom
+        self.use_optimized_dom = use_optimized_dom
+        self.use_forms_dom = use_forms_dom
+        self.include_js_in_dom = include_js_in_dom
         
         # Initialize AI helper (server code)
         self.ai = AIHelper(api_key=anthropic_api_key)
@@ -50,6 +61,9 @@ class LocalTestOrchestrator:
         
         # Initialize AI form page end prompter (for assigning test_case to stages)
         self.ai_end_prompter = AIFormPageEndPrompter(api_key=anthropic_api_key)
+        
+        # Initialize AI UI visual verifier (for UI defect detection)
+        self.ai_ui_verifier = AIUIVisualVerifier(api_key=anthropic_api_key)
         
         # Configuration
         self.browser = browser
@@ -78,20 +92,49 @@ class LocalTestOrchestrator:
         self.current_dom_hash = None
         self.base_url = None  # Will be set when test starts
         self.critical_fields_checklist = None  # For Scenario B alert recovery
+        self.field_requirements_for_recovery = None  # For Scenario B - AI rewritten requirements
+        
+        # Junction discovery tracking
+        self.previous_paths = []  # List of completed paths with their junctions
+        self.current_path_junctions = []  # Junctions taken in current path
+        self.path_number = 0  # Current path number
+        self.enable_junction_discovery = False  # Flag to enable junction discovery mode
         
         print(f"✅ Local orchestrator initialized")
         print(f"   Browser: {browser}")
         print(f"   Headless: {headless}")
         print(f"   UI Verification: {'ENABLED' if enable_ui_verification else 'DISABLED'}")
         print(f"   Detect Fields Change: {'ENABLED' if use_detect_fields_change else 'DISABLED'}")
+        print(f"   Full DOM: {'ENABLED' if use_full_dom else 'DISABLED'}")
+        print(f"   Optimized DOM: {'ENABLED' if use_optimized_dom else 'DISABLED'}")
+        print(f"   Forms DOM: {'ENABLED' if use_forms_dom else 'DISABLED'}")
+        print(f"   Include JS in DOM: {'YES' if include_js_in_dom else 'NO'}")
         print(f"   Test cases: {len(self.test_cases)}")
     
-    def _save_steps_to_file(self, steps: List[Dict]):
+    def _extract_dom(self) -> Dict:
+        """
+        Extract DOM using one of three methods based on config:
+        1. use_full_dom=True: Complete page DOM (with/without JS)
+        2. use_optimized_dom=True: Form container only - smallest (with/without JS)
+        3. use_forms_dom=True: Forms only (with/without JS)
+        
+        Returns:
+            Dict with dom_html, dom_hash, url, size_chars
+        """
+        if self.use_full_dom:
+            return self.selenium.extract_dom(include_js=self.include_js_in_dom)
+        elif self.use_optimized_dom:
+            return self.selenium.extract_form_container_with_js(include_js=self.include_js_in_dom)
+        else:
+            return self.selenium.extract_form_dom_with_js(include_js=self.include_js_in_dom)
+    
+    def _save_steps_to_file(self, steps: List[Dict], path_number: int = 0):
         """
         Save generated steps to JSON file in automation_product_config directory
         
         Args:
             steps: List of test steps to save
+            path_number: Path number for junction discovery (0 = single path mode)
         """
         if not self.form_page_name:
             raise ValueError("FORM_PAGE_NAME parameter is required but was not provided")
@@ -108,7 +151,11 @@ class LocalTestOrchestrator:
         
         os.makedirs(base_path, exist_ok=True)
         
-        filename = f"create_verify_{self.form_page_name}.json"
+        # Use path number in filename if junction discovery mode
+        if path_number > 0:
+            filename = f"path_{path_number}_create_verify_{self.form_page_name}.json"
+        else:
+            filename = f"create_verify_{self.form_page_name}.json"
         filepath = os.path.join(base_path, filename)
         
         with open(filepath, 'w', encoding='utf-8') as f:
@@ -152,7 +199,7 @@ class LocalTestOrchestrator:
                 "test_cases_file": "test_cases1.json",
                 "max_retries": self.max_retries
             }
-            self.selenium.log_test_start(config)
+            ####self.selenium.log_test_start(config)
             
             # Navigate to URL
             print(f"\n🌐 Navigating to {url}...")
@@ -192,7 +239,7 @@ class LocalTestOrchestrator:
         
         # Extract initial DOM
         print("\n📄 Extracting initial DOM...")
-        dom_result = self.selenium.extract_form_dom_with_js()
+        dom_result = self._extract_dom()
         
         if not dom_result["success"]:
             print(f"❌ DOM extraction failed: {dom_result.get('error')}")
@@ -224,21 +271,68 @@ class LocalTestOrchestrator:
             else:
                 screenshot_base64 = screenshot_result["screenshot"]
                 print("✅ Screenshot captured for AI analysis")
+                
+                # Perform UI visual verification BEFORE generating test steps
+                print("🔍 Performing UI visual verification...")
+                ui_issue = self.ai_ui_verifier.verify_visual_ui(
+                    screenshot_base64=screenshot_base64,
+                    previously_reported_issues=self.test_context.reported_ui_issues
+                )
+                
+                # Handle UI issue if detected
+                if ui_issue:
+                    print(f"\n⚠️  UI ISSUE DETECTED: {ui_issue}")
+                    
+                    # Add to reported issues list (split by comma to handle multiple issues)
+                    for issue in ui_issue.split(','):
+                        issue = issue.strip()
+                        if issue and issue not in self.test_context.reported_ui_issues:
+                            self.test_context.reported_ui_issues.append(issue)
+                    
+                    # Log to both loggers
+                    logger.warning(f"UI Issue detected: {ui_issue}")
+                    result_logger_gui.warning(f"UI Issue detected: {ui_issue}")
+                    
+                    # Log to agent loggers
+                    self.selenium.log_message(f"⚠️ UI ISSUE DETECTED: {ui_issue}", level="warning")
+                    
+                    # Capture and save screenshot to folder
+                    ui_screenshot_result = self.selenium.capture_screenshot(
+                        scenario_description="ui_issue",
+                        encode_base64=False,
+                        save_to_folder=True
+                    )
+                    
+                    if ui_screenshot_result["success"]:
+                        print(f"📸 UI issue screenshot saved: {ui_screenshot_result['filename']}")
+                        self.selenium.log_message(f"📸 UI issue screenshot saved: {ui_screenshot_result['filename']}", level="info")
+                    
+                    print("⚠️  Continuing test despite UI issue...\n")
         else:
             print("ℹ️  UI verification disabled - skipping screenshot")
         
-        # Generate steps with or without UI verification
+        # Generate steps (screenshot still passed for AI to understand page layout)
         result = self.ai.generate_test_steps(
             dom_html=dom_html,
             test_cases=self.test_cases,
             test_context=self.test_context,
             screenshot_base64=screenshot_base64,
-            enable_ui_verification=self.enable_ui_verification,
-            critical_fields_checklist=self.critical_fields_checklist
+            critical_fields_checklist=self.critical_fields_checklist,
+            field_requirements=self.field_requirements_for_recovery,
+            previous_paths=self.previous_paths if self.enable_junction_discovery else None,
+            current_path_junctions=self.current_path_junctions if self.enable_junction_discovery else None
         )
         
+        # Check if AI says no more paths to explore
+        # Ignore on path 1 - first path should always complete normally
+        if self.enable_junction_discovery and result.get("no_more_paths", False):
+            if self.path_number > 1:
+                print("\n🏁 AI indicates all junction paths have been explored!")
+                return "no_more_paths"
+            else:
+                print("⚠️  Ignoring no_more_paths on first path - continuing normally")
+        
         steps = result.get("steps", [])
-        ui_issue = result.get("ui_issue", "")
         
         if not steps:
             print("❌ Failed to generate steps")
@@ -247,41 +341,6 @@ class LocalTestOrchestrator:
         print(f"✅ Generated {len(steps)} steps")
         
         all_generated_steps = list(steps)
-        
-        # Handle UI issue if detected (only if UI verification is enabled)
-        if self.enable_ui_verification and ui_issue:
-            print(f"\n⚠️  UI ISSUE DETECTED: {ui_issue}")
-            
-            # Add to reported issues list (split by comma to handle multiple issues)
-            for issue in ui_issue.split(','):
-                issue = issue.strip()
-                if issue and issue not in self.test_context.reported_ui_issues:
-                    self.test_context.reported_ui_issues.append(issue)
-            
-            # Log to both loggers
-            import logging
-            logger = logging.getLogger('init_logger.form_page_test')
-            result_logger_gui = logging.getLogger('init_result_logger_gui.form_page_test')
-            
-            logger.warning(f"UI Issue detected: {ui_issue}")
-            result_logger_gui.warning(f"UI Issue detected: {ui_issue}")
-            
-            # Log to agent loggers
-            self.selenium.log_message(f"⚠️ UI ISSUE DETECTED: {ui_issue}", level="warning")
-            
-            # Capture and save screenshot to folder
-            ui_screenshot_result = self.selenium.capture_screenshot(
-                scenario_description="ui_issue",
-                encode_base64=False,
-                save_to_folder=True
-            )
-            
-            if ui_screenshot_result["success"]:
-                print(f"📸 UI issue screenshot saved: {ui_screenshot_result['filename']}")
-                # Log screenshot filename to agent
-                self.selenium.log_message(f"📸 UI issue screenshot saved: {ui_screenshot_result['filename']}", level="info")
-            
-            print("⚠️  Continuing test despite UI issue...\n")
         
         self._print_steps(steps)
         
@@ -292,6 +351,7 @@ class LocalTestOrchestrator:
         
         executed_steps = []
         consecutive_failures = 0
+        recovery_failure_history = []  # Track failed steps for AI to detect repeated failures
         i = 0
         
         while i < len(steps):
@@ -331,13 +391,13 @@ class LocalTestOrchestrator:
                         return False
                 
                 # Try failure recovery with AI
-                print("\n🔧 Attempting failure recovery with AI...")
+                print(f"\n🔧 Attempting failure recovery with AI for step: {step}...")
                 
                 # Wait a moment for page to settle
                 time.sleep(1)
                 
                 # Extract current DOM
-                fresh_dom_result = self.selenium.extract_form_dom_with_js()
+                fresh_dom_result = self._extract_dom()
                 if not fresh_dom_result["success"]:
                     print("❌ Failed to extract DOM for recovery")
                     return False
@@ -356,6 +416,14 @@ class LocalTestOrchestrator:
                 screenshot_path = screenshot_result["filepath"]
                 print(f"📸 Screenshot saved: {screenshot_result['filename']}")
                 
+                # Add failed step to recovery history
+                recovery_failure_history.append({
+                    "action": step.get('action'),
+                    "selector": step.get('selector'),
+                    "description": step.get('description'),
+                    "error": result.get('error')
+                })
+                
                 # Ask AI to analyze failure and generate recovery steps
                 recovery_steps = self.ai.analyze_failure_and_recover(
                     failed_step=step,
@@ -364,7 +432,8 @@ class LocalTestOrchestrator:
                     screenshot_path=screenshot_path,
                     test_cases=self.test_cases,
                     test_context=self.test_context,
-                    attempt_number=consecutive_failures
+                    attempt_number=consecutive_failures,
+                    recovery_failure_history=recovery_failure_history
                 )
                 
                 if not recovery_steps:
@@ -424,7 +493,7 @@ class LocalTestOrchestrator:
                 
                 # EXTRACT FRESH DOM (now that alert is gone)
                 print("📄 Extracting DOM after alert...")
-                fresh_dom_result = self.selenium.extract_form_dom_with_js()
+                fresh_dom_result = self._extract_dom()
                 
                 if not fresh_dom_result["success"]:
                     print(f"❌ Failed to extract DOM after alert: {fresh_dom_result.get('error')}")
@@ -514,6 +583,12 @@ class LocalTestOrchestrator:
                     # Get problematic fields from AI response (includes alert + DOM + screenshot analysis)
                     problematic_fields_list = alert_response.get("problematic_fields", [])
                     
+                    # Get AI rewritten field requirements
+                    field_requirements = alert_response.get("field_requirements", "")
+                    if field_requirements:
+                        self.field_requirements_for_recovery = field_requirements
+                        print(f"📝 Field requirements from AI:\n{field_requirements}")
+                    
                     if problematic_fields_list:
                         # Convert list to dict format for critical_fields_checklist
                         # All fields from AI are marked as "MUST FILL" since they had errors
@@ -534,6 +609,7 @@ class LocalTestOrchestrator:
                         else:
                             print(f"⚠️  Could not identify critical fields")
                             self.critical_fields_checklist = None
+                            self.field_requirements_for_recovery = None
                     
                     print(f"🔄 Navigating back to base URL for fresh start...")
                     
@@ -565,15 +641,15 @@ class LocalTestOrchestrator:
             
             if new_dom_hash and new_dom_hash != self.current_dom_hash:
                 print(f"\n🔄 DOM changed (hash: {new_dom_hash[:16]}...)")
-                print("   Regenerating remaining steps...")
+
                 
                 # Wait for page to stabilize
                 time.sleep(1.5)
                 
                 # Re-extract DOM
-                stable_dom = self.selenium.extract_form_dom_with_js()
+                stable_dom = self._extract_dom()
                 
-                # Check for validation errors in the new DOM
+                # Check for red validation errors in the new DOM (from frontend or from backend)
                 validation_errors = self._detect_validation_errors_from_dom(stable_dom["dom_html"])
                 
                 if validation_errors["has_errors"]:
@@ -684,6 +760,12 @@ class LocalTestOrchestrator:
                         # Get problematic fields from AI response
                         problematic_fields_list = alert_response.get("problematic_fields", [])
                         
+                        # Get AI rewritten field requirements
+                        field_requirements = alert_response.get("field_requirements", "")
+                        if field_requirements:
+                            self.field_requirements_for_recovery = field_requirements
+                            print(f"📝 Field requirements from AI:\n{field_requirements}")
+                        
                         if problematic_fields_list:
                             critical_fields = {field: "MUST FILL" for field in problematic_fields_list}
                             self.critical_fields_checklist = critical_fields
@@ -711,6 +793,33 @@ class LocalTestOrchestrator:
                         print(f"⚠️  Unexpected scenario {scenario} for validation errors, treating as DOM change")
                 
                 # No validation errors or Scenario A - continue with normal regeneration
+                # Check if fields changed (if feature is enabled)
+                if self.use_detect_fields_change:
+                    fields_changed = result.get("fields_changed", True)
+                    
+                    if not fields_changed:
+                        print("ℹ️  We are using Fields Detection and Fields did not change - skipping AI regeneration")
+                        i += 1
+                        continue
+                    else:
+                        print("✅ We are using Fields Detection and Fields changed - proceeding with AI regeneration")
+                        
+                        # Track junction if junction discovery is enabled
+                        if self.enable_junction_discovery:
+                            action = step.get("action", "").lower()
+                            # Junction = select, check, or click that causes field changes
+                            if action in ["select", "check", "click"]:
+                                junction_info = {
+                                    "field": step.get("description", "Unknown"),
+                                    "selector": step.get("selector", ""),
+                                    "value": step.get("value", ""),
+                                    "action": action
+                                }
+                                self.current_path_junctions.append(junction_info)
+                                # Also mark the step as a junction
+                                step["junction"] = True
+                                print(f"🔀 Junction detected: {junction_info['field']} = {junction_info['value']}")
+
                 # Capture screenshot for UI verification (base64, not saved) ONLY if enabled
                 screenshot_base64 = None
                 if self.enable_ui_verification:
@@ -727,74 +836,80 @@ class LocalTestOrchestrator:
                     else:
                         screenshot_base64 = screenshot_result["screenshot"]
                         print("✅ Screenshot captured for AI analysis")
+                        
+                        # Perform UI visual verification BEFORE regenerating steps
+                        print("🔍 Performing UI visual verification...")
+                        ui_issue = self.ai_ui_verifier.verify_visual_ui(
+                            screenshot_base64=screenshot_base64,
+                            previously_reported_issues=self.test_context.reported_ui_issues
+                        )
+                        
+                        # Handle UI issue if detected
+                        if ui_issue:
+                            print(f"\n⚠️  UI ISSUE DETECTED: {ui_issue}")
+                            
+                            # Add to reported issues list (split by comma to handle multiple issues)
+                            for issue in ui_issue.split(','):
+                                issue = issue.strip()
+                                if issue and issue not in self.test_context.reported_ui_issues:
+                                    self.test_context.reported_ui_issues.append(issue)
+                            
+                            # Log to both loggers
+                            logger.warning(f"UI Issue detected after DOM change: {ui_issue}")
+                            result_logger_gui.warning(f"UI Issue detected after DOM change: {ui_issue}")
+                            
+                            # Log to agent loggers
+                            self.selenium.log_message(f"⚠️ UI ISSUE DETECTED (after DOM change): {ui_issue}", level="warning")
+                            
+                            # Capture and save screenshot to folder
+                            ui_screenshot_result = self.selenium.capture_screenshot(
+                                scenario_description="ui_issue",
+                                encode_base64=False,
+                                save_to_folder=True
+                            )
+                            
+                            if ui_screenshot_result["success"]:
+                                print(f"📸 UI issue screenshot saved: {ui_screenshot_result['filename']}")
+                                self.selenium.log_message(f"📸 UI issue screenshot saved: {ui_screenshot_result['filename']}", level="info")
+                            
+                            print("⚠️  Continuing test despite UI issue...\n")
                 else:
                     print("ℹ️  UI verification disabled - skipping screenshot")
-                
-                # Check if fields changed (if feature is enabled)
-                if self.use_detect_fields_change:
-                    fields_changed = result.get("fields_changed", True)
-                    
-                    if not fields_changed:
-                        print("ℹ️  Fields did not change - skipping AI regeneration")
-                        i += 1
-                        continue
-                    else:
-                        print("✅ Fields changed - proceeding with AI regeneration")
-                
-                # Regenerate steps with or without UI verification
+
+                print("   Regenerating remaining steps...")
+
+                # Regenerate steps (screenshot still passed for AI to understand page layout)
                 result = self.ai.regenerate_steps(
                     dom_html=stable_dom["dom_html"],
                     executed_steps=executed_steps,
                     test_cases=self.test_cases,
                     test_context=self.test_context,
                     screenshot_base64=screenshot_base64,
-                    enable_ui_verification=self.enable_ui_verification,
-                    critical_fields_checklist=self.critical_fields_checklist
+                    critical_fields_checklist=self.critical_fields_checklist,
+                    field_requirements=self.field_requirements_for_recovery,
+                    previous_paths=self.previous_paths if self.enable_junction_discovery else None,
+                    current_path_junctions=self.current_path_junctions if self.enable_junction_discovery else None
                 )
                 
+                # Check if AI says no more paths to explore
+                # Ignore on path 1 - first path should always complete normally
+                if self.enable_junction_discovery and result.get("no_more_paths", False):
+                    if self.path_number > 1:
+                        print("\n🏁 AI indicates all junction paths have been explored!")
+                        # Still save current path and return
+                        self._save_current_path_junctions(executed_steps)
+                        self._save_steps_to_file(executed_steps, self.path_number)
+                        return "no_more_paths"
+                    else:
+                        print("⚠️  Ignoring no_more_paths on first path - continuing normally")
+                
                 new_steps = result.get("steps", [])
-                ui_issue = result.get("ui_issue", "")
                 
                 if new_steps:
                     steps = executed_steps + new_steps
                     all_generated_steps.extend(new_steps)
                     self.current_dom_hash = stable_dom["dom_hash"]
                     print(f"✅ Regenerated {len(new_steps)} new steps")
-                    
-                    # Handle UI issue if detected (only if UI verification is enabled)
-                    if self.enable_ui_verification and ui_issue:
-                        print(f"\n⚠️  UI ISSUE DETECTED: {ui_issue}")
-                        
-                        # Add to reported issues list (split by comma to handle multiple issues)
-                        for issue in ui_issue.split(','):
-                            issue = issue.strip()
-                            if issue and issue not in self.test_context.reported_ui_issues:
-                                self.test_context.reported_ui_issues.append(issue)
-                        
-                        # Log to both loggers
-                        import logging
-                        logger = logging.getLogger('init_logger.form_page_test')
-                        result_logger_gui = logging.getLogger('init_result_logger_gui.form_page_test')
-                        
-                        logger.warning(f"UI Issue detected after DOM change: {ui_issue}")
-                        result_logger_gui.warning(f"UI Issue detected after DOM change: {ui_issue}")
-                        
-                        # Log to agent loggers
-                        self.selenium.log_message(f"⚠️ UI ISSUE DETECTED (after DOM change): {ui_issue}", level="warning")
-                        
-                        # Capture and save screenshot to folder
-                        ui_screenshot_result = self.selenium.capture_screenshot(
-                            scenario_description="ui_issue",
-                            encode_base64=False,
-                            save_to_folder=True
-                        )
-                        
-                        if ui_screenshot_result["success"]:
-                            print(f"📸 UI issue screenshot saved: {ui_screenshot_result['filename']}")
-                            # Log screenshot filename to agent
-                            self.selenium.log_message(f"📸 UI issue screenshot saved: {ui_screenshot_result['filename']}", level="info")
-                        
-                        print("⚠️  Continuing test despite UI issue...\n")
                     
                     self._print_steps(new_steps)
             
@@ -803,16 +918,131 @@ class LocalTestOrchestrator:
         print("\n" + "="*70)
         print("✅ TEST COMPLETED")
         print(f"   Total steps executed: {len(executed_steps)}")
+        if self.enable_junction_discovery:
+            print(f"   Junctions discovered: {len(self.current_path_junctions)}")
         print("="*70)
         
         # Clear critical fields checklist on successful completion
         if self.critical_fields_checklist:
             print("✅ Critical fields checklist cleared (test completed successfully)")
             self.critical_fields_checklist = None
+        if self.field_requirements_for_recovery:
+            self.field_requirements_for_recovery = None
         
-        self._save_steps_to_file(executed_steps)
+        # Handle junction discovery mode
+        if self.enable_junction_discovery:
+            self._save_steps_to_file(executed_steps, self.path_number)
+            self._save_current_path_junctions(executed_steps)
+        else:
+            self._save_steps_to_file(executed_steps)
         
         return True
+    
+    def _save_current_path_junctions(self, executed_steps: List[Dict]):
+        """
+        Save current path junctions to previous_paths list
+        
+        Args:
+            executed_steps: Steps executed in this path
+        """
+        if not self.current_path_junctions:
+            print("ℹ️  No junctions detected in this path")
+            return
+        
+        path_data = {
+            "path_number": self.path_number,
+            "junctions": self.current_path_junctions.copy()
+        }
+        self.previous_paths.append(path_data)
+        
+        print(f"\n📍 Path {self.path_number} junctions saved:")
+        for j in self.current_path_junctions:
+            print(f"   - {j['field']}: {j['value']}")
+    
+    def run_junction_discovery(self, url: str, max_paths: int = 20):
+        """
+        Run junction discovery mode - explore all form paths through junctions
+        
+        Args:
+            url: Starting URL to test
+            max_paths: Maximum number of paths to explore (safety limit)
+            
+        Returns:
+            Dict with discovery results
+        """
+        print("\n" + "="*70)
+        print("🔀 JUNCTION DISCOVERY MODE")
+        print("="*70)
+        print(f"   URL: {url}")
+        print(f"   Max paths: {max_paths}")
+        print("="*70)
+        
+        # Enable junction discovery mode
+        self.enable_junction_discovery = True
+        self.previous_paths = []
+        self.path_number = 0
+        
+        discovery_results = {
+            "total_paths": 0,
+            "paths": [],
+            "all_junctions": []
+        }
+        
+        while self.path_number < max_paths:
+            self.path_number += 1
+            self.current_path_junctions = []
+            
+            print(f"\n{'='*70}")
+            print(f"🔀 EXPLORING PATH {self.path_number}")
+            print(f"{'='*70}")
+            
+            if self.previous_paths:
+                print(f"   Previous paths explored: {len(self.previous_paths)}")
+                for p in self.previous_paths:
+                    junctions_str = ", ".join([f"{j['field']}={j['value']}" for j in p['junctions']])
+                    print(f"   - Path {p['path_number']}: {junctions_str}")
+            
+            # Reset test context for new path
+            self.test_context = TestContext()
+            self.critical_fields_checklist = None
+            self.field_requirements_for_recovery = None
+            
+            # Run test for this path
+            result = self.run_test(url)
+            
+            if result == "no_more_paths":
+                # This should only happen from path 2 onwards (path 1 ignores no_more_paths)
+                # Count the paths we successfully completed before this
+                discovery_results["total_paths"] = self.path_number - 1
+                print(f"\n🏁 All junction combinations explored after {self.path_number - 1} complete paths!")
+                break
+            elif result == False:
+                print(f"\n⚠️  Path {self.path_number} failed - stopping discovery")
+                break
+            else:
+                # Path completed successfully
+                discovery_results["total_paths"] = self.path_number
+                discovery_results["paths"].append({
+                    "path_number": self.path_number,
+                    "junctions": self.current_path_junctions.copy()
+                })
+                
+                # Collect all unique junctions
+                for j in self.current_path_junctions:
+                    if j not in discovery_results["all_junctions"]:
+                        discovery_results["all_junctions"].append(j)
+        
+        # Disable junction discovery mode
+        self.enable_junction_discovery = False
+        
+        print("\n" + "="*70)
+        print("🏁 JUNCTION DISCOVERY COMPLETE")
+        print("="*70)
+        print(f"   Total paths explored: {discovery_results['total_paths']}")
+        print(f"   Unique junctions found: {len(discovery_results['all_junctions'])}")
+        print("="*70)
+        
+        return discovery_results
     
     def _print_steps(self, steps: List[Dict]):
         """Print steps in readable format"""
@@ -1022,6 +1252,7 @@ def main():
     config = {
         "anthropic_api_key": API_KEY,  # ← From environment variable
         "test_url": "http://localhost:8000/test-form.html",
+        #"test_url": "https://demoqa.com/text-box",
         "test_cases_file": "test_cases1.json",
         "browser": "chrome",  # chrome, firefox, edge
         "headless": False,
@@ -1029,7 +1260,14 @@ def main():
         "enable_ui_verification": True,  # ← Set to False to disable screenshot-based UI verification
         "form_page_name": "person",  # ← REQUIRED: Name of the form page for saving steps
         "max_retries": 3,  # ← Number of retries for failed steps before moving on
-        "use_detect_fields_change": True  # ← Set to False to disable field change detection
+        "use_detect_fields_change": True,  # ← Set to False to disable field change detection
+        "use_full_dom": True,  # ← Full page DOM (with/without JS)
+        "use_optimized_dom": False,  # ← Form container only (smallest)
+        "use_forms_dom": False,  # ← Forms only
+        "include_js_in_dom": True,  # ← Set to True to include JS in DOM (applies to all 3 modes)
+        # Junction Discovery Mode
+        "enable_junction_discovery": True,  # ← Set to True to explore all form paths through junctions
+        "max_junction_paths": 20  # ← Maximum number of paths to explore in junction discovery mode
     }
     
     print("="*70)
@@ -1040,6 +1278,11 @@ def main():
     print(f"Headless: {config['headless']}")
     print(f"Screenshot folder: {config['screenshot_folder'] or 'Desktop (default)'}")
     print(f"UI Verification: {'ENABLED' if config['enable_ui_verification'] else 'DISABLED'}")
+    print(f"Full DOM: {'ENABLED' if config['use_full_dom'] else 'DISABLED'}")
+    print(f"Optimized DOM: {'ENABLED' if config['use_optimized_dom'] else 'DISABLED'}")
+    print(f"Forms DOM: {'ENABLED' if config['use_forms_dom'] else 'DISABLED'}")
+    print(f"Include JS in DOM: {'YES' if config['include_js_in_dom'] else 'NO'}")
+    print(f"Junction Discovery: {'ENABLED (max ' + str(config['max_junction_paths']) + ' paths)' if config['enable_junction_discovery'] else 'DISABLED'}")
     print("="*70)
     
     # Create orchestrator
@@ -1052,11 +1295,19 @@ def main():
         enable_ui_verification=config["enable_ui_verification"],
         form_page_name=config["form_page_name"],
         max_retries=config["max_retries"],
-        use_detect_fields_change=config["use_detect_fields_change"]
+        use_detect_fields_change=config["use_detect_fields_change"],
+        use_full_dom=config["use_full_dom"],
+        use_optimized_dom=config["use_optimized_dom"],
+        use_forms_dom=config["use_forms_dom"],
+        include_js_in_dom=config["include_js_in_dom"]
     )
     
-    # Run test
-    success = orchestrator.run_test(config["test_url"])
+    # Run test - either junction discovery mode or single path mode
+    if config["enable_junction_discovery"]:
+        results = orchestrator.run_junction_discovery(config["test_url"], max_paths=config["max_junction_paths"])
+        success = results["total_paths"] > 0
+    else:
+        success = orchestrator.run_test(config["test_url"])
     
     if success:
         print("\n✅ TEST PASSED")

@@ -108,8 +108,8 @@ class AIErrorRecovery:
         
         for attempt in range(max_retries):
             try:
-                print(f"[AIErrorRecovery] Calling Claude API with vision (attempt {attempt + 1}/{max_retries})...")
-                result_logger_gui.info(f"[AIErrorRecovery] Calling Claude API with vision (attempt {attempt + 1}/{max_retries})...")
+                print(f"[AIErrorRecovery] Calling Claude API with vision for alert recovery (attempt {attempt + 1}/{max_retries})...")
+                result_logger_gui.info(f"[AIErrorRecovery] Calling Claude API with vision for alert recovery (attempt {attempt + 1}/{max_retries})...")
                 
                 message = self.client.messages.create(
                     model=self.model,
@@ -298,15 +298,17 @@ class AIErrorRecovery:
                         # AI testing error
                         alert_steps = alert_response.get("steps", [])
                         explanation = alert_response.get("explanation", "")
+                        field_requirements = alert_response.get("field_requirements", "")
                         
                         if not alert_steps:
                             print("[AIErrorRecovery] No steps found in ai_issue response")
                             logger.warning("[AIErrorRecovery] No steps found in ai_issue response")
-                            return {"scenario": "B", "issue_type": "ai_issue", "steps": [], "problematic_fields": []}
+                            return {"scenario": "B", "issue_type": "ai_issue", "steps": [], "problematic_fields": [], "field_requirements": ""}
                         
                         print(f"[AIErrorRecovery] Successfully parsed {len(alert_steps)} alert handling steps")
                         print(f"[AIErrorRecovery] Scenario: B (ai_issue)")
                         print(f"[AIErrorRecovery] Problematic fields: {problematic_fields}")
+                        print(f"[AIErrorRecovery] Field requirements: {field_requirements}")
                         logger.info(f"[AIErrorRecovery] Scenario B (ai_issue) - {len(alert_steps)} steps")
                         
                         return {
@@ -314,6 +316,7 @@ class AIErrorRecovery:
                             "issue_type": "ai_issue",
                             "explanation": explanation,
                             "problematic_fields": problematic_fields,
+                            "field_requirements": field_requirements,
                             "steps": alert_steps
                         }
                 else:
@@ -350,7 +353,7 @@ class AIErrorRecovery:
         if executed_steps:
             executed_context = f"""
 Steps completed before alert appeared:
-{json.dumps([{"step": i+1, "action": s.get("action"), "description": s.get("description")} for i, s in enumerate(executed_steps)], indent=2)}
+{json.dumps([{"step": i+1, "action": s.get("action"), "description": s.get("description"), "selector": s.get("selector"), "value": s.get("value")} for i, s in enumerate(executed_steps)], indent=2)}
 """
         
         # Build gathered error info section if provided
@@ -517,6 +520,7 @@ Response format:
   "issue_type": "ai_issue",
   "explanation": "What we did wrong (e.g., 'We missed filling the Phone field')",
   "problematic_fields": ["Field1", "Field2"],
+  "field_requirements": "Clear rewritten requirements extracted from the alert. Write EXACTLY what each field needs. Example:\n1. Tax ID - must be exactly 20 digits\n2. Rating - must select stars (required field)\n3. Email - must be valid email format",
   "steps": [
     {{"step_number": 1, "action": "...", "selector": "...", "value": "...", "description": "..."}},
     ...
@@ -607,6 +611,7 @@ If ai_issue (our mistake):
   "issue_type": "ai_issue",
   "explanation": "...",
   "problematic_fields": ["Field Name 1", "Field Name 2", "Field Name 3"],
+  "field_requirements": "1. Field Name 1 - exact requirement from alert\n2. Field Name 2 - exact requirement from alert\n3. Field Name 3 - exact requirement from alert",
   "steps": [
     {{"step_number": 1, "action": "...", "selector": "...", "value": "...", "description": "..."}},
     {{"step_number": 2, "action": "...", "selector": "...", "value": "...", "description": "..."}},
@@ -619,6 +624,7 @@ If ai_issue (our mistake):
 **IMPORTANT:** 
 - For Scenario B, must include `issue_type`: "real_issue" or "ai_issue"
 - `problematic_fields` must be an array of ALL field names/descriptions that have errors
+- `field_requirements` must be a clear rewritten message explaining EXACTLY what each field needs (for ai_issue only)
 - For ai_issue: `steps` must be complete step list from 1 to N
 - For real_issue: `steps` must be empty array []
 

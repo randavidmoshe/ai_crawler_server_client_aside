@@ -1,4 +1,4 @@
-# ai_form_page_main_prompter.py
+# ai_form_mapper_main_prompter.py
 # AI-Powered Test Step Generation using Claude API
 
 import json

@@ -298,11 +298,18 @@ class Agent:
         self.info_logger.info(f"[Agent] Attempting login as: {username}")
         print(f"[Agent] 🔐 Attempting login as: {username}")
         
+        # Save login URL before any attempts
+        login_url = self.driver.current_url
+        print(f"[Agent] 🔐 Login URL: {login_url}")
+        
         for attempt in range(1, max_retries + 1):
             try:
-                # Get current URL (login page)
-                login_url = self.driver.current_url
-                print(f"[Agent] 🔐 Login URL: {login_url}")
+                # On retry, navigate back to login page
+                if attempt > 1:
+                    print(f"[Agent] 🔐 Navigating back to login page...")
+                    self.driver.get(login_url)
+                    time.sleep(2.0)
+                    wait_dom_ready(self.driver)
                 
                 # Capture DOM and screenshot for Server
                 page_html = self.driver.execute_script("return document.documentElement.outerHTML")
@@ -340,9 +347,25 @@ class Agent:
                     selector = step.get("selector", "")
                     value = step.get("value", "")
                     
-                    print(f"[Agent] 🔐 Step {i}: {action} on {selector}")
+                    print(f"[Agent] 🔐 Step {i}: {action}" + (f" on {selector}" if selector else ""))
                     
-                    # Find element
+                    # Handle verification actions (no element needed)
+                    if action == "wait_dom_ready":
+                        time.sleep(1.0)
+                        wait_dom_ready(self.driver)
+                        print(f"[Agent] ✅ DOM is stable")
+                        continue
+                        
+                    elif action == "verify_clickables":
+                        min_count = int(value) if value else 3
+                        clickable_count = self._count_clickables()
+                        print(f"[Agent] 🔍 Found {clickable_count} clickable elements (minimum required: {min_count})")
+                        if clickable_count < min_count:
+                            raise Exception(f"Login verification failed: only {clickable_count} clickables found (need {min_count}+)")
+                        print(f"[Agent] ✅ Login verified: {clickable_count} clickables found")
+                        continue
+                    
+                    # For fill/click actions, find the element
                     try:
                         element = self.driver.find_element(By.CSS_SELECTOR, selector)
                     except Exception as e:
@@ -365,8 +388,8 @@ class Agent:
                     else:
                         print(f"[Agent] ⚠️ Unknown action: {action}")
                 
-                # Wait for page to load after login
-                time.sleep(2.0)
+                # Final wait for page to stabilize
+                time.sleep(1.0)
                 wait_dom_ready(self.driver)
                 
                 print("[Agent] ✅ Login steps completed")
@@ -452,8 +475,23 @@ class Agent:
                     action = step.get("action", "")
                     selector = step.get("selector", "")
                     
-                    print(f"[Agent] 🚪 Step {i+1}: {action} on {selector}")
+                    print(f"[Agent] 🚪 Step {i+1}: {action}" + (f" on {selector}" if selector else ""))
                     
+                    # Handle verification actions (no element needed)
+                    if action == "wait_dom_ready":
+                        time.sleep(1.0)
+                        wait_dom_ready(self.driver)
+                        print(f"[Agent] ✅ DOM is stable")
+                        continue
+                        
+                    elif action == "verify_login_page":
+                        if self._is_login_page():
+                            print(f"[Agent] ✅ Logout verified: back at login page")
+                        else:
+                            raise Exception("Logout verification failed: not at login page (no username/password fields found)")
+                        continue
+                    
+                    # For click actions, find the element
                     try:
                         element = self.driver.find_element(By.CSS_SELECTOR, selector)
                         
@@ -733,6 +771,59 @@ class Agent:
         self.log_message(message, "error")
         if screenshot_description and self.driver:
             self.capture_screenshot(screenshot_description)
+    
+    def _count_clickables(self) -> int:
+        """
+        Count visible clickable elements on the page (links, buttons).
+        Used for login verification - a logged-in page typically has 3+ clickables.
+        """
+        try:
+            clickables = self.driver.find_elements(
+                By.CSS_SELECTOR, 
+                "a[href], button, [role='button'], [onclick]"
+            )
+            visible_count = 0
+            for el in clickables:
+                try:
+                    if el.is_displayed():
+                        visible_count += 1
+                except:
+                    pass
+            return visible_count
+        except Exception as e:
+            print(f"[Agent] ⚠️ Error counting clickables: {e}")
+            return 0
+    
+    def _is_login_page(self) -> bool:
+        """
+        Check if current page is a login page by looking for username/password fields.
+        Used for logout verification.
+        """
+        try:
+            # Must have visible password field
+            password_fields = self.driver.find_elements(By.CSS_SELECTOR, "input[type='password']")
+            has_password = any(el.is_displayed() for el in password_fields)
+            
+            if not has_password:
+                return False
+            
+            # Check for username/email field
+            login_selectors = [
+                "input[name*='user']", "input[name*='login']", "input[name*='email']",
+                "input[id*='user']", "input[id*='login']", "input[id*='email']",
+            ]
+            for selector in login_selectors:
+                try:
+                    elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                    for el in elements:
+                        if el.is_displayed():
+                            return True
+                except:
+                    pass
+            return False
+        except Exception as e:
+            print(f"[Agent] ⚠️ Error checking login page: {e}")
+            return False
     
     def capture_screenshot(self, scenario_description: str = "screenshot", encode_base64: bool = True, save_to_folder: bool = True) -> Dict:
         """

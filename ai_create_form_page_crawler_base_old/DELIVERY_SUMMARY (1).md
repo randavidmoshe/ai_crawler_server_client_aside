@@ -151,7 +151,7 @@ export ANTHROPIC_API_KEY="your-key"
 
 ### 2. **Configure (in main.py)**
 ```python
-# At bottom of form_page_main.py
+# At bottom of form_mapper_main.py
 FORM_PAGE_KEY = "contact_form"         # For organizing files
 URL = "https://example.com/contact"     # Your form URL
 MODE = "ai"                             # or "replay"
@@ -160,7 +160,7 @@ HEADLESS = False                        # Show browser
 
 ### 3. **Run**
 ```bash
-python form_page_main.py
+python form_mapper_main.py
 ```
 
 ---
@@ -369,12 +369,12 @@ SAVINGS: 85%+ 💰
 
 ### To Get Started:
 ```bash
-# 1. Edit form_page_main.py
+# 1. Edit form_mapper_main.py
 FORM_PAGE_KEY = "my_form"
 URL = "https://example.com/form"
 
 # 2. Run
-python form_page_main.py
+python form_mapper_main.py
 
 # 3. Watch it work! 🚀
 ```

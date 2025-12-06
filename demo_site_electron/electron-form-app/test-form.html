@@ -1,0 +1,2522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complex Form Test - Enhanced</title>
+    
+    <!-- External JavaScript for Terms Checkbox -->
+    <script src="terms-handler.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: visible;
+            position: relative;
+        }
+
+        .container-inner {
+            overflow: hidden;
+            border-radius: 12px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .back-btn {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        /* Main Tabs (Part 1 / Part 2) */
+        .main-tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 3px solid #e0e0e0;
+        }
+
+        .main-tab-button {
+            flex: 1;
+            padding: 20px;
+            background: white;
+            border: none;
+            border-bottom: 4px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .main-tab-button:hover {
+            background: #f8f8f8;
+        }
+
+        .main-tab-button.active {
+            border-bottom-color: #667eea;
+            background: white;
+            color: #667eea;
+        }
+
+        .main-tab-content {
+            display: none;
+        }
+
+        .main-tab-content.active {
+            display: block;
+        }
+
+        .form-content {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="tel"],
+        input[type="date"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* Sub-tabs (Details, Address, Preferences) */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px;
+            background: white;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .tab-button:hover {
+            background: #f8f8f8;
+        }
+
+        .tab-button.active {
+            border-bottom-color: #667eea;
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Conditional fields */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Checkboxes */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            font-weight: normal;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(23, 162, 184, 0.4);
+        }
+
+        /* Success Message */
+        .success-message {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(40, 167, 69, 0.4);
+            font-size: 16px;
+            font-weight: 600;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            animation: slideInRight 0.5s ease-out;
+            max-width: 400px;
+        }
+
+        .success-message.fade-out {
+            animation: slideOutRight 0.5s ease-out forwards;
+        }
+
+        .success-message .icon {
+            font-size: 24px;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Modal Container */
+        .modal-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: zoomIn 0.3s ease-out;
+        }
+
+        @keyframes zoomIn {
+            from {
+                transform: scale(0.7);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.3s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .modal-footer {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-radius: 0 0 15px 15px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background: #5a6268;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        /* Enterprise Type Box */
+        .enterprise-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            margin-bottom: 15px;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            animation: slideDown 0.3s ease-out;
+            display: none;
+        }
+
+        .enterprise-box.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Income Calculation Section */
+        .income-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #e9ecef;
+        }
+
+        .income-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .income-result {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 18px;
+            text-align: center;
+            margin-top: 15px;
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+
+        .income-result .label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .income-result .value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        /* Hover Menu */
+        .hover-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .hover-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            padding: 10px;
+            min-width: 200px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+
+        .hover-container:hover .hover-menu {
+            display: block;
+        }
+
+        .hover-menu label {
+            font-weight: normal;
+            margin-bottom: 5px;
+        }
+
+        /* AJAX Loading Spinner */
+        .ajax-loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* iframe Container */
+        .iframe-container {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px dashed #667eea;
+        }
+
+        .iframe-container h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        iframe {
+            width: 100%;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            min-height: 300px;
+            background: white;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            background: #667eea;
+            color: white;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        /* Findings Section */
+        .findings-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .findings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .findings-header h3 {
+            color: #667eea;
+            font-size: 18px;
+            margin: 0;
+        }
+
+        .btn-add-finding {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-add-finding:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .findings-list {
+            margin-top: 15px;
+        }
+
+        .finding-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .finding-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .finding-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 8px;
+        }
+
+        .finding-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #333;
+            flex: 1;
+        }
+
+        .finding-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-edit-finding,
+        .btn-delete-finding {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-edit-finding {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-edit-finding:hover {
+            background: #5568d3;
+        }
+
+        .btn-delete-finding {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-delete-finding:hover {
+            background: #c82333;
+        }
+
+        .finding-description {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .empty-findings {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+            font-style: italic;
+        }
+
+        /* Engagements Section - Similar to Findings but with different color scheme */
+        .engagements-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f0f8ff;
+            border-radius: 8px;
+            border: 2px solid #b8daff;
+        }
+
+        .engagements-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .engagements-header h3 {
+            color: #0056b3;
+            font-size: 18px;
+            margin: 0;
+        }
+
+        .btn-add-engagement {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-add-engagement:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 123, 255, 0.4);
+        }
+
+        .engagements-list {
+            margin-top: 15px;
+        }
+
+        .engagement-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border: 2px solid #b8daff;
+            transition: all 0.3s;
+        }
+
+        .engagement-item:hover {
+            border-color: #007bff;
+            box-shadow: 0 2px 8px rgba(0,123,255,0.2);
+        }
+
+        .engagement-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 8px;
+        }
+
+        .engagement-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #0056b3;
+            flex: 1;
+        }
+
+        .engagement-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-edit-engagement,
+        .btn-delete-engagement {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-edit-engagement {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-edit-engagement:hover {
+            background: #0056b3;
+        }
+
+        .btn-delete-engagement {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-delete-engagement:hover {
+            background: #c82333;
+        }
+
+        .engagement-description {
+            color: #495057;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .empty-engagements {
+            text-align: center;
+            padding: 30px;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        /* Corrupted Border Test - Looks WEIRD and Broken */
+        .corrupted-border-test input {
+            border-left-width: 20px !important;
+            border-right-width: 2px !important;
+            border-left-color: #ff6b6b !important;
+            margin-left: 15px !important;
+            padding-left: 30px !important;
+            padding-right: 5px !important;
+            transform: skew(-1deg) !important;
+        }
+
+        /* Email field - right border extends too far (UI bug look) */
+        .email-shorter input {
+            border-right-width: 25px !important;
+            border-right-color: #e0e0e0 !important;
+            padding-right: 40px !important;
+        }
+
+        /* Finding Modal */
+        .finding-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            animation: fadeIn 0.3s;
+        }
+
+        .finding-modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .finding-modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: scaleIn 0.3s;
+        }
+
+        .finding-modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            margin: -30px -30px 20px -30px;
+            border-radius: 12px 12px 0 0;
+            text-align: center;
+        }
+
+        .finding-modal-header h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .finding-modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-save-finding,
+        .btn-cancel-finding {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-save-finding {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+
+        .btn-save-finding:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-cancel-finding {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-cancel-finding:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Success Message Container -->
+        <div id="successMessage" class="success-message"></div>
+        
+        <div class="container-inner">
+        <div class="header">
+            <button class="back-btn" onclick="goHome()">← Back</button>
+            <h1>🎯 Complex Form Test</h1>
+            <p>Complete the form below with all required information</p>
+        </div>
+
+        <!-- Main Tabs: Part 1 and Part 2 (Part 2 tab hidden - only accessible via Next button) -->
+        <div class="main-tabs">
+            <button class="main-tab-button active" onclick="showMainTab('part1')">
+                📝 Part 1 - Basic Info
+            </button>
+        </div>
+
+        <!-- Part 1 Content -->
+        <div id="part1" class="main-tab-content active">
+            <div class="form-content">
+                <form id="mainForm">
+                    <!-- Sub-tabs -->
+                    <div class="tabs">
+                        <button type="button" class="tab-button active" onclick="showTab('details')">
+                            👤 Details
+                        </button>
+                        <button type="button" class="tab-button" onclick="showTab('address')">
+                            🏠 Address
+                        </button>
+                        <button type="button" class="tab-button" onclick="showTab('preferences')">
+                            ⚙️ Preferences
+                        </button>
+                        <button type="button" class="tab-button" onclick="showTab('advanced')">
+                            🎯 Advanced
+                        </button>
+                    </div>
+
+                    <!-- Details Tab -->
+                    <div id="details-tab" class="tab-content active">
+                        <div class="form-group">
+                            <label for="fullName">Person Name *</label>
+                            <input type="text" id="fullName" name="fullName" required>
+                        </div>
+
+                        <div class="form-group email-shorter">
+                            <label for="email">Email Address *</label>
+                            <input type="email" name="email" required>
+                        </div>
+
+                        <div class="form-group corrupted-border-test">
+                            <label for="phone">Phone Number *</label>
+                            <input type="tel" id="phone" name="phone" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="birthdate">Date of Birth *</label>
+                            <input type="date" id="birthdate" name="birthdate" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Profile Image Upload</label>
+                            <input type="file" name="profileImage" accept="image/*" data-test="image-upload-field">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Document Upload (PDF)</label>
+                            <input type="file" name="pdfDocument" accept=".pdf" data-file-type="pdf">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="applicationType">Application Type *</label>
+                            <select id="applicationType" name="applicationType" required>
+                                <option value="">-- Select Type --</option>
+                                <option value="personal">Personal</option>
+                                <option value="business">Business</option>
+                                <option value="enterprise">Enterprise</option>
+                            </select>
+                        </div>
+
+                        <!-- Application Type Display Box -->
+                        <div id="applicationTypeBox" class="enterprise-box">
+                            <span id="applicationTypeDisplay"></span>
+                        </div>
+
+                        <!-- Conditional Fields -->
+                        <div id="companyNameGroup" class="form-group hidden">
+                            <label for="companyName">Company Name *</label>
+                            <input type="text" name="companyName">
+                        </div>
+
+                        <!-- AJAX Loading Spinner -->
+                        <div id="ajaxLoadingContainer" class="form-group hidden">
+                            <div class="ajax-loading">
+                                <div class="spinner"></div>
+                                <p>⏳ Loading additional fields...</p>
+                            </div>
+                        </div>
+
+                        <!-- AJAX Loaded Field -->
+                        <div id="taxIdGroup" class="form-group hidden">
+                            <label for="taxId">Tax ID *</label>
+                            <input type="text" id="taxId" name="taxId" maxlength="20">
+                        </div>
+
+                        <!-- Enterprise-only fields -->
+                        <div id="managerPhoneGroup" class="form-group hidden">
+                            <label for="managerPhone">Manager Phone *</label>
+                            <input type="tel" id="managerPhone" name="managerPhone">
+                        </div>
+
+                        <div id="managerNotesGroup" class="form-group hidden">
+                            <label for="managerNotes">Manager Notes *</label>
+                            <textarea id="managerNotes" name="managerNotes"></textarea>
+                        </div>
+
+                        <!-- Findings Section -->
+                        <div id="findingsSection" class="findings-section hidden">
+                            <div class="findings-header">
+                                <h3>🔍 Findings</h3>
+                                <button type="button" class="btn-add-finding" onclick="openFindingModal()">
+                                    ➕ Add Finding
+                                </button>
+                            </div>
+                            <div id="findingsList" class="findings-list">
+                                <div class="empty-findings">
+                                    No findings added yet. Click "Add Finding" to create one.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Engagements Section -->
+                        <div id="engagementsSection" class="engagements-section hidden">
+                            <div class="engagements-header">
+                                <h3>🤝 Engagements</h3>
+                                <button type="button" class="btn-add-engagement" onclick="openEngagementModal()">
+                                    ➕ Add Engagement
+                                </button>
+                            </div>
+                            <div id="engagementsList" class="engagements-list">
+                                <div class="empty-engagements">
+                                    No engagements added yet. Click "Add Engagement" to create one.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="comments">Additional Comments *</label>
+                            <textarea id="comments" name="comments" required></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Address Tab (with iframe!) -->
+                    <div id="address-tab" class="tab-content">
+                        <h3 style="color: #667eea; margin-bottom: 20px;">🏠 Address Information (All fields required)</h3>
+                        
+                        <div class="iframe-container">
+                            <h3>📦 Address Information</h3>
+                            <iframe id="addressIframe" src="address-form.html"></iframe>
+                        </div>
+                    </div>
+
+                    <!-- Preferences Tab -->
+                    <div id="preferences-tab" class="tab-content">
+                        <h3 style="color: #667eea; margin-bottom: 20px;">⚙️ Preferences & Settings</h3>
+                        
+                        <div class="form-group">
+                            <label>Special Options *</label>
+                            <div class="hover-container">
+                                <button type="button" class="btn btn-secondary">🔽 Hover Here</button>
+                                <div class="hover-menu">
+                                    <div class="form-group" style="margin-bottom: 10px;">
+                                        <label for="specialOption1">Option A *</label>
+                                        <input type="text" name="specialOption1" required data-option="A">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label for="specialOption2">Option B *</label>
+                                        <input type="text" id="specialOption2" name="specialOption2" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Rating *</label>
+                            <rating-widget></rating-widget>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ratingComment">Rating Comment *</label>
+                            <textarea id="ratingComment" name="ratingComment" required></textarea>
+                        </div>
+
+                        <!-- Newsletter Checkbox (Internal JS) -->
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="newsletter" name="newsletter" required>
+                                <label for="newsletter">Subscribe to newsletter *</label>
+                            </div>
+                        </div>
+
+                        <!-- Terms Checkbox (External JS) -->
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="terms" name="terms" required>
+                                <label for="terms">I agree to the terms and conditions *</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Tab -->
+                    <div id="advanced-tab" class="tab-content">
+                        <h3 style="color: #667eea; margin-bottom: 20px;">🎯 Advanced Features</h3>
+                        
+                        <!-- Employment Status Slider -->
+                        <div class="form-group">
+                            <label for="employmentStatus">Employment Status *</label>
+                            <div style="display: flex; align-items: center; gap: 15px; margin-top: 10px;">
+                                <span style="font-weight: 600; color: #28a745;">Employed</span>
+                                <input type="range" id="employmentStatus" name="employmentStatus" min="0" max="100" value="50" 
+                                       style="flex: 1; height: 8px;" oninput="updateEmploymentLabel()">
+                                <span style="font-weight: 600; color: #dc3545;">Unemployed</span>
+                            </div>
+                            <div id="employmentLabel" style="text-align: center; margin-top: 10px; font-weight: 600; color: #667eea;">
+                                50% Employment Status
+                            </div>
+                        </div>
+
+                        <!-- Skills Multi-Select -->
+                        <div class="form-group">
+                            <label for="skills">Technical Skills * (Select multiple)</label>
+                            <select id="skills" name="skills" multiple required style="height: 150px;">
+                                <option value="JavaScript">JavaScript</option>
+                                <option value="Python">Python</option>
+                                <option value="Java">Java</option>
+                                <option value="C++">C++</option>
+                                <option value="Ruby">Ruby</option>
+                                <option value="PHP">PHP</option>
+                                <option value="Swift">Swift</option>
+                                <option value="Kotlin">Kotlin</option>
+                                <option value="Go">Go</option>
+                                <option value="Rust">Rust</option>
+                                <option value="TypeScript">TypeScript</option>
+                                <option value="SQL">SQL</option>
+                                <option value="HTML/CSS">HTML/CSS</option>
+                                <option value="React">React</option>
+                                <option value="Angular">Angular</option>
+                                <option value="Vue.js">Vue.js</option>
+                                <option value="Node.js">Node.js</option>
+                                <option value="Django">Django</option>
+                                <option value="Flask">Flask</option>
+                                <option value="Spring">Spring</option>
+                            </select>
+                        </div>
+
+                        <!-- Project Priority Drag and Drop -->
+                        <div class="form-group">
+                            <label>Project Priority Assignment *</label>
+                            
+                            <!-- Draggable Item -->
+                            <div style="margin-bottom: 20px;">
+                                <div id="draggableProject" draggable="true" 
+                                     style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                            color: white; padding: 15px; border-radius: 8px; 
+                                            cursor: move; text-align: center; font-weight: 600;
+                                            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                                            display: inline-block; min-width: 200px;">
+                                    🚀 Project Alpha
+                                </div>
+                            </div>
+
+                            <!-- Drop Zones -->
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                                <div class="drop-zone" id="dropHigh" data-priority="high"
+                                     style="border: 3px dashed #dc3545; border-radius: 8px; padding: 30px; 
+                                            text-align: center; min-height: 120px; background: #fff5f5;
+                                            transition: all 0.3s;">
+                                    <div style="font-weight: 600; color: #dc3545; margin-bottom: 10px;">🔴 High Priority</div>
+                                    <div style="color: #999; font-size: 13px;">Drop here</div>
+                                </div>
+                                
+                                <div class="drop-zone" id="dropMedium" data-priority="medium"
+                                     style="border: 3px dashed #ffc107; border-radius: 8px; padding: 30px; 
+                                            text-align: center; min-height: 120px; background: #fffef5;
+                                            transition: all 0.3s;">
+                                    <div style="font-weight: 600; color: #ffc107; margin-bottom: 10px;">🟡 Medium Priority</div>
+                                    <div style="color: #999; font-size: 13px;">Drop here</div>
+                                </div>
+                                
+                                <div class="drop-zone" id="dropLow" data-priority="low"
+                                     style="border: 3px dashed #28a745; border-radius: 8px; padding: 30px; 
+                                            text-align: center; min-height: 120px; background: #f5fff5;
+                                            transition: all 0.3s;">
+                                    <div style="font-weight: 600; color: #28a745; margin-bottom: 10px;">🟢 Low Priority</div>
+                                    <div style="color: #999; font-size: 13px;">Drop here</div>
+                                </div>
+                            </div>
+
+                            <input type="hidden" id="projectPriority" name="projectPriority" required>
+                            <div id="priorityStatus" style="margin-top: 15px; padding: 10px; background: #f8f9fa; 
+                                                           border-radius: 6px; text-align: center; font-weight: 600; color: #666;">
+                                ⚠️ Priority not assigned
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Next Button -->
+                    <div class="button-group">
+                        <button type="button" class="btn btn-primary" onclick="validateAndGoToPartTwo()">
+                            Next: Part 2 →
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Part 2 Content -->
+        <div id="part2" class="main-tab-content">
+            <div class="form-content">
+                <h2 style="margin-bottom: 20px; color: #667eea;">📋 Part 2 - Additional Information</h2>
+                
+                <form id="part2Form">
+                    <div class="form-group">
+                        <label for="field1">Additional Field 1 *</label>
+                        <input type="text" name="field1" required data-field-number="1">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="field2">Additional Field 2 *</label>
+                        <input type="text" id="field2" name="field2" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="field3">Additional Field 3 *</label>
+                        <input type="text" id="field3" name="field3" required>
+                    </div>
+
+                    <!-- Job Description Button -->
+                    <div class="form-group">
+                        <button type="button" class="btn btn-info" onclick="openJobModal()">
+                            💼 Job Description
+                        </button>
+                    </div>
+
+                    <!-- Income Calculation Section -->
+                    <div class="income-section">
+                        <h3>💰 Income Calculation</h3>
+                        
+                        <div class="form-group">
+                            <label for="incomeBruto">Income Bruto (Gross) *</label>
+                            <input type="number" id="incomeBruto" name="incomeBruto" required 
+                                   step="0.01" min="0" 
+                                   oninput="calculateIncomeNeto()">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="taxPercentage">Tax Percentage (%) *</label>
+                            <input type="number" id="taxPercentage" name="taxPercentage" required 
+                                   step="0.01" min="0" max="100" 
+                                   oninput="calculateIncomeNeto()">
+                        </div>
+
+                        <div class="income-result" id="incomeNetoDisplay">
+                            <div class="label">Income Neto (Net)</div>
+                            <div class="value" id="incomeNetoValue">$0.00</div>
+                        </div>
+                    </div>
+
+                    <!-- Stock Market Field with Autocomplete -->
+                    <div class="form-group">
+                        <label for="stockMarket">Stock Market *</label>
+                        <input type="text" id="stockMarket" name="stockMarket" list="stockMarketList" required>
+                        <datalist id="stockMarketList">
+                            <option value="New York Stock Exchange (NYSE)">
+                            <option value="NASDAQ">
+                            <option value="Tokyo Stock Exchange (TSE)">
+                            <option value="Shanghai Stock Exchange (SSE)">
+                            <option value="Hong Kong Stock Exchange (HKEX)">
+                            <option value="Euronext">
+                            <option value="London Stock Exchange (LSE)">
+                            <option value="Shenzhen Stock Exchange (SZSE)">
+                            <option value="Toronto Stock Exchange (TSX)">
+                            <option value="Bombay Stock Exchange (BSE)">
+                            <option value="National Stock Exchange of India (NSE)">
+                            <option value="Deutsche Börse (Frankfurt)">
+                            <option value="Australian Securities Exchange (ASX)">
+                            <option value="Korea Exchange (KRX)">
+                            <option value="SIX Swiss Exchange">
+                            <option value="Saudi Stock Exchange (Tadawul)">
+                            <option value="Nasdaq Nordic">
+                            <option value="Johannesburg Stock Exchange (JSE)">
+                            <option value="BME Spanish Exchanges">
+                            <option value="Taiwan Stock Exchange (TWSE)">
+                        </datalist>
+                    </div>
+
+                    <!-- Save Button -->
+                    <div class="button-group">
+                        <button type="button" class="btn btn-secondary" onclick="goBackToPart1()">
+                            ← Back to Part 1
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="saveForm()">
+                            💾 Save Form
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        </div><!-- Close container-inner -->
+    </div><!-- Close container -->
+
+    <!-- Job Description Modal -->
+    <div id="jobModal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>💼 Job Description</h2>
+                <button class="modal-close" onclick="closeJobModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="jobTitle">Job Title *</label>
+                    <input type="text" id="jobTitle">
+                </div>
+                <div class="form-group">
+                    <label for="jobDescription">Job Description *</label>
+                    <textarea id="jobDescription" rows="6"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-cancel" onclick="closeJobModal()">Cancel</button>
+                <button class="btn btn-success" onclick="saveJobDescription()">✓ Accept</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Finding Modal -->
+    <div id="findingModal" class="finding-modal">
+        <div class="finding-modal-content">
+            <div class="finding-modal-header">
+                <h2 id="findingModalTitle">🔍 Add Finding</h2>
+            </div>
+            <div class="form-group">
+                <label for="findingName">Finding Name *</label>
+                <input type="text" id="findingName">
+            </div>
+            <div class="form-group">
+                <label for="findingDescription">Finding Description *</label>
+                <textarea id="findingDescription" rows="6"></textarea>
+            </div>
+            <div class="finding-modal-buttons">
+                <button class="btn-cancel-finding" onclick="closeFindingModal()">Cancel</button>
+                <button class="btn-save-finding" onclick="saveFinding()">✓ Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Engagements Modal -->
+    <div id="engagementModal" class="finding-modal">
+        <div class="finding-modal-content">
+            <div class="finding-modal-header">
+                <h2 id="engagementModalTitle">🤝 Add Engagement</h2>
+            </div>
+            <div class="form-group">
+                <label for="engagementName">Engagement Name *</label>
+                <input type="text" id="engagementName">
+            </div>
+            <div class="form-group">
+                <label for="engagementDescription">Engagement Description *</label>
+                <textarea id="engagementDescription" rows="6"></textarea>
+            </div>
+            <div class="finding-modal-buttons">
+                <button class="btn-cancel-finding" onclick="closeEngagementModal()">Cancel</button>
+                <button class="btn-save-finding" onclick="saveEngagement()">✓ Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // ========================================
+        // INCOME CALCULATION FUNCTION
+        // ========================================
+        function calculateIncomeNeto() {
+            const bruto = parseFloat(document.getElementById('incomeBruto').value) || 0;
+            const taxPercentage = parseFloat(document.getElementById('taxPercentage').value) || 0;
+            
+            // Calculate net income
+            const taxAmount = (bruto * taxPercentage) / 100;
+            const neto = bruto - taxAmount;
+            
+            // Update display
+            const netoDisplay = document.getElementById('incomeNetoValue');
+            netoDisplay.textContent = `$${neto.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+            
+            // Store calculated value
+            document.getElementById('incomeNetoDisplay').setAttribute('data-value', neto.toFixed(2));
+        }
+
+        // ========================================
+        // ADVANCED TAB FUNCTIONS
+        // ========================================
+        
+        // Employment Status Slider
+        function updateEmploymentLabel() {
+            const slider = document.getElementById('employmentStatus');
+            const label = document.getElementById('employmentLabel');
+            const value = parseInt(slider.value);
+            
+            if (value <= 33) {
+                label.textContent = '🟢 Employed (' + value + '%)';
+                label.style.color = '#28a745';
+            } else if (value <= 66) {
+                label.textContent = '🟡 Partially Employed (' + value + '%)';
+                label.style.color = '#ffc107';
+            } else {
+                label.textContent = '🔴 Unemployed (' + value + '%)';
+                label.style.color = '#dc3545';
+            }
+        }
+
+        // Drag and Drop for Project Priority
+        let draggedElement = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const draggable = document.getElementById('draggableProject');
+            const dropZones = document.querySelectorAll('.drop-zone');
+
+            if (draggable) {
+                draggable.addEventListener('dragstart', function(e) {
+                    draggedElement = this;
+                    this.style.opacity = '0.5';
+                });
+
+                draggable.addEventListener('dragend', function(e) {
+                    this.style.opacity = '1';
+                });
+            }
+
+            dropZones.forEach(zone => {
+                zone.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    this.style.background = '#e3f2fd';
+                    this.style.borderWidth = '5px';
+                });
+
+                zone.addEventListener('dragleave', function(e) {
+                    const priority = this.getAttribute('data-priority');
+                    if (priority === 'high') this.style.background = '#fff5f5';
+                    else if (priority === 'medium') this.style.background = '#fffef5';
+                    else if (priority === 'low') this.style.background = '#f5fff5';
+                    this.style.borderWidth = '3px';
+                });
+
+                zone.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    
+                    if (draggedElement) {
+                        // Move the draggable element into the drop zone
+                        this.appendChild(draggedElement);
+                        
+                        // Update hidden input
+                        const priority = this.getAttribute('data-priority');
+                        document.getElementById('projectPriority').value = priority;
+                        
+                        // Update status message
+                        const statusDiv = document.getElementById('priorityStatus');
+                        let icon = '';
+                        let color = '';
+                        let text = '';
+                        
+                        if (priority === 'high') {
+                            icon = '🔴';
+                            color = '#dc3545';
+                            text = 'High Priority';
+                        } else if (priority === 'medium') {
+                            icon = '🟡';
+                            color = '#ffc107';
+                            text = 'Medium Priority';
+                        } else if (priority === 'low') {
+                            icon = '🟢';
+                            color = '#28a745';
+                            text = 'Low Priority';
+                        }
+                        
+                        statusDiv.innerHTML = icon + ' Project assigned to <strong>' + text + '</strong>';
+                        statusDiv.style.color = color;
+                        statusDiv.style.background = '#e8f5e9';
+                    }
+                    
+                    // Reset background
+                    const priorityAttr = this.getAttribute('data-priority');
+                    if (priorityAttr === 'high') this.style.background = '#fff5f5';
+                    else if (priorityAttr === 'medium') this.style.background = '#fffef5';
+                    else if (priorityAttr === 'low') this.style.background = '#f5fff5';
+                    this.style.borderWidth = '3px';
+                });
+            });
+        });
+
+        // ========================================
+        // SUCCESS MESSAGE FUNCTION
+        // ========================================
+        function showSuccessMessage(message) {
+            // Create success message element
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.innerHTML = `
+                <span class="icon">✓</span>
+                <span>${message}</span>
+            `;
+            
+            // Add to body
+            document.body.appendChild(successDiv);
+            
+            // Auto-dismiss after 3 seconds
+            setTimeout(() => {
+                successDiv.classList.add('fade-out');
+                setTimeout(() => {
+                    successDiv.remove();
+                }, 500); // Wait for fade-out animation
+            }, 3000);
+        }
+
+        // ========================================
+        // JOB DESCRIPTION MODAL FUNCTIONS
+        // ========================================
+        let jobDescriptionData = {
+            jobTitle: '',
+            jobDescription: ''
+        };
+
+        function openJobModal() {
+            const modal = document.getElementById('jobModal');
+            modal.classList.add('active');
+            
+            // Load existing data if available
+            document.getElementById('jobTitle').value = jobDescriptionData.jobTitle || '';
+            document.getElementById('jobDescription').value = jobDescriptionData.jobDescription || '';
+            
+            // Prevent body scroll
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeJobModal() {
+            const modal = document.getElementById('jobModal');
+            modal.classList.remove('active');
+            
+            // Restore body scroll
+            document.body.style.overflow = 'auto';
+        }
+
+        function saveJobDescription() {
+            const jobTitle = document.getElementById('jobTitle').value.trim();
+            const jobDescription = document.getElementById('jobDescription').value.trim();
+            
+            if (!jobTitle || !jobDescription) {
+                alert('⚠️ Please fill in both Job Title and Job Description');
+                return;
+            }
+            
+            // Save to temporary storage
+            jobDescriptionData = {
+                jobTitle: jobTitle,
+                jobDescription: jobDescription
+            };
+            
+            console.log('Job Description saved:', jobDescriptionData);
+            
+            // Show success message
+            showSuccessMessage('💼 Job Description saved successfully!');
+            
+            // Close modal
+            closeJobModal();
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('jobModal');
+            if (event.target === modal) {
+                closeJobModal();
+            }
+        });
+
+        // ========================================
+        // VALIDATION FUNCTIONS
+        // ========================================
+        function validatePart1() {
+            const errors = [];
+            
+            // Basic required fields
+            if (!document.getElementById('fullName').value.trim()) {
+                errors.push('Person Name is required');
+            }
+            if (!document.querySelector('input[name="email"]').value.trim()) {
+                errors.push('Email Address is required');
+            }
+            if (!document.getElementById('phone').value.trim()) {
+                errors.push('Phone Number is required');
+            }
+            if (!document.getElementById('birthdate').value) {
+                errors.push('Date of Birth is required');
+            }
+            if (!document.getElementById('applicationType').value) {
+                errors.push('Application Type is required');
+            }
+            if (!document.getElementById('comments').value.trim()) {
+                errors.push('Additional Comments is required');
+            }
+            
+            // Conditional fields validation
+            const applicationType = document.getElementById('applicationType').value;
+            if (applicationType === 'business' || applicationType === 'enterprise') {
+                if (!document.querySelector('input[name="companyName"]').value.trim()) {
+                    errors.push('Company Name is required for Business/Enterprise applications');
+                }
+                const taxId = document.getElementById('taxId').value.trim();
+                if (!taxId) {
+                    errors.push('Tax ID is required for Business/Enterprise applications');
+                } else if (taxId.length !== 20) {
+                    errors.push('Tax ID must be exactly 20 digits');
+                }
+            }
+            
+            if (applicationType === 'enterprise') {
+                if (!document.getElementById('managerPhone').value.trim()) {
+                    errors.push('Manager Phone is required for Enterprise applications');
+                }
+                if (!document.getElementById('managerNotes').value.trim()) {
+                    errors.push('Manager Notes is required for Enterprise applications');
+                }
+            }
+            
+            // Address iframe fields validation
+            try {
+                const addressIframe = document.getElementById('addressIframe');
+                if (addressIframe && addressIframe.contentWindow) {
+                    const iframeDoc = addressIframe.contentWindow.document;
+                    if (!iframeDoc.getElementById('street')?.value.trim()) {
+                        errors.push('Street Address is required');
+                    }
+                    if (!iframeDoc.getElementById('city')?.value.trim()) {
+                        errors.push('City is required');
+                    }
+                    if (!iframeDoc.getElementById('state')?.value) {
+                        errors.push('State is required');
+                    }
+                    if (!iframeDoc.getElementById('zipCode')?.value.trim()) {
+                        errors.push('ZIP Code is required');
+                    }
+                    
+                    // Nested iframe validation
+                    const contactIframe = iframeDoc.getElementById('contactIframe');
+                    if (contactIframe && contactIframe.contentWindow) {
+                        const nestedDoc = contactIframe.contentWindow.document;
+                        if (!nestedDoc.getElementById('emergencyName')?.value.trim()) {
+                            errors.push('Emergency Contact Name is required');
+                        }
+                        if (!nestedDoc.getElementById('emergencyPhone')?.value.trim()) {
+                            errors.push('Emergency Contact Phone is required');
+                        }
+                        if (!nestedDoc.getElementById('emergencyEmail')?.value.trim()) {
+                            errors.push('Emergency Contact Email is required');
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log('Could not validate iframe fields:', e);
+            }
+            
+            // Preferences validation
+            if (!document.querySelector('input[name="specialOption1"]').value.trim()) {
+                errors.push('Special Option A is required');
+            }
+            if (!document.getElementById('specialOption2').value.trim()) {
+                errors.push('Special Option B is required');
+            }
+            if (!document.getElementById('ratingComment').value.trim()) {
+                errors.push('Rating Comment is required');
+            }
+            
+            // Check rating from shadow DOM
+            try {
+                const ratingWidget = document.querySelector('rating-widget');
+                if (ratingWidget && ratingWidget.shadowRoot) {
+                    const ratingInput = ratingWidget.shadowRoot.querySelector('input[type="hidden"]');
+                    if (!ratingInput || ratingInput.value === '0') {
+                        errors.push('Rating is required (please select stars)');
+                    }
+                }
+            } catch (e) {
+                console.log('Could not validate rating:', e);
+            }
+            
+            // Checkboxes
+            if (!document.getElementById('newsletter').checked) {
+                errors.push('Newsletter subscription is required');
+            }
+            if (!document.getElementById('terms').checked) {
+                errors.push('You must agree to the Terms and Conditions');
+            }
+            
+            // Advanced tab validation
+            const skillsSelect = document.getElementById('skills');
+            const selectedSkills = Array.from(skillsSelect.selectedOptions).map(opt => opt.value);
+            if (selectedSkills.length === 0) {
+                errors.push('At least one Technical Skill must be selected');
+            }
+            
+            if (!document.getElementById('projectPriority').value) {
+                errors.push('Project Priority must be assigned');
+            }
+            
+            return errors;
+        }
+
+        function validatePart2() {
+            const errors = [];
+            
+            if (!document.querySelector('input[name="field1"]').value.trim()) {
+                errors.push('Additional Field 1 is required');
+            }
+            if (!document.getElementById('field2').value.trim()) {
+                errors.push('Additional Field 2 is required');
+            }
+            if (!document.getElementById('field3').value.trim()) {
+                errors.push('Additional Field 3 is required');
+            }
+            
+            // Income fields validation
+            const incomeBruto = document.getElementById('incomeBruto').value;
+            const taxPercentage = document.getElementById('taxPercentage').value;
+            
+            if (!incomeBruto || parseFloat(incomeBruto) < 0) {
+                errors.push('Income Bruto is required and must be a positive number');
+            }
+            if (!taxPercentage || parseFloat(taxPercentage) < 0 || parseFloat(taxPercentage) > 100) {
+                errors.push('Tax Percentage is required and must be between 0 and 100');
+            }
+            
+            // Stock Market validation
+            if (!document.getElementById('stockMarket').value.trim()) {
+                errors.push('Stock Market is required');
+            }
+            
+            return errors;
+        }
+
+        function validateAndGoToPartTwo() {
+            const errors = validatePart1();
+            
+            if (errors.length > 0) {
+                alert('❌ Please fill in all required fields:\n\n' + errors.map((e, i) => `${i + 1}. ${e}`).join('\n'));
+                return;
+            }
+            
+            // All validations passed, show success message
+            showSuccessMessage('✅ Part 1 filled successfully!');
+            
+            // Go to Part 2 after a short delay
+            setTimeout(() => {
+                goToPartTwo();
+            }, 500);
+        }
+
+        function goBackToPart1() {
+            showMainTab('part1');
+        }
+
+        // ========================================
+        // FORM DATA COLLECTION
+        // ========================================
+        function collectFormData() {
+            const formData = {
+                // Part 1 - Details
+                fullName: document.getElementById('fullName').value,
+                email: document.querySelector('input[name="email"]').value,
+                phone: document.getElementById('phone').value,
+                birthdate: document.getElementById('birthdate').value,
+                
+                // File uploads
+                profileImage: document.querySelector('input[name="profileImage"]').files.length > 0 
+                    ? document.querySelector('input[name="profileImage"]').files[0].name 
+                    : '',
+                pdfDocument: document.querySelector('input[name="pdfDocument"]').files.length > 0 
+                    ? document.querySelector('input[name="pdfDocument"]').files[0].name 
+                    : '',
+                
+                applicationType: document.getElementById('applicationType').value,
+                companyName: document.querySelector('input[name="companyName"]').value,
+                taxId: document.getElementById('taxId').value,
+                managerPhone: document.getElementById('managerPhone').value,
+                managerNotes: document.getElementById('managerNotes').value,
+                comments: document.getElementById('comments').value,
+                
+                // Address iframe fields (if accessible)
+                street: '',
+                city: '',
+                state: '',
+                zipCode: '',
+                emergencyName: '',
+                emergencyPhone: '',
+                emergencyEmail: '',
+                
+                // Preferences
+                specialOption1: document.querySelector('input[name="specialOption1"]').value,
+                specialOption2: document.getElementById('specialOption2').value,
+                ratingComment: document.getElementById('ratingComment').value,
+                newsletter: document.getElementById('newsletter').checked,
+                terms: document.getElementById('terms').checked,
+                
+                // Advanced tab
+                employmentStatus: document.getElementById('employmentStatus').value,
+                skills: Array.from(document.getElementById('skills').selectedOptions).map(opt => opt.value),
+                projectPriority: document.getElementById('projectPriority').value,
+                
+                // Part 2
+                field1: document.querySelector('input[name="field1"]').value,
+                field2: document.getElementById('field2').value,
+                field3: document.getElementById('field3').value,
+                
+                // Income Calculation
+                incomeBruto: document.getElementById('incomeBruto').value,
+                taxPercentage: document.getElementById('taxPercentage').value,
+                incomeNeto: document.getElementById('incomeNetoDisplay').getAttribute('data-value') || '0',
+                
+                // Stock Market
+                stockMarket: document.getElementById('stockMarket').value,
+                
+                // Job Description
+                jobTitle: jobDescriptionData.jobTitle || '',
+                jobDescription: jobDescriptionData.jobDescription || '',
+                
+                // Findings
+                findings: findings,
+                
+                // Engagements
+                engagements: engagements,
+                
+                // Metadata
+                savedDate: new Date().toISOString()
+            };
+            
+            // Try to get iframe data (may be blocked by CORS in some scenarios)
+            try {
+                const addressIframe = document.getElementById('addressIframe');
+                if (addressIframe && addressIframe.contentWindow) {
+                    const iframeDoc = addressIframe.contentWindow.document;
+                    formData.street = iframeDoc.getElementById('street')?.value || '';
+                    formData.city = iframeDoc.getElementById('city')?.value || '';
+                    formData.state = iframeDoc.getElementById('state')?.value || '';
+                    formData.zipCode = iframeDoc.getElementById('zipCode')?.value || '';
+                    
+                    // Try nested iframe
+                    const contactIframe = iframeDoc.getElementById('contactIframe');
+                    if (contactIframe && contactIframe.contentWindow) {
+                        const nestedDoc = contactIframe.contentWindow.document;
+                        formData.emergencyName = nestedDoc.getElementById('emergencyName')?.value || '';
+                        formData.emergencyPhone = nestedDoc.getElementById('emergencyPhone')?.value || '';
+                        formData.emergencyEmail = nestedDoc.getElementById('emergencyEmail')?.value || '';
+                    }
+                }
+            } catch (e) {
+                console.log('Could not access iframe data (CORS restriction):', e);
+            }
+            
+            // Try to get rating from shadow DOM
+            try {
+                const ratingWidget = document.querySelector('rating-widget');
+                if (ratingWidget && ratingWidget.shadowRoot) {
+                    const ratingInput = ratingWidget.shadowRoot.querySelector('input[type="hidden"]');
+                    formData.rating = ratingInput ? ratingInput.value : '0';
+                }
+            } catch (e) {
+                console.log('Could not access shadow DOM:', e);
+                formData.rating = '0';
+            }
+            
+            return formData;
+        }
+
+        // ========================================
+        // SAVE FORM
+        // ========================================
+        function saveForm() {
+            // First validate Part 1
+            const part1Errors = validatePart1();
+            if (part1Errors.length > 0) {
+                alert('❌ Part 1 has missing required fields:\n\n' + part1Errors.map((e, i) => `${i + 1}. ${e}`).join('\n'));
+                goBackToPart1();
+                return;
+            }
+            
+            // Then validate Part 2
+            const part2Errors = validatePart2();
+            if (part2Errors.length > 0) {
+                alert('❌ Part 2 has missing required fields:\n\n' + part2Errors.map((e, i) => `${i + 1}. ${e}`).join('\n'));
+                return;
+            }
+            
+            // Collect all form data
+            const formData = collectFormData();
+            
+            // Get existing forms
+            const savedForms = JSON.parse(localStorage.getItem('savedForms') || '[]');
+            
+            // Check if we're editing
+            const urlParams = new URLSearchParams(window.location.search);
+            const editId = urlParams.get('edit');
+            
+            if (editId !== null) {
+                // Update existing form
+                savedForms[parseInt(editId)] = formData;
+                showSuccessMessage('✅ Form updated successfully!');
+            } else {
+                // Add new form
+                savedForms.push(formData);
+                showSuccessMessage('✅ Form created successfully!');
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('savedForms', JSON.stringify(savedForms));
+            
+            // Redirect to home after 3 seconds (to show success message)
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 3000);
+        }
+
+        // ========================================
+        // LOAD FORM FOR EDITING
+        // ========================================
+        function loadFormForEditing() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const editId = urlParams.get('edit');
+            
+            if (editId === null) return;
+            
+            const savedForms = JSON.parse(localStorage.getItem('savedForms') || '[]');
+            const formData = savedForms[parseInt(editId)];
+            
+            if (!formData) {
+                alert('Form not found!');
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            // Populate all fields
+            document.getElementById('fullName').value = formData.fullName || '';
+            document.querySelector('input[name="email"]').value = formData.email || '';
+            document.getElementById('phone').value = formData.phone || '';
+            document.getElementById('birthdate').value = formData.birthdate || '';
+            document.getElementById('applicationType').value = formData.applicationType || '';
+            document.querySelector('input[name="companyName"]').value = formData.companyName || '';
+            document.getElementById('taxId').value = formData.taxId || '';
+            document.getElementById('managerPhone').value = formData.managerPhone || '';
+            document.getElementById('managerNotes').value = formData.managerNotes || '';
+            document.getElementById('comments').value = formData.comments || '';
+            
+            // Preferences
+            document.querySelector('input[name="specialOption1"]').value = formData.specialOption1 || '';
+            document.getElementById('specialOption2').value = formData.specialOption2 || '';
+            document.getElementById('ratingComment').value = formData.ratingComment || '';
+            document.getElementById('newsletter').checked = formData.newsletter || false;
+            document.getElementById('terms').checked = formData.terms || false;
+            
+            // Advanced tab
+            if (formData.employmentStatus) {
+                document.getElementById('employmentStatus').value = formData.employmentStatus;
+                updateEmploymentLabel();
+            }
+            if (formData.skills && formData.skills.length > 0) {
+                const skillsSelect = document.getElementById('skills');
+                formData.skills.forEach(skill => {
+                    Array.from(skillsSelect.options).forEach(opt => {
+                        if (opt.value === skill) opt.selected = true;
+                    });
+                });
+            }
+            if (formData.projectPriority) {
+                document.getElementById('projectPriority').value = formData.projectPriority;
+                // Note: drag-drop position won't be restored visually, only the value
+            }
+            
+            // Part 2
+            document.querySelector('input[name="field1"]').value = formData.field1 || '';
+            document.getElementById('field2').value = formData.field2 || '';
+            document.getElementById('field3').value = formData.field3 || '';
+            
+            // Income fields
+            document.getElementById('incomeBruto').value = formData.incomeBruto || '';
+            document.getElementById('taxPercentage').value = formData.taxPercentage || '';
+            if (formData.incomeBruto && formData.taxPercentage) {
+                calculateIncomeNeto();
+            }
+            
+            // Stock Market
+            document.getElementById('stockMarket').value = formData.stockMarket || '';
+            
+            // Job Description
+            jobDescriptionData = {
+                jobTitle: formData.jobTitle || '',
+                jobDescription: formData.jobDescription || ''
+            };
+            
+            // Findings
+            if (formData.findings) {
+                findings = formData.findings;
+                renderFindings();
+            }
+            
+            // Engagements
+            if (formData.engagements) {
+                engagements = formData.engagements;
+                renderEngagements();
+            }
+            
+            // Trigger conditional fields if needed
+            const applicationType = document.getElementById('applicationType');
+            if (applicationType.value) {
+                applicationType.dispatchEvent(new Event('change'));
+            }
+            
+            console.log('Form loaded for editing');
+        }
+
+        // ========================================
+        // NAVIGATION
+        // ========================================
+        function goHome() {
+            if (confirm('Are you sure? Unsaved changes will be lost.')) {
+                window.location.href = 'index.html';
+            }
+        }
+
+        function activatePart1Tab() {
+            document.querySelectorAll('.main-tab-button')[0].classList.add('active');
+            document.querySelectorAll('.main-tab-button')[1].classList.remove('active');
+        }
+
+        // ========================================
+        // MAIN TAB SWITCHING (Part 1 / Part 2)
+        // ========================================
+        function showMainTab(tabName) {
+            // Hide all main tab contents
+            document.querySelectorAll('.main-tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active from all main tab buttons
+            document.querySelectorAll('.main-tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected main tab
+            document.getElementById(tabName).classList.add('active');
+            
+            // Activate button
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+        }
+
+        function goToPartTwo() {
+            showMainTab('part2');
+        }
+
+        // ========================================
+        // SUB-TAB SWITCHING (Details / Address / Preferences)
+        // ========================================
+        function showTab(tabName) {
+            // Show confirmation popup for Address tab
+            if (tabName === 'address') {
+                const confirmed = confirm('⚠️ You are about to enter the Address section.\n\nAre you sure you want to continue?');
+                if (!confirmed) {
+                    // User cancelled, don't switch tabs
+                    return;
+                }
+            }
+            
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active from all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Activate button
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+        }
+
+        // ========================================
+        // CONDITIONAL FIELDS (Application Type)
+        // ========================================
+        document.getElementById('applicationType').addEventListener('change', function() {
+            const value = this.value;
+            const companyGroup = document.getElementById('companyNameGroup');
+            const taxIdGroup = document.getElementById('taxIdGroup');
+            const ajaxLoading = document.getElementById('ajaxLoadingContainer');
+            const managerPhoneGroup = document.getElementById('managerPhoneGroup');
+            const managerNotesGroup = document.getElementById('managerNotesGroup');
+            const applicationTypeBox = document.getElementById('applicationTypeBox');
+            const applicationTypeDisplay = document.getElementById('applicationTypeDisplay');
+            
+            const companyNameInput = document.querySelector('input[name="companyName"]');
+            const taxIdInput = document.getElementById('taxId');
+            const managerPhoneInput = document.getElementById('managerPhone');
+            const managerNotesInput = document.getElementById('managerNotes');
+            
+            // Get display text for the selected type
+            const typeText = this.options[this.selectedIndex].text;
+            
+            // Show/hide and update the application type box
+            if (value) {
+                // Show box with selected type
+                let icon = '';
+                if (value === 'personal') icon = '👤';
+                else if (value === 'business') icon = '💼';
+                else if (value === 'enterprise') icon = '📊';
+                
+                applicationTypeDisplay.textContent = `${icon} ${typeText} Type User`;
+                applicationTypeBox.classList.add('show');
+            } else {
+                // Hide box if no selection
+                applicationTypeBox.classList.remove('show');
+            }
+            
+            // Show/hide company name and tax ID for business/enterprise
+            if (value === 'business' || value === 'enterprise') {
+                companyGroup.classList.remove('hidden');
+                companyNameInput.setAttribute('required', 'required');
+                
+                // Show loading spinner
+                ajaxLoading.classList.remove('hidden');
+                taxIdGroup.classList.add('hidden');
+                
+                // Simulate AJAX delay (2 seconds)
+                setTimeout(() => {
+                    ajaxLoading.classList.add('hidden');
+                    taxIdGroup.classList.remove('hidden');
+                    taxIdInput.setAttribute('required', 'required');
+                }, 2000);
+            } else {
+                companyGroup.classList.add('hidden');
+                taxIdGroup.classList.add('hidden');
+                ajaxLoading.classList.add('hidden');
+                companyNameInput.removeAttribute('required');
+                taxIdInput.removeAttribute('required');
+            }
+            
+            // Show manager fields only for enterprise
+            if (value === 'enterprise') {
+                managerPhoneGroup.classList.remove('hidden');
+                managerNotesGroup.classList.remove('hidden');
+                managerPhoneInput.setAttribute('required', 'required');
+                managerNotesInput.setAttribute('required', 'required');
+                
+                // Show findings section for enterprise
+                document.getElementById('findingsSection').classList.remove('hidden');
+                
+                // Show engagements section for enterprise
+                document.getElementById('engagementsSection').classList.remove('hidden');
+                
+                // Show success message for Enterprise
+                showSuccessMessage('👋 Hello Enterprise man');
+            } else {
+                managerPhoneGroup.classList.add('hidden');
+                managerNotesGroup.classList.add('hidden');
+                managerPhoneInput.removeAttribute('required');
+                managerNotesInput.removeAttribute('required');
+                
+                // Hide findings section for non-enterprise
+                document.getElementById('findingsSection').classList.add('hidden');
+                
+                // Hide engagements section for non-enterprise
+                document.getElementById('engagementsSection').classList.add('hidden');
+            }
+        });
+
+        // ========================================
+        // FINDINGS MANAGEMENT
+        // ========================================
+        let findings = [];
+        let editingFindingIndex = null;
+
+        function openFindingModal(index = null) {
+            const modal = document.getElementById('findingModal');
+            const modalTitle = document.getElementById('findingModalTitle');
+            const nameInput = document.getElementById('findingName');
+            const descInput = document.getElementById('findingDescription');
+            
+            if (index !== null) {
+                // Edit mode
+                editingFindingIndex = index;
+                modalTitle.textContent = '✏️ Edit Finding';
+                nameInput.value = findings[index].name;
+                descInput.value = findings[index].description;
+            } else {
+                // Add mode
+                editingFindingIndex = null;
+                modalTitle.textContent = '🔍 Add Finding';
+                nameInput.value = '';
+                descInput.value = '';
+            }
+            
+            modal.classList.add('show');
+        }
+
+        function closeFindingModal() {
+            const modal = document.getElementById('findingModal');
+            modal.classList.remove('show');
+            editingFindingIndex = null;
+            document.getElementById('findingName').value = '';
+            document.getElementById('findingDescription').value = '';
+        }
+
+        function saveFinding() {
+            const nameInput = document.getElementById('findingName');
+            const descInput = document.getElementById('findingDescription');
+            
+            const name = nameInput.value.trim();
+            const description = descInput.value.trim();
+            
+            if (!name || !description) {
+                alert('Please fill in both finding name and description.');
+                return;
+            }
+            
+            if (editingFindingIndex !== null) {
+                // Update existing finding
+                findings[editingFindingIndex] = { name, description };
+                showSuccessMessage('✏️ Finding updated successfully!');
+            } else {
+                // Add new finding
+                findings.push({ name, description });
+                showSuccessMessage('✓ Finding added successfully!');
+            }
+            
+            renderFindings();
+            closeFindingModal();
+        }
+
+        function deleteFinding(index) {
+            if (confirm('Are you sure you want to delete this finding?')) {
+                findings.splice(index, 1);
+                renderFindings();
+                showSuccessMessage('🗑️ Finding deleted successfully!');
+            }
+        }
+
+        function renderFindings() {
+            const findingsList = document.getElementById('findingsList');
+            
+            if (findings.length === 0) {
+                findingsList.innerHTML = `
+                    <div class="empty-findings">
+                        No findings added yet. Click "Add Finding" to create one.
+                    </div>
+                `;
+                return;
+            }
+            
+            findingsList.innerHTML = findings.map((finding, index) => `
+                <div class="finding-item">
+                    <div class="finding-header">
+                        <div class="finding-name">${escapeHtml(finding.name)}</div>
+                        <div class="finding-actions">
+                            <button type="button" class="btn-edit-finding" onclick="openFindingModal(${index})">
+                                ✏️ Edit
+                            </button>
+                            <button type="button" class="btn-delete-finding" onclick="deleteFinding(${index})">
+                                🗑️ Delete
+                            </button>
+                        </div>
+                    </div>
+                    <div class="finding-description">${escapeHtml(finding.description)}</div>
+                </div>
+            `).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ========================================
+        // ENGAGEMENTS MANAGEMENT FUNCTIONS
+        // ========================================
+        let engagements = [];
+        let editingEngagementIndex = null;
+
+        function openEngagementModal(index = null) {
+            const modal = document.getElementById('engagementModal');
+            const modalTitle = document.getElementById('engagementModalTitle');
+            const nameInput = document.getElementById('engagementName');
+            const descInput = document.getElementById('engagementDescription');
+            
+            if (index !== null) {
+                // Edit mode
+                editingEngagementIndex = index;
+                modalTitle.textContent = '✏️ Edit Engagement';
+                nameInput.value = engagements[index].name;
+                descInput.value = engagements[index].description;
+            } else {
+                // Add mode
+                editingEngagementIndex = null;
+                modalTitle.textContent = '🤝 Add Engagement';
+                nameInput.value = '';
+                descInput.value = '';
+            }
+            
+            modal.classList.add('show');
+        }
+
+        function closeEngagementModal() {
+            const modal = document.getElementById('engagementModal');
+            modal.classList.remove('show');
+            editingEngagementIndex = null;
+            document.getElementById('engagementName').value = '';
+            document.getElementById('engagementDescription').value = '';
+        }
+
+        function saveEngagement() {
+            const nameInput = document.getElementById('engagementName');
+            const descInput = document.getElementById('engagementDescription');
+            
+            const name = nameInput.value.trim();
+            const description = descInput.value.trim();
+            
+            if (!name || !description) {
+                alert('Please fill in both engagement name and description.');
+                return;
+            }
+            
+            if (editingEngagementIndex !== null) {
+                // Update existing engagement
+                engagements[editingEngagementIndex] = { name, description };
+                showSuccessMessage('✏️ Engagement updated successfully!');
+            } else {
+                // Add new engagement
+                engagements.push({ name, description });
+                showSuccessMessage('✓ Engagement added successfully!');
+            }
+            
+            renderEngagements();
+            closeEngagementModal();
+        }
+
+        function deleteEngagement(index) {
+            if (confirm('Are you sure you want to delete this engagement?')) {
+                engagements.splice(index, 1);
+                renderEngagements();
+                showSuccessMessage('🗑️ Engagement deleted successfully!');
+            }
+        }
+
+        function renderEngagements() {
+            const engagementsList = document.getElementById('engagementsList');
+            
+            if (engagements.length === 0) {
+                engagementsList.innerHTML = `
+                    <div class="empty-engagements">
+                        No engagements added yet. Click "Add Engagement" to create one.
+                    </div>
+                `;
+                return;
+            }
+            
+            engagementsList.innerHTML = engagements.map((engagement, index) => `
+                <div class="engagement-item">
+                    <div class="engagement-header">
+                        <div class="engagement-name">${escapeHtml(engagement.name)}</div>
+                        <div class="engagement-actions">
+                            <button type="button" class="btn-edit-engagement" onclick="openEngagementModal(${index})">
+                                ✏️ Edit
+                            </button>
+                            <button type="button" class="btn-delete-engagement" onclick="deleteEngagement(${index})">
+                                🗑️ Delete
+                            </button>
+                        </div>
+                    </div>
+                    <div class="engagement-description">${escapeHtml(engagement.description)}</div>
+                </div>
+            `).join('');
+        }
+
+        // ========================================
+        // NEWSLETTER CHECKBOX (Internal JS)
+        // ========================================
+        (function() {
+            const newsletterCheckbox = document.getElementById('newsletter');
+            
+            newsletterCheckbox.addEventListener('change', function() {
+                const isChecked = this.checked;
+                this.setAttribute('data-subscribed', isChecked ? 'yes' : 'no');
+                console.log('Newsletter subscription:', isChecked ? 'SUBSCRIBED' : 'UNSUBSCRIBED');
+                
+                // Visual feedback
+                const label = document.querySelector('label[for="newsletter"]');
+                if (label) {
+                    if (isChecked) {
+                        label.style.color = '#51cf66';
+                        label.style.fontWeight = '600';
+                    } else {
+                        label.style.color = '#333';
+                        label.style.fontWeight = 'normal';
+                    }
+                }
+            });
+            
+            // Initialize
+            newsletterCheckbox.setAttribute('data-subscribed', 'no');
+        })();
+
+        // ========================================
+        // SHADOW DOM - Rating Widget
+        // ========================================
+        class RatingWidget extends HTMLElement {
+            constructor() {
+                super();
+                this.attachShadow({ mode: 'open' });
+            }
+            
+            connectedCallback() {
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        .rating-container {
+                            display: flex;
+                            gap: 10px;
+                            align-items: center;
+                        }
+                        .star {
+                            font-size: 30px;
+                            cursor: pointer;
+                            color: #ccc;
+                            transition: color 0.2s;
+                        }
+                        .star.active {
+                            color: #ffd700;
+                        }
+                        .star:hover {
+                            color: #ffed4e;
+                        }
+                        input {
+                            display: none;
+                        }
+                    </style>
+                    <div class="rating-container">
+                        <span class="star" data-rating="1">★</span>
+                        <span class="star" data-rating="2">★</span>
+                        <span class="star" data-rating="3">★</span>
+                        <span class="star" data-rating="4">★</span>
+                        <span class="star" data-rating="5">★</span>
+                        <input type="hidden" id="rating" name="rating" value="0">
+                    </div>
+                `;
+                
+                const stars = this.shadowRoot.querySelectorAll('.star');
+                const input = this.shadowRoot.querySelector('input');
+                
+                stars.forEach(star => {
+                    star.addEventListener('click', () => {
+                        const rating = star.getAttribute('data-rating');
+                        input.value = rating;
+                        
+                        // Update visual state
+                        stars.forEach(s => {
+                            if (parseInt(s.getAttribute('data-rating')) <= parseInt(rating)) {
+                                s.classList.add('active');
+                            } else {
+                                s.classList.remove('active');
+                            }
+                        });
+                        
+                        console.log('Rating selected:', rating);
+                    });
+                });
+            }
+        }
+        
+        customElements.define('rating-widget', RatingWidget);
+
+        // ========================================
+        // INITIALIZE
+        // ========================================
+        window.addEventListener('DOMContentLoaded', function() {
+            loadFormForEditing();
+            console.log('✓ Enhanced test form loaded successfully');
+        });
+    </script>
+</body>
+</html>

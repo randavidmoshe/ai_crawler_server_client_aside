@@ -297,6 +297,7 @@ class AgentSelenium:
         """
         try:
             if browser_type.lower() == "chrome":
+                '''
                 options = Options()
 
                 if headless:
@@ -324,6 +325,66 @@ class AgentSelenium:
                     self.driver.set_page_load_timeout(40)
                     print("[WebDriver] ✅ Initialized successfully")
                     #return driver
+                '''
+
+                options = Options()
+
+                if headless:
+                    options.add_argument('--headless=new')
+                    options.add_argument('--disable-gpu')
+
+                options.add_argument('--no-sandbox')
+                options.add_argument('--disable-dev-shm-usage')
+                options.add_argument('--window-size=1920,1080')
+                options.add_argument('--incognito')  # Clean slate - no cookies/passwords
+                options.add_argument('--disable-blink-features=AutomationControlled')
+                options.add_experimental_option("excludeSwitches", ["enable-automation"])
+                options.add_experimental_option('useAutomationExtension', False)
+
+                '''
+                try:
+                    downloaded_binary_path = ChromeDriverManager().install()
+                    service = Service(executable_path=downloaded_binary_path)
+                    self.driver = webdriver.Chrome(service=service, options=options)
+                    self.driver.set_page_load_timeout(40)
+                    print("[WebDriver] ✅ Initialized successfully")
+                except Exception:
+                    print("[WebDriver] Default initialization failed, downloading ChromeDriver...")
+                    downloaded_binary_path = ChromeDriverManager().install()
+                    service = Service(executable_path=downloaded_binary_path)
+                    self.driver = webdriver.Chrome(service=service, options=options)
+                    self.driver.set_page_load_timeout(40)
+                    print("[WebDriver] ✅ Initialized successfully")
+                    #return driver
+                '''
+
+                try:
+                    import os
+                    downloaded_binary_path = ChromeDriverManager().install()
+
+                    # Fix: ChromeDriverManager sometimes returns wrong file path
+                    # Make sure we get the actual chromedriver executable
+                    if 'THIRD_PARTY_NOTICES' in downloaded_binary_path or not os.access(downloaded_binary_path,
+                                                                                        os.X_OK):
+                        # Get the directory and find the actual chromedriver
+                        driver_dir = os.path.dirname(downloaded_binary_path)
+                        for filename in os.listdir(driver_dir):
+                            if filename == 'chromedriver' or filename == 'chromedriver.exe':
+                                downloaded_binary_path = os.path.join(driver_dir, filename)
+                                break
+
+                    print(f"[WebDriver] Using ChromeDriver: {downloaded_binary_path}")
+                    service = Service(executable_path=downloaded_binary_path)
+                    self.driver = webdriver.Chrome(service=service, options=options)
+                    self.driver.set_page_load_timeout(40)
+                    print("[WebDriver] ✅ Initialized successfully")
+                except Exception as e:
+                    print(f"[WebDriver] Default initialization failed: {e}")
+                    print("[WebDriver] Trying alternative initialization...")
+                    # Try without specifying service (let Selenium find it)
+                    self.driver = webdriver.Chrome(options=options)
+                    self.driver.set_page_load_timeout(40)
+                    print("[WebDriver] ✅ Initialized successfully (alternative method)")
                 
             elif browser_type.lower() == "firefox":
                 options = webdriver.FirefoxOptions()
@@ -428,32 +489,46 @@ class AgentSelenium:
             self.info_logger.error(f"Navigation failed: {clean_error}")
             return {"success": False, "error": clean_error}
     
-    def extract_dom(self) -> Dict:
+    def extract_dom(self, include_js: bool = True) -> Dict:
         """
         Extract current DOM and compute hash
         
+        Args:
+            include_js: If False, removes script tags from DOM (default: True)
+        
         Returns:
-            Dict with dom_html, dom_hash, url
+            Dict with dom_html, dom_hash, url, size_chars
         """
         try:
             #dom_html = self.driver.page_source
             dom_html = self.driver.execute_script("return document.documentElement.outerHTML")
+            
+            if not include_js:
+                soup = BeautifulSoup(dom_html, 'html.parser')
+                for script in soup.find_all('script'):
+                    script.decompose()
+                dom_html = str(soup)
+            
             dom_hash = hashlib.md5(dom_html.encode('utf-8')).hexdigest()
             
             return {
                 "success": True,
                 "dom_html": dom_html,
                 "dom_hash": dom_hash,
-                "url": self.driver.current_url
+                "url": self.driver.current_url,
+                "size_chars": len(dom_html)
             }
         except Exception as e:
             clean_error = self._clean_error_message(e)
             return {"success": False, "error": clean_error}
     
-    def extract_form_dom_with_js(self) -> Dict:
+    def extract_form_dom_with_js(self, include_js: bool = False) -> Dict:
         """
-        Extract optimized DOM (forms + external JS inlined)
+        Extract optimized DOM (forms + optionally JS inlined)
         Reduces DOM size by 70-80%
+        
+        Args:
+            include_js: If True, attach inline and external JS (default: False)
         """
         try:
             #soup = BeautifulSoup(self.driver.page_source, 'html.parser')
@@ -472,34 +547,161 @@ class AgentSelenium:
                 if body:
                     result.append(str(body))
             
-            # Extract external JS
-            scripts = soup.find_all('script', src=True)
-            for script in scripts:
-                src = script.get('src')
-                if src and not src.startswith('http'):
-                    # Relative path - fetch it
-                    try:
-                        base_url = self.driver.current_url.rsplit('/', 1)[0]
-                        js_url = f"{base_url}/{src.lstrip('/')}"
-                        js_content = self.driver.execute_script(
-                            f"return fetch('{js_url}').then(r => r.text())"
-                        )
-                        if js_content:
-                            result.append(f"<script>\n{js_content}\n</script>")
-                    except:
-                        pass
-            
-            # Extract inline scripts (without src attribute)
-            # This captures calculation logic, event listeners, and initialization code
-            inline_scripts = soup.find_all('script', src=False)
-            for script in inline_scripts:
-                if script.string and script.string.strip():
-                    # Skip very large scripts (likely embedded libraries like jQuery)
-                    if len(script.string) < 50000:  # 50KB limit
-                        result.append(f"<script>\n{script.string}\n</script>")
+            # === ATTACH JS (only if requested) ===
+            if include_js:
+                # Extract external JS
+                scripts = soup.find_all('script', src=True)
+                for script in scripts:
+                    src = script.get('src')
+                    if src and not src.startswith('http'):
+                        # Relative path - fetch it
+                        try:
+                            base_url = self.driver.current_url.rsplit('/', 1)[0]
+                            js_url = f"{base_url}/{src.lstrip('/')}"
+                            js_content = self.driver.execute_script(
+                                f"return fetch('{js_url}').then(r => r.text())"
+                            )
+                            if js_content:
+                                result.append(f"<script>\n{js_content}\n</script>")
+                        except:
+                            pass
+                
+                # Extract inline scripts (without src attribute)
+                # This captures calculation logic, event listeners, and initialization code
+                inline_scripts = soup.find_all('script', src=False)
+                for script in inline_scripts:
+                    if script.string and script.string.strip():
+                        # Skip very large scripts (likely embedded libraries like jQuery)
+                        if len(script.string) < 50000:  # 50KB limit
+                            result.append(f"<script>\n{script.string}\n</script>")
+                
+                print(f"[Agent] 📜 JS included")
+            else:
+                print(f"[Agent] 📜 JS skipped (include_js=False)")
             
             dom_html = '\n'.join(result)
             dom_hash = hashlib.md5(dom_html.encode('utf-8')).hexdigest()
+            
+            return {
+                "success": True,
+                "dom_html": dom_html,
+                "dom_hash": dom_hash,
+                "url": self.driver.current_url,
+                "size_chars": len(dom_html)
+            }
+        except Exception as e:
+            clean_error = self._clean_error_message(e)
+            return {"success": False, "error": clean_error}
+    
+    def extract_form_container_with_js(self, include_js: bool = False) -> Dict:
+        """
+        Extract optimized DOM - only the form container area + optionally JS
+        Reduces DOM size significantly while keeping all form content intact.
+        
+        This method finds the smallest container that holds all form elements
+        (inputs, selects, textareas, buttons) and extracts only that portion,
+        excluding site navigation, headers, footers, and ads.
+        
+        Args:
+            include_js: If True, attach inline and external JS (default: False)
+        
+        Returns:
+            Dict with dom_html, dom_hash, url, size_chars
+        """
+        try:
+            full_html = self.driver.execute_script("return document.documentElement.outerHTML")
+            soup = BeautifulSoup(full_html, 'html.parser')
+            result = []
+            
+            # === SMART FORM CONTAINER EXTRACTION ===
+            # Find all form elements, excluding site navigation/header/footer
+            form_elements = soup.select('input, select, textarea, button[type="submit"], button[type="button"]')
+            
+            # Filter out elements in site header/footer/search
+            form_elements = [
+                el for el in form_elements
+                if not el.find_parent(['header', 'footer'])
+                and not el.find_parent(attrs={'class': lambda x: x and ('site-search' in str(x).lower() or 'site-nav' in str(x).lower())})
+            ]
+            
+            if form_elements:
+                # Find the smallest common container that holds all form elements
+                container = form_elements[0].parent
+                
+                while container and container.name != 'body':
+                    contains_all = all(
+                        container in el.parents or container == el.parent 
+                        for el in form_elements
+                    )
+                    if contains_all:
+                        break
+                    container = container.parent
+                
+                if container and container.name != 'body':
+                    # Clone container and remove only script/style/noscript
+                    container_copy = BeautifulSoup(str(container), 'html.parser')
+                    for tag in container_copy.find_all(['script', 'style', 'noscript']):
+                        tag.decompose()
+                    result.append(str(container_copy))
+                    print(f"[Agent] ✅ Extracted form container: {len(str(container_copy)):,} chars")
+                else:
+                    # Fallback: get body without scripts
+                    body = soup.find('body')
+                    if body:
+                        body_copy = BeautifulSoup(str(body), 'html.parser')
+                        for tag in body_copy.find_all(['script', 'style', 'noscript']):
+                            tag.decompose()
+                        result.append(str(body_copy))
+                        print(f"[Agent] ⚠️  Fallback to body (no container found): {len(str(body_copy)):,} chars")
+            else:
+                # No form elements found - get forms or body
+                forms = soup.find_all('form')
+                if forms:
+                    for form in forms:
+                        result.append(str(form))
+                    print(f"[Agent] ✅ Extracted {len(forms)} form(s)")
+                else:
+                    body = soup.find('body')
+                    if body:
+                        body_copy = BeautifulSoup(str(body), 'html.parser')
+                        for tag in body_copy.find_all(['script', 'style', 'noscript']):
+                            tag.decompose()
+                        result.append(str(body_copy))
+                        print(f"[Agent] ⚠️  No forms found, using body: {len(str(body_copy)):,} chars")
+            
+            # === ATTACH JS (only if requested) ===
+            if include_js:
+                # Extract external JS
+                scripts = soup.find_all('script', src=True)
+                for script in scripts:
+                    src = script.get('src')
+                    if src and not src.startswith('http'):
+                        try:
+                            base_url = self.driver.current_url.rsplit('/', 1)[0]
+                            js_url = f"{base_url}/{src.lstrip('/')}"
+                            js_content = self.driver.execute_script(
+                                f"return fetch('{js_url}').then(r => r.text())"
+                            )
+                            if js_content:
+                                result.append(f"<script>\n{js_content}\n</script>")
+                        except:
+                            pass
+                
+                # Extract inline scripts
+                inline_scripts = soup.find_all('script', src=False)
+                for script in inline_scripts:
+                    if script.string and script.string.strip():
+                        if len(script.string) < 50000:  # 50KB limit
+                            result.append(f"<script>\n{script.string}\n</script>")
+                
+                print(f"[Agent] 📜 JS included")
+            else:
+                print(f"[Agent] 📜 JS skipped (include_js=False)")
+            
+            dom_html = '\n'.join(result)
+            dom_hash = hashlib.md5(dom_html.encode('utf-8')).hexdigest()
+            
+            print(f"[Agent] 📊 Total DOM size: {len(dom_html):,} chars (~{len(dom_html)//4:,} tokens)")
             
             return {
                 "success": True,
@@ -982,7 +1184,8 @@ class AgentSelenium:
         self.info_logger.info(f"Executing step {step_number}: {action} | Selector: {step.get('selector', 'N/A')} | Value: {step.get('value', 'N/A')}")
         
         # STEP 1: Capture old DOM hash BEFORE action
-        dom_before = self.extract_form_dom_with_js()
+        #dom_before = self.extract_form_dom_with_js()
+        dom_before = self.extract_dom()
         old_dom_hash = dom_before.get("dom_hash", "") if dom_before.get("success") else ""
         
         def _finalize_success_result(base_result: Dict) -> Dict:
@@ -1015,7 +1218,8 @@ class AgentSelenium:
                 # Get new DOM hash after alert is accepted
                 # Wait briefly for JavaScript to finish
                 time.sleep(0.5)
-                dom_after = self.extract_form_dom_with_js()
+                #dom_after = self.extract_form_dom_with_js()
+                dom_after = self.extract_dom()
                 new_dom_hash = dom_after.get("dom_hash", "") if dom_after.get("success") else ""
                 
                 # Check if fields changed
@@ -1035,7 +1239,8 @@ class AgentSelenium:
             # No alert - get new DOM hash
             # Wait briefly for JavaScript to finish (especially for conditional field visibility changes)
             time.sleep(0.5)
-            dom_after = self.extract_form_dom_with_js()
+            #dom_after = self.extract_form_dom_with_js()
+            dom_after = self.extract_dom()
             new_dom_hash = dom_after.get("dom_hash", "") if dom_after.get("success") else ""
             
             # Check if fields changed

@@ -253,13 +253,8 @@ class Server:
         if form_name not in self.created_form_names:
             self.created_form_names.append(form_name)
         
-        # Create ONLY the form folder, no files inside
-        project_base = get_project_base_dir(project_name)
-        form_folder = project_base / form_slug
-        form_folder.mkdir(parents=True, exist_ok=True)
-        print(f"[Server] 📁 Created folder: {form_folder}")
-        
         # Update form_relationships.json with AI-found parent fields
+        project_base = get_project_base_dir(project_name)
         relationships_path = project_base / "form_relationships.json"
         
         # Load existing or create new

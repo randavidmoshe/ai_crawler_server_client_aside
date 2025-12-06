@@ -1,4 +1,4 @@
-# form_page_runner.py
+# forms_runner.py
 # Execute form page stages from JSON file
 
 import sys
